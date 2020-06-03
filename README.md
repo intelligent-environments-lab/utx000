@@ -1,7 +1,18 @@
-utx000
+UTx000
 ==============================
 
-Project that spans multiple testing groups and gathers a wealth of moment-by-moment data on a person and their envrionment.
+UTx000 is a study that spans multiple testing groups and gathers a wealth of moment-by-moment data on a person and their envrionment. The goals of this project are to:
+
+* reconcile multiple data modalities
+* establish connections between variables from the same and disparate data modalities
+* provide actionable results for participants
+
+The project uses data gathered from four main sources:
+
+* UT's IEL Indoor Air Quality (IAQ) Beacon
+* Onnela Labs's [Beiwe](http://wiki.beiwe.org/wiki/Main_Page) Platform
+* Fitbit Wearable Devices gathered on the [Fitabase](https://www.fitabase.com) Platform
+* Surveys administered by UT's REDCap Platform hosted the Population Research Center
 
 Project Organization
 ------------
