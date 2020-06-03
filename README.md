@@ -12,7 +12,7 @@ The project uses data gathered from four main sources:
 * UT's IEL Indoor Air Quality (IAQ) Beacon
 * Onnela Labs's [Beiwe](http://wiki.beiwe.org/wiki/Main_Page) Platform
 * Fitbit Wearable Devices gathered on the [Fitabase](https://www.fitabase.com) Platform
-* Surveys administered by UT's REDCap Platform hosted the Population Research Center
+* Surveys administered by UT's REDCap Platform hosted the by Population Research Center
 
 Project Organization
 ------------
@@ -62,7 +62,21 @@ Project Organization
     │
     └── tox.ini            <- tox file with settings for running tox; see tox.readthedocs.io
 
+Contribute
+----------
 
---------
+- Issue Tracker: github.com/intelligent-environments-lab/utx000/issues
+- Source Code: github.com/intelligent-environments-lab/utx000/tree/master/src
+
+Support
+-------
+
+If you are having issues, please contact the project author Hagen Fritz
+Email: HagenFritz@utexas.edu
+
+License
+-------
+
+The project is licensed under the MIT license.
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
