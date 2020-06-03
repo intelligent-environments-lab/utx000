@@ -65,18 +65,20 @@ Project Organization
 Contribute
 ----------
 
-- Issue Tracker: github.com/intelligent-environments-lab/utx000/issues
-- Source Code: github.com/intelligent-environments-lab/utx000/tree/master/src
+- Issue Tracker: [Issues](github.com/intelligent-environments-lab/utx000/issues)
+- Source Code: [SRC](github.com/intelligent-environments-lab/utx000/tree/master/src)
 
 Support
 -------
 
-If you are having issues, please contact the project author Hagen Fritz
+If you are having issues, please contact the project author Hagen Fritz <br>
 Email: HagenFritz@utexas.edu
 
 License
 -------
 
 The project is licensed under the MIT license.
+
+-------
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
