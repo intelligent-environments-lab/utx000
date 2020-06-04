@@ -15,18 +15,22 @@ The second point is aimed at data files downloaded from Fitabase, Beiwe, and RED
 
 ## Data File Structure
 
-    ├── raw                     <- A default Sphinx project; see sphinx-doc.org for details
-        ├── study1
-        ├── study2              <- multiple studies exist in the directory - only an example
-            ├── beiwe           <- beiwe data
-                ├── pid1
+    ├── raw                                     <- raw data directory within the data directory
+        ├── study1                              <- multiple studies exist in the directory - only an example
+        ├── study2
+            ├── beiwe                           <- beiwe data
+                ├── pid1                        <- organized by the beiwe participant ID (pid)
                 ├── pid2
-                    ├── survey_answers
-                        ├── morning_survey_id
+                    ├── survey_answers          <- primary datatype of intereste
+                        ├── morning_survey_id   <- each survey type has a unique string of characters as an identifier 
                         ├── evening_survey_id
                         ├── weekly_survey_id
-            ├── beacon
-            ├── fitbit
+            ├── beacon                          <- beacon data (here we show the data structure for the IAQ Beacon)
+                ├── B01                         <- each beacon as their own directory primarily for issues when updating 
+                ├── B50
+                    ├── adafruit                <- data gathered from "adafruit" sensors (sensors that use python3)
+                    ├── sensirion               <- data gathered from "sensirion" sensors (sensors that use python2)
+            ├── fitbit                          <- all data files are stored under this directory 
             ├── beiwe
         ├── external       <- Data from third party sources.
     │   ├── interim        <- Intermediate data that has been transformed.
