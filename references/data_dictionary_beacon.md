@@ -7,7 +7,7 @@ The data dictionary is divided into two parts according to the two files generat
 The table below outlines the specifics of each variable. Data are gathered at 1-minute intervals unless otherwise stated in the *Notes* column. 
 
 | Column Header | Variable Description | Unit | Example Value | Sensor | Notes |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- | --- |
 | TVOC | total volatile organic compound concentration | ppb | 20.96 | SGP30 | |
 | eCO2 | equivalent CO2 concentration based on TVOC | ppm | 417.48 | SGP30 | not scaled linearly with TVOC |
 | Lux | light/brightness level | lux | 10.1184 | TSL2591 | |
