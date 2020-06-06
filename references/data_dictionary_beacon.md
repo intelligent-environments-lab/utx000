@@ -4,7 +4,6 @@ The data dictionary is divided into two parts according to the two files generat
 2. **Python 3 Dictionary**: Similar to above, but these data are gathered with a Python 3 scripts, otherwise known as the "adafruit" data since most of these sensors are Adafruit brand. 
 
 ## Python 2 Dictionary
-The table below outlines the specifics of each variable. Data are gathered at 1-minute intervals unless otherwise stated in the *Notes* column. 
 
 | Column Header | Variable Description | Unit | Example Value | Sensor | Notes |
 | --- | --- | --- | --- | --- | --- | 
@@ -22,7 +21,6 @@ The table below outlines the specifics of each variable. Data are gathered at 1-
 | PM_C_10 | PM10 mass concetration | micro-g/m^3 | 11.10 | SPS30 | |
 
 ## Python 3 Dictionary
-The table below outlines the specifics of each variable. Data are gathered at 1-minute intervals unless otherwise stated in the *Notes* column. 
 
 | Column Header | Variable Description | Unit | Example Value | Sensor | Notes |
 | --- | --- | --- | --- | --- | --- |
