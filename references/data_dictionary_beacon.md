@@ -12,7 +12,6 @@ The table below outlines the specifics of each variable. Data are gathered at 1-
 | Relative Humidity | relative humidity from CO2 sensor | % | 39.127 | SCD30 | |
 | CO2 | carbon dioxide concentration | ppm | 550.45 | SCD30 | | 
 | PM_N_0p5 | PM0.5 number concetration | #/cc | 3.54 | SPS30 | datasheet available [here](https://www.sensirion.com/en/environmental-sensors/particulate-matter-sensors-pm25/) |
-| PM_N_0p5 | PM0.5 number concetration | #/cc | 3.54 | SPS30 | datasheet available [here](https://www.sensirion.com/en/environmental-sensors/particulate-matter-sensors-pm25/) |
 | PM_N_1 | PM1 number concetration | #/cc | 10.83 | SPS30 | |
 | PM_N_2p5 | PM2.5 number concetration | #/cc | 15.26 | SPS30 | |
 | PM_N_4 | PM4 number concetration | #/cc | 16.06 | SPS30 | |
