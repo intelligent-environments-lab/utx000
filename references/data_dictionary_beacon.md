@@ -3,9 +3,14 @@ The data dictionary is divided into two parts according to the two files generat
 1. **Python 2 Dictionary**: The data labels in this dictionary correspond to the variables and data gathered with a Python 2 script, otherwise known as the "sensirion" data because only the sensirion sensors use Python 2.
 2. **Python 3 Dictionary**: Similar to above, but these data are gathered with a Python 3 scripts, otherwise known as the "adafruit" data since most of these sensors are Adafruit brand. 
 
-## Python 2 Dictionary
+## Python 3 Dictionary
 The table below outlines the specifics of each variable. Data are gathered at 1-minute intervals unless otherwise stated in the *Notes* column. 
 
-| Column Header | Variable Description | Unit | Example Value | Notes |
+| Column Header | Variable Description | Unit | Example Value | Sensor | Notes |
 | --- | --- | --- | --- | --- |
-| TVOC | total volatile organic compound concentration | ppb | 20.96 | |
+| TVOC | total volatile organic compound concentration | ppb | 20.96 | SGP30 | |
+| eCO2 | equivalent CO2 concentration based on TVOC | ppm | 417.48 | SGP30 | not scaled linearly with TVOC |
+| Lux | light/brightness level | lux | 10.1184 | TSL2591 | |
+| Visible | proportion of visible light | NA | 4.96 | TSL2591 | see [Adafruit documentation](https://www.adafruit.com/product/1980) |
+| Infrared | proportion of infrared light | NA | 12.11 | TSL2591 | see [Adafruit documentation](https://www.adafruit.com/product/1980) |
+| NO2 | nitrogen dioxide concentration | ppb | 554.04 | Spec DGS-NO2 | |
