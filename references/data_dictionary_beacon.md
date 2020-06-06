@@ -3,6 +3,22 @@ The data dictionary is divided into two parts according to the two files generat
 1. **Python 2 Dictionary**: The data labels in this dictionary correspond to the variables and data gathered with a Python 2 script, otherwise known as the "sensirion" data because only the sensirion sensors use Python 2.
 2. **Python 3 Dictionary**: Similar to above, but these data are gathered with a Python 3 scripts, otherwise known as the "adafruit" data since most of these sensors are Adafruit brand. 
 
+## Python 2 Dictionary
+The table below outlines the specifics of each variable. Data are gathered at 1-minute intervals unless otherwise stated in the *Notes* column. 
+
+| Column Header | Variable Description | Unit | Example Value | Sensor | Notes |
+| --- | --- | --- | --- | --- | --- | 
+| Temperature [C] | temperature from CO2 sensor | C | 35.80 | SCD30 | datasheet available [here](https://www.sensirion.com/en/environmental-sensors/carbon-dioxide-sensors/carbon-dioxide-sensors-co2/) |
+| Relative Humidity | relative humidity from CO2 sensor | % | 39.127 | SCD30 | |
+| CO2 | carbon dioxide concentration | ppm | 550.45 | SCD30 | | 
+| PM_N_0p5 | PM0.5 number concetration | #/cc | 3.54 | SPS30 | datasheet available [here](https://www.sensirion.com/en/environmental-sensors/particulate-matter-sensors-pm25/) |
+| PM_N_0p5 | PM0.5 number concetration | #/cc | 3.54 | SPS30 | datasheet available [here](https://www.sensirion.com/en/environmental-sensors/particulate-matter-sensors-pm25/) |
+| PM_N_1 | PM1 number concetration | #/cc | 10.83 | SPS30 | |
+| PM_N_2p5 | PM2.5 number concetration | #/cc | 15.26 | SPS30 | |
+| PM_N_4 | PM4 number concetration | #/cc | 16.06 | SPS30 | |
+| PM_N_10 | PM10 number concetration | #/cc | 16.21 | SPS30 | |
+| PM_C_1 | PM1 mass concetration | $\mu$g/m$^3$ | 1.95 | SPS30 | |
+
 ## Python 3 Dictionary
 The table below outlines the specifics of each variable. Data are gathered at 1-minute intervals unless otherwise stated in the *Notes* column. 
 
