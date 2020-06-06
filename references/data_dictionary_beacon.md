@@ -17,7 +17,7 @@ The table below outlines the specifics of each variable. Data are gathered at 1-
 | PM_N_2p5 | PM2.5 number concetration | #/cc | 15.26 | SPS30 | |
 | PM_N_4 | PM4 number concetration | #/cc | 16.06 | SPS30 | |
 | PM_N_10 | PM10 number concetration | #/cc | 16.21 | SPS30 | |
-| PM_C_1 | PM1 mass concetration | $`\mu`$g/m$`^3`$ | 1.95 | SPS30 | |
+| PM_C_1 | PM1 mass concetration | $```math \mu```$g/m$`^3`$ | 1.95 | SPS30 | |
 
 ## Python 3 Dictionary
 The table below outlines the specifics of each variable. Data are gathered at 1-minute intervals unless otherwise stated in the *Notes* column. 
