@@ -9,8 +9,13 @@ The table below outlines the specifics of each variable. Data are gathered at 1-
 | Column Header | Variable Description | Unit | Example Value | Sensor | Notes |
 | --- | --- | --- | --- | --- | --- |
 | TVOC | total volatile organic compound concentration | ppb | 20.96 | SGP30 | |
-| eCO2 | equivalent CO2 concentration based on TVOC | ppm | 417.48 | SGP30 | not scaled linearly with TVOC |
+| eCO2 | equivalent CO2 concentration based on TVOC | ppm | 417.48 | SGP30 | not scaled linearly with TVOC value|
 | Lux | light/brightness level | lux | 10.1184 | TSL2591 | |
 | Visible | proportion of visible light | NA | 4.96 | TSL2591 | see [Adafruit documentation](https://www.adafruit.com/product/1980) |
 | Infrared | proportion of infrared light | NA | 12.11 | TSL2591 | see [Adafruit documentation](https://www.adafruit.com/product/1980) |
 | NO2 | nitrogen dioxide concentration | ppb | 554.04 | Spec DGS-NO2 | |
+| T_NO2 | temperature from nitrogen dioxide sensor | C | 31.92 | Spec DGS-NO2 | |
+| RH_NO2 | relative humidity from nitrogen dioxide sensor | % | 44.52 | Spec DGS-NO2 | |
+| CO | carbon monoxide concentration | ppb | 554.04 | Spec DGS-CO | |
+| T_CO | temperature from carbon monoxide sensor | C | 31.92 | Spec DGS-CO | |
+| RH_CO | relative humidity from carbon monoxide sensor | % | 44.52 | Spec DGS-CO | |
