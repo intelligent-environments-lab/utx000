@@ -14,11 +14,11 @@ def combine_across_studies(dir_string='fitbit',file_string='dailySteps_merged'):
     df = pd.DataFrame()
     for i in range(2):
     	# import the file and attach a study tag
-        temp = pd.read_csv(f'../../data/raw/ut{i+1}000/{dir_string}/{file_string}.csv')
+        temp = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/raw/ut{i+1}000/{dir_string}/{file_string}.csv')
         temp['study'] = f'ut{i+1}000'
         
         # import the id crossover file and attach so we have record, beiwe, and beacon id
-        crossover = pd.read_csv(f'../../data/raw/ut{i+1}000/admin/id_crossover.csv')
+        crossover = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/raw/ut{i+1}000/admin/id_crossover.csv')
         if 'Id' in temp.columns: # fitbit
             temp = pd.merge(left=temp,right=crossover,left_on='Id',right_on='record',how='left')
         elif 'pid' in temp.columns: # beiwe
@@ -37,7 +37,7 @@ def combine_across_studies(dir_string='fitbit',file_string='dailySteps_merged'):
     	df['TotalMinutesNREM'] = df['TotalMinutesLight'] + df['TotalMinutesDeep'] 
     	df['REM2NREM'] = df['TotalMinutesREM'] / df['TotalMinutesNREM']
 
-    df.to_csv(f'../../data/processed/ut3000_{dir_string}_{file_string}.csv',index=False)
+    df.to_csv(f'/Users/hagenfritz/Projects/utx000/data/processed/ut3000_{dir_string}_{file_string}.csv',index=False)
         
     return True
 
