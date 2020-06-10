@@ -184,9 +184,15 @@ class beiwe_participation_report():
         TEMPLATE_FILE = "beiwe_participation_template.html"
         template = templateEnv.get_template(TEMPLATE_FILE)
         outputText = template.render(date=self.report_date)
+        
+        # html file output
         html_file = open(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date}.html', 'w')
         html_file.write(outputText)
         html_file.close()
+
+        # pdf file output
+        pdfkit.from_file(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date}.html',
+            f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date}.pdf')
 
     def generate_report_from_interim(self):
         '''
@@ -197,18 +203,34 @@ class beiwe_participation_report():
         self.create_plots()
         self.generate_report()
 
+def get_report_date(filename):
+    '''
+    Takes the last eight digits from the report filename and returns a date string
+    '''
+
+    return datetime.strptime(filename[-12:-4],'%m%d%Y')
+
+
 def main():
     '''
     Generates reports
     '''
     logger = logging.getLogger(__name__)
 
+    # Control 
+    print('Generate Report ToC')
+    print('\t1. Beiwe Participation Check')
+    ans = int(input('Number choice: '))
+
     # Generate Biewe Check Report
-    logger.info('Generating Beiwe Participation Check Report...')
-    dateThru = input('Date Thru for Beiwe Participation Check (%m%d%Y): ')
-    report_gen = beiwe_participation_report(dateThru)
-    report_gen.generate_report_from_interim()
-    logger.info('Generated')
+    if ans == 1:
+        logger.info('Generating Beiwe Participation Check Report...')
+        dateThru = input('Date Thru for Beiwe Participation Check (%m%d%Y): ')
+        report_gen = beiwe_participation_report(dateThru)
+        report_gen.generate_report_from_interim()
+        logger.info('Generated')
+    else:
+        print('\nInvalid choice - please try running again')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
