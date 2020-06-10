@@ -14,7 +14,7 @@ def combine_across_studies(dir_string='fitbit',file_string='dailySteps_merged'):
     df = pd.DataFrame()
     for i in range(2):
     	# import the file and attach a study tag
-        temp = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/raw/ut{i+1}000/{dir_string}/{file_string}.csv')
+        temp = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/ldata/raw/ut{i+1}000/{dir_string}/{file_string}.csv')
         temp['study'] = f'ut{i+1}000'
         
         # import the id crossover file and attach so we have record, beiwe, and beacon id
