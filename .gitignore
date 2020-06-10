@@ -88,5 +88,9 @@ target/
 # Mypy cache
 .mypy_cache/
 
+# presentation files
+*.pptx
+*.ppt
+
 # big files
 *3.0-hef-participant_report_generator*
