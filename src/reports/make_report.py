@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 from datetime import datetime
+import math
 
 import logging
 from pathlib import Path
@@ -24,36 +25,52 @@ class beiwe_participation_report():
         '''
 
         self.report_date = report_date
+        self.firstDate = datetime(2020,5,13)
+        self.maxDailySurveys = np.busday_count(self.firstDate.date(), self.report_date.date(), weekmask='Sun Mon Wed Fri')
+        self.maxWeeklySurveys = np.busday_count(self.firstDate.date(), self.report_date.date(), weekmask='Sat')
 
-    def load_survey_data(self,dateThru='06082020'):
+    def import_survey_summary(self,surveyType='morning'):
+        '''
+        Imports survey summary csv files, cuts it down to the specified date, and returns a cleaned dataframe
+        '''
+        
+        # importing datafile
+        temp = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/interim/survey_mood_{surveyType}_summary.csv',
+                      index_col=0)
+        
+        # getting dataframe in date range
+        df = pd.DataFrame()
+        for column in temp.columns:
+            if datetime.strptime(column,'%m/%d/%Y') <= self.report_date:
+                df = pd.concat([df,temp[column]],axis=1)
+            
+        # converting elements to numbers and creating sum/percent column
+        for column in df.columns:
+            df[column] = pd.to_numeric(df[column],errors='coerce')
+            
+        df['Sum'] = df.sum(axis=1)
+        if surveyType in ['morning','evening']:
+            df['Percent'] = df['Sum'] / self.maxDailySurveys
+        else:
+            df['Percent'] = df['Sum'] / self.maxWeeklySurveys
+        
+        return df
+
+    def load_survey_data(self):
         '''
 
         '''
 
         # importing
-        self.morn = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/interim/survey_mood_morning_summary_thru{dateThru}.csv',
-                  index_col=0)
-        self.night = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/interim/survey_mood_evening_summary_thru{dateThru}.csv',
-                  index_col=0)
-        self.week = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/interim/survey_mood_week_summary_thru{dateThru}.csv',
-                  index_col=0)
-
-        # cleaning
-        for df in [self.morn,self.night,self.week]:
-            
-            for column in df.columns:
-                df[column] = pd.to_numeric(df[column],errors='coerce')
-                
-            if 'sum' in df.columns:
-                pass
-            else:
-                df['sum'] = df.sum(axis=1)
+        self.morn = self.import_survey_summary('morning')
+        self.night = self.import_survey_summary('evening')
+        self.week = self.import_survey_summary('week')
 
     def load_sensor_data(self,dateThru='06082020'):
         '''
 
         '''
-        self.acc = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/interim/acc_summary_thru{dateThru}.csv',
+        self.acc = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/interim/acc_summary.csv',
                   index_col=0)
 
     def create_plots(self):
@@ -66,29 +83,58 @@ class beiwe_participation_report():
         colors = ('firebrick','cornflowerblue')
         for df,name in zip([self.morn,self.night],['morning','evening']):
             ax = axes[i]
-            sns.distplot(df['sum'],bins=np.arange(0,16,1),color=colors[i],kde=False,label=name,ax=ax)
-            ax.set_xticks(np.arange(0,16,1))
-            ax.set_xlim([0,15])
-            ax.set_ylim([0,12])
+            sns.distplot(df['Sum'],bins=np.arange(0,self.maxDailySurveys+5,1),color=colors[i],kde=False,label=name,ax=ax)
+            ax.set_xticks(np.arange(0,self.maxDailySurveys+5,1))
+            ax.set_xlim([0,self.maxDailySurveys+5])
+            ax.set_ylim([0,10])
             ax.set_xlabel('Total Surveys Completed')
             ax.legend(title='Survey Timing')
             i += 1
 
         axes[0].set_ylabel('Number of Participants')
-        axes[1].set_xticks(np.arange(1,16))
+        axes[0].text(self.maxDailySurveys+1,-1.5,f'Max Possible Surveys: {self.maxDailySurveys}')
+        axes[1].set_xticks(np.arange(1,self.maxDailySurveys+5,1))
             
         plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0, hspace=None)
         plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/daily_survey_summary_histogram.png')
 
         # weekly histograms
         fig,ax = plt.subplots(figsize=(12,6))
-        sns.distplot(self.week['sum'],bins=np.arange(0,6,1),kde=False,color='cornflowerblue')
+        sns.distplot(self.week['Sum'],bins=np.arange(0,6,1),kde=False,color='cornflowerblue')
         ax.set_xticks(np.arange(0,6,1))
-        ax.set_xlabel('Total Surveys Completed')
+        ax.set_xlabel(f'Total Surveys Completed - Max Possible: {self.maxWeeklySurveys}')
         ax.set_xlim([0,5])
         ax.set_ylabel('Number of Participants')
 
         plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/weekly_survey_summary_histrogram.png')
+
+        # participation tier
+        for survey,timing in zip([self.morn,self.night],['morning','evening']):
+            fig, ax = plt.subplots(figsize=(12,8))
+            colors = ['red','orange','yellow','green','blue','violet']
+            shapes = ['o', 'v', '^', '<', '>', '8', 's', 'd']
+            df = survey.sort_values('Sum')
+            per = np.zeros(4)
+            for i in range(len(df)):
+                ax.scatter(i,df['Sum'][i]/self.maxDailySurveys,color=colors[i%6],edgecolor='black',marker=shapes[math.floor(i/6)],s=100,label=df.index[i])
+                if df['Sum'][i]/self.maxDailySurveys < 0.25:
+                    per[0] += 1
+                elif df['Sum'][i]/self.maxDailySurveys < 0.5:
+                    per[1] += 1
+                elif df['Sum'][i]/self.maxDailySurveys < 0.75:
+                    per[2] += 1
+                else:
+                    per[3] += 1
+            ax.legend(title='Participants',bbox_to_anchor=(1.12,1),ncol=2)
+            ax.set_xticklabels([])
+            ax.set_yticks([0,0.25,0.5,0.75,1,1.25])
+            ax.set_xlim([-1,len(df)+15])
+            ax.grid(axis='y')
+
+            for p, spot in zip(per,[0.05,0.3,0.55,0.8]):
+                ax.text(len(df),spot,f'n={int(p)}')
+
+            plt.savefig(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/{timing}_participation_tier.png')
 
         # moring and evening time series
         fig,ax = plt.subplots(figsize=(12,6))
@@ -96,7 +142,7 @@ class beiwe_participation_report():
             dates = []
             daily = []
             for column in df.columns:
-                if column == 'sum':
+                if column in ['Sum','Percent']:
                     continue
                     
                 dates.append(datetime.strptime(column,'%m/%d/%Y'))
@@ -121,13 +167,27 @@ class beiwe_participation_report():
 
         plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/daily_survey_timeseries.png')
 
+        # poor participant time series
+        fig, axes = plt.subplots(2,1,figsize=(12,6),sharex=True)
+        for survey,ax in zip([self.morn,self.night],axes):
+            poorSports = survey[survey['Percent'] <= 0.25]
+            for i in range(len(poorSports)):
+                ax.plot(np.cumsum(poorSports.iloc[i,:-2]),label=poorSports.index[i])
+            
+        axes[0].legend(title='Participants',loc='upper left')
+        axes[0].set_ylabel('Morning Surveys Completed')
+        axes[1].set_ylabel('Evening Surveys Completed')
+        plt.subplots_adjust(hspace=0)
+        plt.xticks(rotation=-30,ha='left')
+        plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/daily_survey_badparticipants_timeseries.png')
+
         # weekly time series
         fig,ax = plt.subplots(figsize=(12,6))
         df = self.week
         dates = []
         daily = []
         for column in df.columns:
-            if column == 'sum':
+            if column in ['Sum','Percent']:
                 continue
 
             dates.append(datetime.strptime(column,'%m/%d/%Y'))
@@ -151,7 +211,7 @@ class beiwe_participation_report():
         dates = []
         daily = []
         for column in df.columns:
-            if column == 'sum':
+            if column in ['Sum','Percent']:
                 continue
 
             dates.append(datetime.strptime(column,'%m/%d/%y'))
@@ -183,32 +243,25 @@ class beiwe_participation_report():
         templateEnv.globals['get_filename'] = self.get_filename
         TEMPLATE_FILE = "beiwe_participation_template.html"
         template = templateEnv.get_template(TEMPLATE_FILE)
-        outputText = template.render(date=self.report_date)
+        outputText = template.render(date=self.report_date.date())
         
         # html file output
-        html_file = open(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date}.html', 'w')
+        html_file = open(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date.date()}.html', 'w')
         html_file.write(outputText)
         html_file.close()
 
         # pdf file output
-        pdfkit.from_file(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date}.html',
-            f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date}.pdf')
+        pdfkit.from_file(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date.date()}.html',
+            f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date.date()}.pdf')
 
     def generate_report_from_interim(self):
         '''
 
         '''
-        self.load_survey_data(self.report_date)
-        self.load_sensor_data(self.report_date)
+        self.load_survey_data()
+        self.load_sensor_data()
         self.create_plots()
         self.generate_report()
-
-def get_report_date(filename):
-    '''
-    Takes the last eight digits from the report filename and returns a date string
-    '''
-
-    return datetime.strptime(filename[-12:-4],'%m%d%Y')
 
 
 def main():
@@ -226,7 +279,7 @@ def main():
     if ans == 1:
         logger.info('Generating Beiwe Participation Check Report...')
         dateThru = input('Date Thru for Beiwe Participation Check (%m%d%Y): ')
-        report_gen = beiwe_participation_report(dateThru)
+        report_gen = beiwe_participation_report(datetime.strptime(dateThru,'%m%d%Y'))
         report_gen.generate_report_from_interim()
         logger.info('Generated')
     else:
