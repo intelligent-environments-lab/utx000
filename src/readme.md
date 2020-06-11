@@ -15,3 +15,22 @@ The basic naming convention is outline for various aspects of Python programming
 | --- | --- | --- | --- |
 | Variable | mixed case | ```beiweSleepDF``` | As the example shows, all letters in acronyms are capitalized |
 | Function | lowercase with underscores | ```get_fitbit_sleep_metrics()``` | None |
+
+## Figure Color Palette
+The base colors used for visualizations are enumerated below and are available from [Matplotlib](https://matplotlib.org/3.1.0/gallery/color/named_colors.html). 
+
+| Primary Use | Secondary Use |
+| --- | --- |
+| black | grey |
+| firebrick | darkorange |
+| gold | khaki |
+| seagreen | lawngreen |
+| cornflowerblue | dodgerblue |
+| darkorchid | plum |
+
+The following table highlights the nuanced uses of the base colors described above.
+
+| Plot Type | Color | Notes |
+| --- | --- | --- |
+| Single Var Plot | cornflowerblue or black | |
+| Comparison | firebrick and seagreen | firebrick for negative components and seagreen for positive |
