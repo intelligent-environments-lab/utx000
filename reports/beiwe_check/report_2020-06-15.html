@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Beiwe Participation Report</title>
+		<style type="text/css">
+			h1 {
+				color: black;
+				font-size: 48px;
+			}
+
+			h2 {
+				color: #bf5700;
+				font-size: 32px;
+			}
+
+			h3 {
+				color: #333f48;
+				font-size: 24px;
+			}
+
+			h4 {
+				color: #005f86;
+				font-size: 22px;
+			}
+
+			h5 {
+				color: black;
+				font-size: 20px;
+			}
+
+			p {
+				color: black;
+				font-size: 16px;
+			}
+
+			h1,
+			h2,
+			h3,
+			h4,
+			h5,
+			p,
+			ul,
+			ol {
+				font-family: Helvetica;
+			}
+
+			ul {
+				color:black;
+				font-size: 16px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Beiwe Participation Update as of: 2020-06-15</h1>
+		<div id="introduction">
+			<h2>Introduction</h2>
+			<p>The following presentation is a summary of the Beiwe data using two main datastreams as proxies for participation:
+				<ol>
+					<li>survey data - proxy for active participation</li>
+					<li>accelerometer data - proxy for passive particpation</li>
+				</ol>
+			</p>
+		</div>
+		<div id="survey">
+			<h2>Survey Data</h2>
+			<div id="daily">
+				<h3>"Daily" Surveys</h3>
+				<p>These surveys are not sent out every day, but for lack of a better term, that is what they will be referred to.</p>
+				<div id="1">
+					<p style="text-align:center;"><img src="/Users/hagenfritz/Projects/utx000/reports/beiwe_check/daily_survey_summary_histogram.png"></p>
+					<p style="text-align:center;"><strong>Figure 1.1: Histogram showing the proportion of surveys submitted for (left) morning and (right) evening timestamps.</strong></p>
+					<p style="text-align:center;"><img src="/Users/hagenfritz/Projects/utx000/reports/beiwe_check/daily_survey_timeseries.png"></p>
+					<p style="text-align:center;"><strong>Figure 1.2: Time series showing the number of morning and evening surveys submitted by day.</strong></p>
+				</div>
+			</div>
+			<div id="weekly">
+				<h3>Weekly Surveys</h3>
+				<p>These surveys are administered every week on Sunday and ask participants to recount how they felt during the week. We show similar plots to those in Figures 1.1 and 1.2.</p>
+				<div id="2">
+					<p style="text-align:center;"><img src="/Users/hagenfritz/Projects/utx000/reports/beiwe_check/weekly_survey_summary_histrogram.png"></p>
+					<p style="text-align:center;"><strong>Figure 2.1: Histogram showing the proportion of surveys submitted for weekly timestamps.</strong></p>
+					<p style="text-align:center;"><img src="/Users/hagenfritz/Projects/utx000/reports/beiwe_check/weekly_survey_timeseries.png"></p>
+					<p style="text-align:center;"><strong>Figure 2.2: Time series showing the number of weekly surveys submitted by day. Surveys remain available until filled out, so participants might not have filled out the survey on the day it was administered - hence the scatter.</strong></p>
+				</div>
+			</div>
+			<div id="individual">
+				<h3>Individual Surveys</h3>
+				<p>Now we take a closer look at the individuals and how they have participated throughout the study up to this point. We start by looking at how all individuals have participated thus far and then look at those that have sumbitted less than 25% of the maximum possible surveys.</p>
+				<div id="3">
+					<p style="text-align:center;"><img src="/Users/hagenfritz/Projects/utx000/reports/beiwe_check/morning_participation_tier.png"></p>
+					<p style="text-align:center;"><strong>Figure 3.1: Participation grouped by quartile for the morning survey submission.</strong></p>
+					<p style="text-align:center;"><img src="/Users/hagenfritz/Projects/utx000/reports/beiwe_check/evening_participation_tier.png"></p>
+					<p style="text-align:center;"><strong>Figure 3.2: Participation grouped by quartile for the evening survey submission.</strong></p>
+					<p style="text-align:center;"><img src="/Users/hagenfritz/Projects/utx000/reports/beiwe_check/daily_survey_badparticipants_timeseries.png"></p>
+					<p style="text-align:center;"><strong>Figure 3.3: Participants with the worst number of submissions (less than 25% of the maximum possible).</strong></p>
+				</div>
+			</div>
+		</div>
+		<div id="acc">
+			<h2>Accelerometer Data</h2>
+			<div id="3">
+				<p style="text-align:center;"><img src="/Users/hagenfritz/Projects/utx000/reports/beiwe_check/acc_timeseries.png"></p>
+				<p style="text-align:center;"><strong>Figure 3.1: Histogram showing the proportion of surveys submitted for (left) morning and (right) evening timestamps.</strong></p>
+			</div>
+		</div>
+	</body>
+</html>
