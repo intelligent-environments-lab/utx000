@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 import pandas as pd
 import numpy as np
 import os
@@ -35,8 +35,7 @@ class beiwe_participation_report():
         '''
         
         # importing datafile
-        temp = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/interim/survey_mood_{surveyType}_summary.csv',
-                      index_col=0)
+        temp = pd.read_csv(f"/Users/hagenfritz/Projects/utx000/data/interim/survey_mood_{surveyType}_summary.csv",index_col=0)
         
         # getting dataframe in date range
         df = pd.DataFrame()
