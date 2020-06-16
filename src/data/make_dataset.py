@@ -166,9 +166,15 @@ class ut3000():
             if val == False:
                 return False
 
-        # Tagging and combining
+        # Tagging
         heh_1['study'] = 'ut1000'
         heh_2['study'] = 'ut2000'
+        # Adding beiwe and beacon IDs
+        idCross1 = pd.read_csv('~/Projects/utx000/data/raw/ut1000/admin/id_crossover.csv')
+        idCross2 = pd.read_csv('~/Projects/utx000/data/raw/ut2000/admin/id_crossover.csv')
+        heh_1 = pd.merge(left=heh_1,left_on='record_id',right=idCross1,right_on='record',how='left')
+        heh_2 = pd.merge(left=heh_2,left_on='record_id',right=idCross2,right_on='record',how='left')
+        # combining
         heh = pd.concat([heh_1,heh_2], axis=0)
         # Cleaning combined survey
         ## Getting same answers for living situation
