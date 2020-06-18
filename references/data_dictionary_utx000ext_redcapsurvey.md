@@ -228,22 +228,242 @@ Similar to above, this "survey" was just meant to check that a participant had r
 
 | Field Name | Variable Type | Answer Choices | Example |
 | --- | --- | --- | --- |
-| Record ID | Int | NA | 1 |
+| Record ID | Int | NA | 12 |
 | Event Name | Str | NA | Event 3 |
+| Timestamp | Str | NA | 1/1/20 16:38 |
+| Did you travel out of Austin during the last week of classes (March 9-13th) | Str | Yes, No | No |
+| Reasons for travel (choice=Vacation) | Str | Unchecked, Checked | Unchecked |
+| Reasons for travel (choice=Return home) | Str | Unchecked, Checked | Unchecked |
+| Reasons for travel (choice=Work) | Str | Unchecked, Checked | Unchecked |
+| Reasons for travel (choice=Other) | Str | Unchecked, Checked | Unchecked |
+| How did you travel (check all that apply)? (choice=Car) | Str | Unchecked, Checked | Unchecked |
+| How did you travel (check all that apply)? (choice=Bus) | Str | Unchecked, Checked | Unchecked |
+| How did you travel (check all that apply)? (choice=Plane) | Str | Unchecked, Checked | Unchecked |
+| How did you travel (check all that apply)? (choice=Rideshare) | Str | Unchecked, Checked | Unchecked |
+| How did you travel (check all that apply)? (choice=Other) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Cooked dinner at home?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Picked up take-out food) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Had take-out food delivered to your home?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Had groceries delivered to your home?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone into a grocery store?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone into a pharmacy?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone into a doctors office) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone into a hospital?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone to work outside the home) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone for a walk outside) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone outside to workout) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone to a park?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone to a City trail to walk or run?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone to a lake, river or stream to swim?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone to a beach?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone into a gym?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Exercised at home?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Eaten in a restaurant?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone into a bar) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone to a gathering or meeting of 10 or more people) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Gone to a movie) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Played board or card games in person with others?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Played a team sport?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Hosted visitors in your home) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Left your home to run an errand?) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Driven in a car by yourself) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Driven in a car with someone else) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Taken a bus) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Taken a rideshare) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Taken a flight) | Str | Unchecked, Checked | Unchecked |
+| During the last week of classes, what activities did you participate in: (choice=Made facecalls (facetime, whatsapp, zoom)  with Family or Friends) | Str | Unchecked, Checked | Unchecked |
+| Did you travel out of Austin during the first week of spring break (March 14-21st)? | Str | Unchecked, Checked | Unchecked |
+| Reason(s) for travel (Check all that apply) (choice=Vacation) | Str | Unchecked, Checked | Unchecked |
+| Reason(s) for travel (Check all that apply) (choice=Return home) | Str | Unchecked, Checked | Unchecked |
+| Reason(s) for travel (Check all that apply) (choice=Work) | Str | Unchecked, Checked | Unchecked |
+| Reason(s) for travel (Check all that apply) (choice=Other) | Str | Unchecked, Checked | Unchecked |
+| If Y, how did you travel? (check all that apply) (choice=Car) | Str | Unchecked, Checked | Unchecked |
+| If Y, how did you travel? (check all that apply) (choice=Bus) | Str | Unchecked, Checked | Unchecked |
+| If Y, how did you travel? (check all that apply) (choice=Plane) | Str | Unchecked, Checked | Unchecked |
+| If Y, how did you travel? (check all that apply) (choice=Rideshare) | Str | Unchecked, Checked | Unchecked |
+| If Y, how did you travel? (check all that apply) (choice=Other) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Cooked dinner at home?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Picked up take-out food) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Had take-out food delivered to your home?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Had groceries delivered to your home?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone into a grocery store?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone into a pharmacy?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone into a doctors office) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone into a hospital?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone to work outside the home) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone for a walk outside) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone outside to workout) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone to a park?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone to a City trail to walk or run?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone to a lake, river or stream to swim?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone to a beach?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone into a gym?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Exercised at home?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Eaten in a restaurant?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone into a bar) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone to a gathering or meeting of 10 or more people) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Gone to a movie) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Played board or card games in person with others?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Played a team sport?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Hosted visitors in your home) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Left your home to run an errand?) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Driven in a car by yourself) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Driven in a car with someone else) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Taken a bus) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Taken a rideshare) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Taken a flight) | Str | Unchecked, Checked | Unchecked |
+| During the first week of Spring break, what activities did you participate in: (choice=Made facecalls (facetime, whatsapp, zoom)  with Family or Friends) | Str | Unchecked, Checked | Unchecked |
+| Did you travel out of Austin during the second week of spring break (March 22-29th)? | Str | Unchecked, Checked | Unchecked |
+| Reason(s) for travel (check all that apply) (choice=Vacation) | Str | Unchecked, Checked | Unchecked |
+| Reason(s) for travel (check all that apply) (choice=Return home) | Str | Unchecked, Checked | Unchecked |
+| Reason(s) for travel (check all that apply) (choice=Work) | Str | Unchecked, Checked | Unchecked |
+| Reason(s) for travel (check all that apply) (choice=Other) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Cooked dinner at home?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Picked up take-out food) | Str | Unchecked, Checked | Unchecked |
+|  During the second week of Spring break, what activities did you participate in: (choice=Had take-out food delivered to your home?)| Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Had groceries delivered to your home?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone into a grocery store?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone into a pharmacy?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone into a doctors office) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone into a hospital?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone to work outside the home) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone for a walk outside) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone outside to workout) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone to a park?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone to a City trail to walk or run?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone to a lake, river or stream to swim?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone to a beach?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone into a gym?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Exercised at home?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Eaten in a restaurant?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone into a bar) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone to a gathering or meeting of 10 or more people) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Gone to a movie) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Played board or card games in person with others?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Played a team sport?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Hosted visitors in your home) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Left your home to run an errand?) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Driven in a car by yourself) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Driven in a car with someone else) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Taken a bus) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Taken a rideshare) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Taken a flight) | Str | Unchecked, Checked | Unchecked |
+| During the second week of Spring break, what activities did you participate in: (choice=Made facecalls (facetime, whatsapp, zoom)  with Family or Friends) | Str | Unchecked, Checked | Unchecked |
+| Did you change your activities during the first week of spring break in response to the COVID-19 Outbreak? | Str | Yes, No | Yes |
+| How (check all that apply)? (choice=Cancelled vacation) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Shortened vacation) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Limited travel) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Changed activities) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Social distancing) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Other) | Str | Unchecked, Checked | Unchecked |
+| Did you change your activities during the second week of spring break in response to the COVID-19 Outbreak? | Str | Yes, No | Yes |
+| How (check all that apply)? (choice=Cancelled vacation) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Shortened vacation) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Limited travel) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Changed activities) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Social distancing) | Str | Unchecked, Checked | Unchecked |
+| How (check all that apply)? (choice=Other) | Str | Unchecked, Checked | Unchecked |
+| Complete? | Str | Incomplete, Complete | Incomplete |
 
 ## Fitbit Home Address 
+Similar to the instruction "surveys", this "survey" was sent out twice in Event 2 and 3 (RedCAP). When downloading the data, the phone number and address fields remain hidden since they contain sensitive information. 
 
 | Field Name | Variable Type | Answer Choices | Example |
 | --- | --- | --- | --- |
-| Record ID | Int | NA | 1 |
-| Event Name | Str | NA | Event 3 |
+| Record ID | Int | NA | 9 |
+| Event Name | Str | NA | Event 1 |
+| Survey Timestamp | Str | NA | 04/30/20 15:54 | 
+| Please enter your phone number. | Str | NA | (999) 999-9999 |
+| Please enter your current home address. | Str | NA | 1234 Wickersham Lane Paris, TX 77777 |
+| Complete? | Str | Complete, Incomplete | Complete |
+
 
 ## Crisis Adult Selfreport Baseline Form
+This form also contains questions that RedCAP does not export because they contain sensitive information - primarily deomgraphic information.
 
 | Field Name | Variable Type | Answer Choices | Example |
 | --- | --- | --- | --- |
 | Record ID | Int | NA | 1 |
 | Event Name | Str | NA | Event 3 |
+| Timestamp | Str | NA | 6/22/19 13:19 |
+| Country | Str | NA | United States |
+| State/Providence/Region | Str | NA | TX |
+| Your Age (years) | Int | NA | 27 |
+| Please specify your sex | Str | NA | Male |
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=England, Ireland, Scotland or Wales) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Australia - not of Aboriginal or Torres Strait Islander descent) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Australia - of Aboriginal or Torres Strait Islander descent) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=New Zealand - not of Maori descent) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=New Zealand - of Maori descent) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Northern Europe including Sweden, Norway, Finland and surrounding countries) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Western Europe including France, Germany, the Netherlands and surrounding countries) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Southern Europe including Italy, Greece, Spain, Portugal and surrounding countries) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Eastern Europe including Russia, Poland, Hungary and surrounding countries) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Middle East including Lebanon, Turkey and surrounding countries) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Eastern Asia including China, Japan, South Korea, North Korea, Taiwan and Hong Kong) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=South-East Asia including Thailand, Malaysia, Indonesia, Singapore and surrounding countries) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=South Asia including India, Pakistan, Sri Lanka and surrounding countries) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Polynesia, Micronesia or Melanesia including Tonga, Fiji, Papua New Guinea and surrounding countries) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Africa) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=North America - not of First Nations, Native American, Inuit or Métis descent) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=North America - of First Nations, Native American, Inuit or Métis descent) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Central or South America) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Dont know) | Str | Unchecked, Checked | Unchecked | 
+| Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents)
+| Are you of Hispanic or Latino descent - that is, Mexican, Mexican American, Chicano, Puerto Rican, Cuban, South or Central American or other Spanish culture or origin? | Str | Yes, No | No |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
+|  | Str | Unchecked, Checked | Unchecked |
 
 ## Weekly Behaviors
 
