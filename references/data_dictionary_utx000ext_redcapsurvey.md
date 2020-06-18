@@ -9,6 +9,184 @@ This file breaks down the various surveys administered via UT's RedCAP system. W
 
 ## Environment and Experiences Questionnaire
 
+| Field Name | Variable Type | Answer Choices | Example |
+| --- | --- | --- | --- |
+| Record ID | Int | NA | 1 |
+| Event Name | Str | NA | Event 1 |
+| Survey Timestamp | Str | NA | 11/10/19 16:58 |
+| In the past week, have you traveled to a different city? | Str | Yes, No | No |
+| What type of building are you currently living in? (choice=Apartment) | Str | Unchecked, Checked | Checked |
+| What type of building are you currently living in? (choice=Duplex) | Str | Unchecked, Checked | Checked |
+| What type of building are you currently living in? (choice=Stand-alone House) | Str | Unchecked, Checked | Checked |
+| What type of building are you currently living in? (choice=Dormitory) | Str | Unchecked, Checked | Checked |
+| What type of building are you currently living in? (choice=Motel/Hotel) | Str | Unchecked, Checked | Checked |
+| What type of building are you currently living in? (choice=Other) | Str | Unchecked, Checked | Checked |
+| Are you living with the same people as last week? | Str | Yes, No | Yes |
+| Gender (choice=M)* | Str | Unchecked, Checked | Checked |
+| Gender (choice=F)* | Str | Unchecked, Checked | Checked |
+| Gender (choice=Nonbinary)* | Str | Unchecked, Checked | Checked |
+| Family Member* | Str | Yes, No | No |
+| In the past week, have you opened the windows in your residence? | Str | Yes, No | No |
+| Why did you open your windows? (choice=To change indoor temperature) | Str | Unchecked, Checked | Checked |
+| Why did you open your windows? (choice=To get fresh air) | Str | Unchecked, Checked | Checked |
+| Why did you open your windows? (choice=To change temperature and get fresh air) | Str | Unchecked, Checked | Checked |
+| Why did you open your windows? (choice=Other) | Str | Unchecked, Checked | Checked |
+| In the past week, have you tried to isolate yourself in some part of your home? | Str | Yes, No | Yes |
+| Why? (choice=To be able to work without interruption) | Str | Unchecked, Checked | Checked |
+| Why? (choice=To have more privacy) | Str | Unchecked, Checked | Checked |
+| Why? (choice=To isolate from a sick member of the household) | Str | Unchecked, Checked | Checked |
+| Why? (choice=To isolate myself because I am not feeling well) | Str | Unchecked, Checked | Checked |
+| Why? (choice=Other) | Str | Unchecked, Checked | Checked |
+| How did you try to isolate yourself? (choice=Stayed in bedroom) | Str | Unchecked, Checked | Checked |
+| How did you try to isolate yourself? (choice=Stayed in another room of the house) | Str | Unchecked, Checked | Checked |
+| How did you try to isolate yourself? (choice=Closed windows in room) | Str | Unchecked, Checked | Checked |
+| How did you try to isolate yourself? (choice=Tried to change ventilation in the isolated space) | Str | Unchecked, Checked | Checked |
+| How did you try to isolate yourself? (choice=Minimized contact with other household members) | Str | Unchecked, Checked | Checked |
+| How did you try to isolate yourself? (choice=Other) | Str | Unchecked, Checked | Checked |
+| Based on your sense of smell, how can you describe the 'freshness' of air at your residence? (choice=Stagnant) | Str | Unchecked, Checked | Checked |
+| Based on your sense of smell, how can you describe the 'freshness' of air at your residence? (choice=Smelly) | Str | Unchecked, Checked | Checked |
+| Based on your sense of smell, how can you describe the 'freshness' of air at your residence? (choice=Earthy) | Str | Unchecked, Checked | Checked |
+| Based on your sense of smell, how can you describe the 'freshness' of air at your residence? (choice=Moldy) | Str | Unchecked, Checked | Checked |
+| Based on your sense of smell, how can you describe the 'freshness' of air at your residence? (choice=Cooking) | Str | Unchecked, Checked | Checked |
+| Based on your sense of smell, how can you describe the 'freshness' of air at your residence? (choice=Fragrant) | Str | Unchecked, Checked | Checked |
+| Based on your sense of smell, how can you describe the 'freshness' of air at your residence? (choice=Fresh (well ventilated)) | Str | Unchecked, Checked | Checked |
+| Based on your sense of smell, how can you describe the 'freshness' of air at your residence? (choice=Obnoxious) | Str | Unchecked, Checked | Checked |
+| Based on your sense of smell, how can you describe the 'freshness' of air at your residence? (choice=Other) | Str | Unchecked, Checked | Checked |
+| In the past week, have you changed your air conditioning filter? | Str | Yes, No | No |
+| Are you currently using a portable air cleaner at home? | Str | Yes, No | Yes |
+| Did you use the air cleaner prior to the COVID-19 outbreak? | Str | Yes, No | Yes |
+| In the past week, has your house been uncomfortably hot? | Str | Yes, No | Yes |
+| Can you easily control the temperature within your home? | Str | Yes, No | Yes |
+| In the past week, has your home been uncomfortably humid (sticky)? | Str | Yes, No | Yes |
+| In the past week, have the hard surfaces in your residence been cleaned? | Str | Yes, No | Yes |
+| What hard surfaces were cleaned? (choice=Kitchen Counters) | Str | Unchecked, Checked | Checked |
+| What hard surfaces were cleaned? (choice=Floors) | Str | Unchecked, Checked | Checked |
+| What hard surfaces were cleaned? (choice=Door Knobs) | Str | Unchecked, Checked | Checked |
+| What hard surfaces were cleaned? (choice=Table Tops) | Str | Unchecked, Checked | Checked |
+| What hard surfaces were cleaned? (choice=Sinks) | Str | Unchecked, Checked | Checked |
+| What hard surfaces were cleaned? (choice=Toilets) | Str | Unchecked, Checked | Checked |
+| What hard surfaces were cleaned? (choice=Appliance Knobs and Handles) | Str | Unchecked, Checked | Checked |
+| In the past week, has your home been vacuumed? | Str | Unchecked, Checked | Checked |
+| In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Bleach) | Str | Unchecked, Checked | Checked |
+| In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Ammonia) | Str | Unchecked, Checked | Checked |
+| In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Pinesol) | Str | Unchecked, Checked | Checked |
+| In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Vinegar) | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+|  | Str | Unchecked, Checked | Checked |
+
 ## Spring Break Questions Only Once
 
 ## Fitbit Home Address 
