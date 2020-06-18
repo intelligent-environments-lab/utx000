@@ -411,56 +411,74 @@ This form also contains questions that RedCAP does not export because they conta
 | Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents) come from?  You may select as many choices as you need. (choice=Dont know) | Str | Unchecked, Checked | Unchecked | 
 | Thinking about what you know of your family history, which of the following best describes the geographic regions where your ancestors (i.e. your great-great-grandparents)
 | Are you of Hispanic or Latino descent - that is, Mexican, Mexican American, Chicano, Puerto Rican, Cuban, South or Central American or other Spanish culture or origin? | Str | Yes, No | No |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
+| Are you currently working or in school? (choice=Working for pay) | Str | Unchecked, Checked | Unchecked |
+| Are you currently working or in school? (choice=On leave) | Str | Unchecked, Checked | Unchecked |
+| Are you currently working or in school? (choice=Unemployed and looking for a job) | Str | Unchecked, Checked | Unchecked |
+| Are you currently working or in school? (choice=Retired) | Str | Unchecked, Checked | Unchecked |
+| Are you currently working or in school? (choice=Staying at home / homemaker) | Str | Unchecked, Checked | Unchecked |
+| Are you currently working or in school? (choice=Disabled) | Str | Unchecked, Checked | Unchecked |
+| Are you currently working or in school? (choice=Enrolled in school/college/university) | Str | Unchecked, Checked | Unchecked |
+| Have you served in the military? | Str | Yes, No | No |
+| Which best describes the area in which you live? | Str | Large city; Suburbs of a large city; Small city; Town or village | <- |
+| What is the highest level of education YOU completed? | Str | High school diploma or GED; Some school beyond college; Some college or 2-year degree; 4-year college graduate; Graduate or professional degree | <- |
+| What is the highest level of education your MOTHER completed? | Str | High school diploma or GED; Some school beyond college; Some college or 2-year degree; 4-year college graduate; Graduate or professional degree | <- |
+| What is the highest level of education your FATHER completed? | Str | High school diploma or GED; Some school beyond college; Some college or 2-year degree; 4-year college graduate; Graduate or professional degree | <- |
+| How many people currently live in your home (excluding yourself)? | Int | NA | 2 |
+| Please specify your relationship to the people in your home (check all that apply): (choice=Partner/Spouse) | Str | Unchecked, Checked | Unchecked |
+| Please specify your relationship to the people in your home (check all that apply): (choice=Parent(s)) | Str | Unchecked, Checked | Unchecked |
+| Please specify your relationship to the people in your home (check all that apply): (choice=Grandparent(s)) | Str | Unchecked, Checked | Unchecked |
+| Please specify your relationship to the people in your home (check all that apply): (choice=Siblings) | Str | Unchecked, Checked | Unchecked |
+| Please specify your relationship to the people in your home (check all that apply): (choice=Children) | Str | Unchecked, Checked | Unchecked |
+| Please specify your relationship to the people in your home (check all that apply): (choice=Other relatives) | Str | Unchecked, Checked | Unchecked |
+| Please specify your relationship to the people in your home (check all that apply): (choice=Unrelated person) | Str | Unchecked, Checked | Unchecked |
+| How many rooms (total) are in your home? | Int | NA | 3 |
+| Are you covered by health insurance? | Str | Yes, individual; Yes, Medicaid or CHIP; Yes, employer-sponsored; Yes, other; No | <- |
+| In the 3 months prior to the Coronavirus/COVID-19 crisis in your area, did you or your family receive money from government assistance programs like welfare, Aid to Families with Dependent Children, General Assistance, or Temporary Assistance for Needy Families? | Str | Yes, No | No |
+| How would you rate your overall physical health? | Str | Excellent, Very Good, Good, Fair, Poor | Fair |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Seasonal allergies) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Asthma or other lung problems) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Heart problems) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Kidney problems) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Immune disorder) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Diabetes or high blood sugar) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Cancer) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Arthritis) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Frequent or very bad headaches) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Epilepsy or seizures) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Serious stomach or bowel problems) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Serious acne or skin problems) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Emotional or mental health problems such as Depression or Anxiety) | Str | Unchecked, Checked | Unchecked |
+| Has a health professional ever told you that you had any of the following health conditions (check all that apply)?  (choice=Problems with alcohol or drugs) | Str | Unchecked, Checked | Unchecked |
+| How tall are you? (inches) | Float | NA | 63.5 |
+| How much do you weigh? (pounds) | Float | NA | 122 |
+| How would you rate your overall Mental/Emotional health before the Coronavirus/COVID-19 crisis in your area? | Str | Excellent, Very Good, Good, Fair, Poor | Fair |
+| ...have you been exposed to someone likely to have Coronavirus/COVID-19? (check all that apply) (choice=Yes, someone with positive test) | Str | Unchecked, Checked | Unchecked |
+| ...have you been exposed to someone likely to have Coronavirus/COVID-19? (check all that apply) (choice=Yes, someone with medical diagnosis, but no test) | Str | Unchecked, Checked | Unchecked |
+| ...have you been exposed to someone likely to have Coronavirus/COVID-19? (check all that apply) (choice=Yes, someone with possible symptoms, but no diagnosis by doctor) | Str | Unchecked, Checked | Unchecked |
+| ...have you been exposed to someone likely to have Coronavirus/COVID-19? (check all that apply) (choice=No) | Str | Unchecked, Checked | Unchecked |
+| ...have you been suspected of having Coronavirus/COVID-19 infection? | Str | No symptoms or signs; Yes, have had some possible symptoms, but no diagnosis by doctor | <- |
+| ...have you had any of the following symptoms? (check all that apply) (choice=Fever) | Str | Unchecked, Checked | Unchecked |
+| ...have you had any of the following symptoms? (check all that apply) (choice=Cough) | Str | Unchecked, Checked | Unchecked |
+| ...have you had any of the following symptoms? (check all that apply) (choice=Shortness of breath) | Str | Unchecked, Checked | Unchecked |
+| ...have you had any of the following symptoms? (check all that apply) (choice=Sore throat) | Str | Unchecked, Checked | Unchecked |
+| ...have you had any of the following symptoms? (check all that apply) (choice=Fatigue) | Str | Unchecked, Checked | Unchecked |
+| ...have you had any of the following symptoms? (check all that apply) (choice=Loss of taste or smell) | Str | Unchecked, Checked | Unchecked |
+| ...have you had any of the following symptoms? (check all that apply) (choice=Other) | Str | Unchecked, Checked | Unchecked |
+| ...has anyone in your family been diagnosed with Coronavirus/COVID-19? (check all that apply) (choice=Yes, member of household) | Str | Unchecked, Checked | Unchecked |
+| ...has anyone in your family been diagnosed with Coronavirus/COVID-19? (check all that apply) (choice=Yes, non-household member) | Str | Unchecked, Checked | Unchecked |
+| ...has anyone in your family been diagnosed with Coronavirus/COVID-19? (check all that apply) (choice=No) | Str | Unchecked, Checked | Unchecked |
+| ...have any of the following happened to your family members because of Coronavirus/COVID-19? (check all that apply)  (choice=Fallen ill physically) | Str | Unchecked, Checked | Unchecked |
+| ...have any of the following happened to your family members because of Coronavirus/COVID-19? (check all that apply)  (choice=Hospitalized) | Str | Unchecked, Checked | Unchecked |
+| ...have any of the following happened to your family members because of Coronavirus/COVID-19? (check all that apply)  (choice=Put into self-quarantine with symptoms) | Str | Unchecked, Checked | Unchecked |
+| ...have any of the following happened to your family members because of Coronavirus/COVID-19? (check all that apply)  (choice=Put into self-quarantine without symptoms (e.g., due to possible exposure)) | Str | Unchecked, Checked | Unchecked |
+| ...have any of the following happened to your family members because of Coronavirus/COVID-19? (check all that apply)  (choice=Lost job) | Str | Unchecked, Checked | Unchecked |
+| ...have any of the following happened to your family members because of Coronavirus/COVID-19? (check all that apply)  (choice=Reduced ability to earn money) | Str | Unchecked, Checked | Unchecked |
+| ...have any of the following happened to your family members because of Coronavirus/COVID-19? (check all that apply)  (choice=Passed away) | Str | Unchecked, Checked | Unchecked |
+| ...have any of the following happened to your family members because of Coronavirus/COVID-19? (check all that apply)  (choice=None of the above) | Str | Unchecked, Checked | Unchecked |
+| ...being infected? | Str | Not at all, Slightly, Moderately, Very, Extremely | Slightly |
+| ...friends or family being infected? | Str | Not at all, Slightly, Moderately, Very, Extremely | Slightly |
+| ...your physical health being inﬂuenced by Coronavirus/COVID-19? | Str | Not at all, Slightly, Moderately, Very, Extremely | Slightly |
+| ...your Mental/Emotional health being inﬂuenced by Coronavirus/COVID-19? | Str | Not at all, Slightly, Moderately, Very, Extremely | Slightly |
 |  | Str | Unchecked, Checked | Unchecked |
 |  | Str | Unchecked, Checked | Unchecked |
 |  | Str | Unchecked, Checked | Unchecked |
