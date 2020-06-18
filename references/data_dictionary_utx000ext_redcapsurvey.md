@@ -3,12 +3,22 @@ This file breaks down the various surveys administered via UT's RedCAP system. W
 
 ## Consent Form
 
+| Field Name | Variable Type | Answer Choices | Example |
+| --- | --- | --- | --- |
+
 ## Beiwe Instructions
+
+| Field Name | Variable Type | Answer Choices | Example |
+| --- | --- | --- | --- |
 
 ## Survey Instructions
 
+| Field Name | Variable Type | Answer Choices | Example |
+| --- | --- | --- | --- |
+
 ## Environment and Experiences Questionnaire
 
+* Fields were repeated multiple times and answered based on number of roommates
 | Field Name | Variable Type | Answer Choices | Example |
 | --- | --- | --- | --- |
 | Record ID | Int | NA | 1 |
