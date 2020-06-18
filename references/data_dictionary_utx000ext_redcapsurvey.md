@@ -71,121 +71,129 @@ This file breaks down the various surveys administered via UT's RedCAP system. W
 | In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Ammonia) | Str | Unchecked, Checked | Checked |
 | In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Pinesol) | Str | Unchecked, Checked | Checked |
 | In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Vinegar) | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
-|  | Str | Unchecked, Checked | Checked |
+| In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Alcohol) | Str | Unchecked, Checked | Checked |
+| In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Disinfectant wipes) | Str | Unchecked, Checked | Checked |
+| In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Soap and Water) | Str | Unchecked, Checked | Checked |
+| In the past week, have any of the following cleaners been used in your home (Check all that apply )? (choice=Floor Cleaners) | Str | Unchecked, Checked | Checked |
+| Bleach: In which rooms? (choice=Kitchen) | Str | Unchecked, Checked | Checked |
+| Bleach: In which rooms? (choice=Bathroom) | Str | Unchecked, Checked | Checked |
+| Bleach: In which rooms? (choice=Living Room) | Str | Unchecked, Checked | Checked |
+| Bleach: In which rooms? (choice=Bedroom) | Str | Unchecked, Checked | Checked |
+| Bleach: In which rooms? (choice=Other) | Str | Unchecked, Checked | Checked |
+| Ammonia: In which rooms? (choice=Kitchen) | Str | Unchecked, Checked | Checked |
+| Ammonia: In which rooms? (choice=Bathroom) | Str | Unchecked, Checked | Checked |
+| Ammonia: In which rooms? (choice=Living Room) | Str | Unchecked, Checked | Checked |
+| Ammonia: In which rooms? (choice=Bedroom) | Str | Unchecked, Checked | Checked |
+| Ammonia: In which rooms? (choice=Other) | Str | Unchecked, Checked | Checked |
+| Pinesol: In which rooms? (choice=Kitchen) | Str | Unchecked, Checked | Checked |
+| Pinesol: In which rooms? (choice=Bathroom) | Str | Unchecked, Checked | Checked |
+| Pinesol: In which rooms? (choice=Living Room) | Str | Unchecked, Checked | Checked |
+| Pinesol: In which rooms? (choice=Bedroom) | Str | Unchecked, Checked | Checked |
+| Pinesol: In which rooms? (choice=Other) | Str | Unchecked, Checked | Checked |
+| Vinegar: In which rooms? (choice=Kitchen) | Str | Unchecked, Checked | Checked |
+| Vinegar: In which rooms? (choice=Bathroom) | Str | Unchecked, Checked | Checked |
+| Vinegar: In which rooms? (choice=Living Room) | Str | Unchecked, Checked | Checked |
+| Vinegar: In which rooms? (choice=Bedroom) | Str | Unchecked, Checked | Checked |
+| Vinegar: In which rooms? (choice=Other) | Str | Unchecked, Checked | Checked |
+| Alcohol: In which rooms? (choice=Kitchen) | Str | Unchecked, Checked | Checked |
+| Alcohol: In which rooms? (choice=Bathroom) | Str | Unchecked, Checked | Checked |
+| Alcohol: In which rooms? (choice=Living Room) | Str | Unchecked, Checked | Checked |
+| Alcohol: In which rooms? (choice=Bedroom) | Str | Unchecked, Checked | Checked |
+| Alcohol: In which rooms? (choice=Other) | Str | Unchecked, Checked | Checked |
+| Disinfectant wipes: In which rooms? (choice=Kitchen) | Str | Unchecked, Checked | Checked |
+| Disinfectant wipes: In which rooms? (choice=Bathroom) | Str | Unchecked, Checked | Checked |
+| Disinfectant wipes: In which rooms? (choice=Living Room) | Str | Unchecked, Checked | Checked |
+| Disinfectant wipes: In which rooms? (choice=Bedroom) | Str | Unchecked, Checked | Checked |
+| Disinfectant wipes: In which rooms? (choice=Other) | Str | Unchecked, Checked | Checked |
+| Soap and water: In which rooms? (choice=Kitchen) | Str | Unchecked, Checked | Checked |
+| Soap and water: In which rooms? (choice=Bathroom) | Str | Unchecked, Checked | Checked |
+| Soap and water: In which rooms? (choice=Living Room) | Str | Unchecked, Checked | Checked |
+| Soap and water: In which rooms? (choice=Bedroom) | Str | Unchecked, Checked | Checked |
+| Soap and water: In which rooms? (choice=Other) | Str | Unchecked, Checked | Checked |
+| Floor Cleaners: In which rooms? (choice=Kitchen) | Str | Unchecked, Checked | Checked |
+| Floor Cleaners: In which rooms? (choice=Bathroom) | Str | Unchecked, Checked | Checked |
+| Floor Cleaners: In which rooms? (choice=Living Room) | Str | Unchecked, Checked | Checked |
+| Floor Cleaners: In which rooms? (choice=Bedroom) | Str | Unchecked, Checked | Checked |
+| Floor Cleaners: In which rooms? (choice=Other) | Str | Unchecked, Checked | Checked |
+| In the past week, have you changed your home cleaning practices in response to the COVID-19 outbreak?| Str | Yes, No | No | 
+| How? (choice=Cleaning more frequently) | Str | Unchecked, Checked | Checked |
+| How? (choice=Cleaning different surfaces) | Str | Unchecked, Checked | Checked |
+| How? (choice=Using different cleaners) | Str | Unchecked, Checked | Checked |
+| How? (choice=Other) | Str | Unchecked, Checked | Checked |
+| What do you most often use to clean your hands with? (choice=Soap) | Str | Unchecked, Checked | Checked |
+| What do you most often use to clean your hands with? (choice=Alcohol Based Hand Sanitizer) | Str | Unchecked, Checked | Checked |
+| What do you most often use to clean your hands with? (choice=Other disinfectant) | Str | Unchecked, Checked | Checked |
+| What do you most often use to clean your hands with? (choice=Other) | Str | Unchecked, Checked | Checked |
+| In the past week, have you changed your hand cleaning practices in response to the COVID-19 outbreak? | Str | Unchecked, Checked | Checked |
+| How? (choice=Clean more frequently) | Str | Unchecked, Checked | Checked |
+| How? (choice=Clean for longer) | Str | Unchecked, Checked | Checked |
+| How? (choice=Use different hand cleaners) | Str | Unchecked, Checked | Checked |
+| Immediately when returning to your home did you: (choice=Leave your street shoes by the door or outside?) | Str | Unchecked, Checked | Checked |
+| Immediately when returning to your home did you: (choice=Wash the street clothes you were wearing?) | Str | Unchecked, Checked | Checked |
+| Immediately when returning to your home did you: (choice=Shower?) | Str | Unchecked, Checked | Checked |
+| If you bought groceries and/or home supplies, did you clean the packaging? | Str | Unchecked, Checked | Checked |
+| Which product/technique did you use? (choice=Soap) | Str | Unchecked, Checked | Checked |
+| Which product/technique did you use? (choice=Disinfectant wipes) | Str | Unchecked, Checked | Checked |
+| Which product/technique did you use? (choice=Alcohol-based Solution) | Str | Unchecked, Checked | Checked |
+| Which product/technique did you use? (choice=Other) | Str | Unchecked, Checked | Checked |
+| In the past week, approximately how many people have you directly interacted with in person (excluding those you live with)? (choice=None) | Str | Unchecked, Checked | Checked |
+| In the past week, approximately how many people have you directly interacted with in person (excluding those you live with)? (choice=Less than 2) | Str | Unchecked, Checked | Checked |
+| In the past week, approximately how many people have you directly interacted with in person (excluding those you live with)? (choice=Less than 5) | Str | Unchecked, Checked | Checked |
+| In the past week, approximately how many people have you directly interacted with in person (excluding those you live with)? (choice=Less than 10) | Str | Unchecked, Checked | Checked |
+| In the past week, approximately how many people have you directly interacted with in person (excluding those you live with)? (choice=Less than or equal 20) | Str | Unchecked, Checked | Checked |
+| In the past week, approximately how many people have you directly interacted with in person (excluding those you live with)? (choice=Less than or equal 20) | Str | Unchecked, Checked | Checked |
+| In the past week, how often did your housemates leave the house? (choice=None) | Str | Unchecked, Checked | Checked |
+| In the past week, how often did your housemates leave the house? (choice=Less than 2) | Str | Unchecked, Checked | Checked |
+| In the past week, how often did your housemates leave the house? (choice=Less than 5) | Str | Unchecked, Checked | Checked |
+| In the past week, how often did your housemates leave the house? (choice=Less than 10) | Str | Unchecked, Checked | Checked |
+| In the past week, how often did your housemates leave the house? (choice=Less than or equal 20) | Str | Unchecked, Checked | Checked |
+| In the past week, how often did your housemates leave the house? (choice=Greater than 20) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Participated in on-line UT Austin courses, discussions or activities) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Cooked dinner at home?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Picked up take-out food) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Had take-out food delivered to your home?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Had groceries delivered to your home?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Gone into a grocery store?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Gone into a pharmacy?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Gone into a doctors office) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Gone into a hospital?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Gone to work outside the home) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Gone for a walk outside) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Gone outside to workout) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Gone to a park?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Gone to a City trail to walk or run?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Exercised at home?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Left your home to run an errand?) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Driven in a car by yourself) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Driven in a car with someone else) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Taken a bus) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Taken a rideshare) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Taken a flight) | Str | Unchecked, Checked | Checked |
+| In the previous week, have you: (choice=Made facecalls (facetime, whatsapp, zoom)  with Family or Friends) | Str | Unchecked, Checked | Checked |
+| In the past week, have you changed your plans to limit contact with people outside your household? | Str | Unchecked, Checked | Checked |
+| Check all that apply (choice=Not leaving your home) | Str | Unchecked, Checked | Checked |
+| Check all that apply (choice=Limiting visitors to home) | Str | Unchecked, Checked | Checked |
+| Check all that apply (choice=Other) | Str | Unchecked, Checked | Checked |
+| In the past week, have you suffered from seasonal allergy symptoms? | Str | Yes, No | Yes |
+| Season allergy symptoms are  (choice=Significantly worse than last week) | Str | Unchecked, Checked | Checked |
+| Season allergy symptoms are  (choice=Somewhat worse than last week) | Str | Unchecked, Checked | Checked |
+| Season allergy symptoms are  (choice=Same as last week) | Str | Unchecked, Checked | Checked |
+| Season allergy symptoms are  (choice=Somewhat better than last week) | Str | Unchecked, Checked | Checked |
+| Season allergy symptoms are  (choice=Significantly better than last week) | Str | Unchecked, Checked | Checked |
+| Have you ever received an asthma diagnosis from a doctor? | Str | Yes, No | No |
+| In the past week, have you exhibited COVID-19 like symptoms? | Str | Yes, No | No |
+| Check all that apply (choice=Cough) | Str | Unchecked, Checked | Checked |
+| Check all that apply (choice=Fever) | Str | Unchecked, Checked | Checked |
+| Check all that apply (choice=Tiredness) | Str | Unchecked, Checked | Checked |
+| Check all that apply (choice=Shortness of breath) | Str | Unchecked, Checked | Checked |
+| In the past week, have you received a positive COVID-19 test result? | Str | Yes, No | No |
+| In the past week, have you used any personal protective equipment such as gloves or masks when going outside or meeting with others? (choice=Never used masks or gloves) | Str | Unchecked, Checked | Checked |
+| In the past week, have you used any personal protective equipment such as gloves or masks when going outside or meeting with others? (choice=Wanted to use masks or gloves but they were unavailable to me (e.g. sold out)) | Str | Unchecked, Checked | Checked |
+| In the past week, have you used any personal protective equipment such as gloves or masks when going outside or meeting with others? (choice=Occasionally wore masks) | Str | Unchecked, Checked | Checked |
+| In the past week, have you used any personal protective equipment such as gloves or masks when going outside or meeting with others? (choice=Occasionally wore gloves) | Str | Unchecked, Checked | Checked |
+| In the past week, have you used any personal protective equipment such as gloves or masks when going outside or meeting with others? (choice=Always used masks) | Str | Unchecked, Checked | Checked |
+| In the past week, have you used any personal protective equipment such as gloves or masks when going outside or meeting with others? (choice=Always used gloves) | Str | Unchecked, Checked | Checked |
+| Complete? | Str | Incomplete, Complete | Complete |
 
 ## Spring Break Questions Only Once
 
