@@ -19,6 +19,7 @@ This file breaks down the various surveys administered via UT's RedCAP system. W
 ## Environment and Experiences Questionnaire
 
 * Fields were repeated multiple times and answered based on number of roommates
+
 | Field Name | Variable Type | Answer Choices | Example |
 | --- | --- | --- | --- |
 | Record ID | Int | NA | 1 |
