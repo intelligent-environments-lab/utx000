@@ -5,16 +5,34 @@ This file breaks down the various surveys administered via UT's RedCAP system. W
 
 | Field Name | Variable Type | Answer Choices | Example |
 | --- | --- | --- | --- |
+| Record ID | Int | NA | 1 |
+| Event Name | Str | NA | Event 1 |
+| Survey Timestamp | Str | NA | 11/10/19 16:53 | 
+| I DO agree to wear a FitBit activity monitor, install a smartphone application and respond to weekly queries throughout the study period. | Int | 0, 1 | 1 |
+| I DO agree that my data can be linked with other data being collected by the University of Texas including administrative data (e.g. number of hours completed, year of high school graduation, high school GPA) and used by the study investigators for research purposes | Int | 0, 1 | 1 |
+| I DO agree that I may be re-contacted for future study opportunities. | Int | 0, 1 | 1 |
+| I DO agree to complete online surveys assessing variables such as food intake, lifestyle/behavior, social factors, demographics, socioeconomic status, psychological factors, health, medication intake, cognition, home environment, life events, hair care/length, study-related feedback, and my activities and moods during the COVID-19 quarantine period. | Int | 0, 1 | 1 |
+| Complete? | Str | Complete, Incomplete | Complete |
 
 ## Beiwe Instructions
+While there is a label for this "survey", this was more of an informational email about how to set up and register the Beiwe application. The survey was meant as a way to check that a participant had acknowledged the email. 
 
 | Field Name | Variable Type | Answer Choices | Example |
 | --- | --- | --- | --- |
+| Record ID | Int | NA | 4 |
+| Event Name | Str | NA | Event 1 |
+| Survey Timestamp | Str | NA | 7/11/19 15:28 | 
+| Complete? | Str | Complete, Incomplete | Complete |
 
 ## Survey Instructions
+Similar to above, this "survey" was just meant to check that a participant had read and received the notification. 
 
 | Field Name | Variable Type | Answer Choices | Example |
 | --- | --- | --- | --- |
+| Record ID | Int | NA | 9 |
+| Event Name | Str | NA | Event 1 |
+| Survey Timestamp | Str | NA | 04/30/20 15:54 | 
+| Complete? | Str | Complete, Incomplete | Complete |
 
 ## Environment and Experiences Questionnaire
 
@@ -208,9 +226,24 @@ This file breaks down the various surveys administered via UT's RedCAP system. W
 
 ## Spring Break Questions Only Once
 
+| Field Name | Variable Type | Answer Choices | Example |
+| --- | --- | --- | --- |
+| Record ID | Int | NA | 1 |
+| Event Name | Str | NA | Event 3 |
+
 ## Fitbit Home Address 
 
+| Field Name | Variable Type | Answer Choices | Example |
+| --- | --- | --- | --- |
+| Record ID | Int | NA | 1 |
+| Event Name | Str | NA | Event 3 |
+
 ## Crisis Adult Selfreport Baseline Form
+
+| Field Name | Variable Type | Answer Choices | Example |
+| --- | --- | --- | --- |
+| Record ID | Int | NA | 1 |
+| Event Name | Str | NA | Event 3 |
 
 ## Weekly Behaviors
 
