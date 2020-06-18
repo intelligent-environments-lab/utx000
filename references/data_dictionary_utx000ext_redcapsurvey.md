@@ -114,4 +114,46 @@ This file breaks down the various surveys administered via UT's RedCAP system. W
 | COVID-19 is just a normal thing that happens every now and then | Str | A great deal; A lot; A moderate amount; A little; Not at all | <- | 
 | COVID-19 is a result of immigrants coming to your country | Str | A great deal; A lot; A moderate amount; A little; Not at all | <- | 
 | In the last week, to what degree have you been involved in panic buying (including hoarding and buying excessive amounts) | Str | A great deal; A lot; A moderate amount; A little; Not at all | <- | 
-
+| Went to a crowded place for recreational purposes (e.g., restaurant, bar, coffee shop, party) | Str | Not once; Once; 2-3 times; 3-10 times | <- |
+| Went to a crowded place for academic or work purposes (e.g., conference, lecture, meeting) | Str | Not once; Once; 2-3 times; 3-10 times | <- |
+| Used public transit (e.g., bus, airplane, train) | Str | Not once; Once; 2-3 times; 3-10 times | <- |
+| Went to a supermarket, pharmacy or other store | Str | Not once; Once; 2-3 times; 3-10 times | <- |
+| Family members | Mixed | 0; 1-2 persons; 3-4 persons; 5-9 persons; Over 10 persons | <- |
+| Friends | Mixed | 0; 1-2 persons; 3-4 persons; 5-9 persons; Over 10 persons | <- |
+| The people in your workplace or school (including co-workers, customers, clients, and students) | Mixed | 0; 1-2 persons; 3-4 persons; 5-9 persons; Over 10 persons | <- |
+| Others (including service workers) | Mixed | 0; 1-2 persons; 3-4 persons; 5-9 persons; Over 10 persons | <- |
+| Family members | Mixed | 0; 1-2 persons; 3-4 persons; 5-9 persons; Over 10 persons | <- |
+| Friends | Mixed | 0; 1-2 persons; 3-4 persons; 5-9 persons; Over 10 persons | <- |
+| The people in your workplace or school (including co-workers, customers, clients, and students) | Mixed | 0; 1-2 persons; 3-4 persons; 5-9 persons; Over 10 persons | <- |
+| Others (including service workers) | Mixed | 0; 1-2 persons; 3-4 persons; 5-9 persons; Over 10 persons | <- |
+| Awake, in your house/apartment/dorm | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Awake, in the home of friend(s) or family | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| On social media | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Outdoors | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Sleeping | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Exercising | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Playing video/computer/online games | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Eating | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Under the influence of alcohol or other recreational substances | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Watching in-home movies, videos, or TV | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Reading books/magazines/stories (not related to COVID-19) | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Shopping online | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Feeling depressed | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Feeling alone | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Working (including working remotely) | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Cooking and other housework | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| House or yard maintenance | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Learning a new skill | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Reading/learning about COVID-19 | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Watching/listening to news about COVID-19 | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Talking/texting/communicating with others about COVID-19 | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Helping others to cope with COVID-19 | Mixed | 0; Up to 1 hour; 1-3 hours; 3-7 hours; 8 hours or more | <- |
+| Argue or have a conflict with someone | Str | Not once; Once; 2-3 times; 3-10 times | <- |
+| Get angry with a friend or family member | Str | Not once; Once; 2-3 times; 3-10 times | <- |
+| Reach out to check on someone | Str | Not once; Once; 2-3 times; 3-10 times | <- |
+| Offer help to someone | Str | Not once; Once; 2-3 times; 3-10 times | <- |
+| Smoke | Str | Not once; Once; 2-3 times; 3-10 times | <- |
+| Overall, to what degree are you happy that the COVID-19 outbreak occurred in your lifetime? | Str | A great deal; A lot; A moderate amount; A little; Not at all | <- | 
+| How long do you think the COVID-19 outbreak would last? | Str | One month; Two months; Three months; Four months; Five months; Six months to one year; One to two years; More than two years | <- |
+| Do you with to share your Reddit or Twitter handles? | Str | No, Yes | No |
+| Complete? | Str | Incomplete, Complete | Complete |
