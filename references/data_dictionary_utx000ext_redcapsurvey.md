@@ -479,9 +479,92 @@ This form also contains questions that RedCAP does not export because they conta
 | ...friends or family being infected? | Str | Not at all, Slightly, Moderately, Very, Extremely | Slightly |
 | ...your physical health being inﬂuenced by Coronavirus/COVID-19? | Str | Not at all, Slightly, Moderately, Very, Extremely | Slightly |
 | ...your Mental/Emotional health being inﬂuenced by Coronavirus/COVID-19? | Str | Not at all, Slightly, Moderately, Very, Extremely | Slightly |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
-|  | Str | Unchecked, Checked | Unchecked |
+| How much are you reading, or talking about Coronavirus/COVID-19? | Str | Never, Rarely, Occasionally, Often, Most of the Time | Rarely |
+| Has the Coronavirus/COVID-19 crisis in your area led to any positive changes in your life?   | Str | None, Only a few, Some | None |
+| ...if you attend school, has your school building been closed? | Str | Yes, No | No |
+| Are classes in session? | Str | Yes, No | No |
+| Are you attending classes in-person?  | Str | Yes, No | No |
+| Have classes resumed online? | Str | Yes, No | Yes |
+| Do you have easy access to the internet and a computer? | Str | Yes, No | Yes |
+| Are there assignments for you to complete?  | Str | Yes, No | Yes |
+| Are you able to receive meals from the school? | Str | Yes, No | Yes |
+| ...if you are working, has your workplace closed? | Str | Yes, No | Yes |
+| ...if you are working, have you been able to telework or work from home?  | Str | Yes, No | Yes |
+| ...how many people, from outside of your household, have you had an in-person conversation with? | Int | NA | 5 |
+| ...how much time have you spent going outside of the home (e.g., going to stores, parks, etc.)? | Str | Not at all; 1-2 days per week; A few days per week; Several days perweek; Every day | Not at all |
+| ...how stressful have the restrictions on leaving home been for you? | Str | Not at all, Slightly, Moderately, Very, Extremely | Slightly |
+| ...have your contacts with people outside of your home changed relative to before the Coronavirus/COVID-19 crisis in your area? | Str | A lot less,A little less, About the same, A little more, A lot more | <- |
+| ...how much difﬁculty have you had following the recommendations for keeping away from close contact with people? | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+|  | Str | | <- |
+| ...cigarettes or other tobacco? | Str | | <- |
+| ...marijuana/cannabis (e.g., joint, blunt, pipe, bong)? | Str | | <- |
+| ...opiates, heroin, or narcotics? | Str | | <- |
+| ...other drugs including cocaine, crack, amphetamine, methamphetamine, hallucinogens, or ecstasy? | Str | | <- |
+| ...sleeping medications or sedatives/hypnotics? | Str | | <- |
+| ...how many hours per night did you sleep on average?   | Str | | <- |
+| ...how many days per week did you exercise (e.g., increased heart rate, breathing) for at least 30 minutes?       | Str | | <- |
+| ...how many days per week did you spend time outdoors?       | Str | | <- |
+| ...how worried were you generally?       | Str | | <- |
+| ...how happy versus sad were you?       | Str | | <- |
+| ...how much were you able to enjoy your usual activities?  | Str | | <- |
+| ...how relaxed versus anxious were you? | Str | | <- |
+| ...how fidgety or restless were you? | Str | | <- |
+| ...how fatigued or tired were you? | Str | | <- |
+| ...how well were you able to concentrate or focus? | Str | | <- |
+| ...how irritable or easily angered have you been? | Str | | <- |
+| ...how lonely were you? | Str | | <- |
+| ...to what extent did you have negative thoughts, thoughts about unpleasant experiences or things that make you feel bad? | Str | | <- |
+| ...watching TV or digital media (e.g., Netflix, YouTube, web surfing)?    | Str | | <- |
+| ...using social media (e.g., Facetime, Facebook, Instagram, Snapchat, Twitter, TikTok)?   | Str | | <- |
+| ...playing video games?   | Str | | <- |
+| ...alcohol? | Str | | <- |
+| ...vaping? | Str | | <- |
+| ...cigarettes or other tobacco? | Str | | <- |
+| ...marijuana/cannabis (e.g., joint, blunt, pipe, bong)? | Str | | <- |
+| ...opiates, heroin, or narcotics? | Str | | <- |
+| ...other drugs including cocaine, crack, amphetamine, methamphetamine, hallucinogens, or ecstasy? | Str | | <- |
+| ...sleeping medications or sedatives/hypnotics? | Str | | <- |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Resource room) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Tutoring) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Mentoring programs) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=After school activity programs) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Volunteer programs) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Psychotherapy) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Psychiatric care) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Occupational therapy) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Physical therapy) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Speech/language therapy) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Sporting activities) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Medical care for chronic illnesses) | Str | Unchecked, Checked | Unchecked |
+| Which of the following supports were in place for you before the Coronavirus/COVID-19 crisis in your area and have been disrupted over the PAST TWO WEEKS? (check all that apply) (choice=Other) | Str | Unchecked, Checked | Unchecked |
+| Complete? | Str | Incomplete, Complete | Complete |
 
 ## Weekly Behaviors
 
