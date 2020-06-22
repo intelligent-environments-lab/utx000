@@ -188,8 +188,11 @@ class beiwe_participation_report():
         for column in df.columns:
             if column in ['Sum','Percent']:
                 continue
-
-            dates.append(datetime.strptime(column,'%m/%d/%Y'))
+            try:
+                dates.append(datetime.strptime(column,'%m/%d/%Y'))
+            except ValueError:
+                print('Wrong format (%m/%d/%Y) - trying %m/%d/%y')
+                dates.append(datetime.strptime(column,'%m/%d/%y'))
             daily.append(np.sum(df[column]))
 
         plt.vlines(x=dates, ymin=0, ymax=daily, color='orange',alpha=1)
@@ -213,20 +216,26 @@ class beiwe_participation_report():
             if column in ['Sum','Percent']:
                 continue
 
-            dates.append(datetime.strptime(column,'%m/%d/%y'))
+            try:
+                dates.append(datetime.strptime(column,'%m/%d/%Y'))
+            except ValueError:
+                print('Wrong format (%m/%d/%Y) - trying %m/%d/%y')
+                dates.append(datetime.strptime(column,'%m/%d/%y'))
             daily.append(np.sum(df[column]))
 
-        #ax.plot(dates,daily)
-        plt.vlines(x=dates, ymin=0, ymax=daily, color='orange',alpha=1)
-        plt.scatter(dates,daily,s=50, color='orange',edgecolor='black',alpha=1,label='morning')
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%a %m/%d'))
-        ax.xaxis.set_major_locator(mdates.DayLocator())
-        plt.xticks(rotation=-30,ha='left')
-        ax.set_xlim([datetime(2020,4,24),datetime(2020,5,31)])
-        ax.set_ylim([0,1750000])
-        ax.set_ylabel('Number of Daily Bytes')
+        try:
+            plt.vlines(x=dates, ymin=0, ymax=daily, color='orange',alpha=1)
+            plt.scatter(dates,daily,s=50, color='orange',edgecolor='black',alpha=1,label='morning')
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%a %m/%d'))
+            ax.xaxis.set_major_locator(mdates.DayLocator())
+            plt.xticks(rotation=-30,ha='left')
+            ax.set_xlim([datetime(2020,4,24),datetime(2020,5,31)])
+            ax.set_ylim([0,1750000])
+            ax.set_ylabel('Number of Daily Bytes')
 
-        plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/acc_timeseries.png')
+            plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/acc_timeseries.png')
+        except:
+            print('Could not generate accelerometer plot - try changing the data from \'general\' to \'number\' in Excel')
 
     def get_filename(self,filename):
 
