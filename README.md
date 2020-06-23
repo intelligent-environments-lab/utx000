@@ -1,9 +1,9 @@
-<p><img alt="wcwh text" style="width:100%" src="images/wcwh_text.png" hspace="10px" vspace="0px"></p>
-
 UTx000
 ==============================
 
-UTx000 is a study that spans multiple individuals/studies and gathers a wealth of moment-by-moment data on a person and their envrionment. The goals of this project are to:
+<p><img alt="wcwh text" style="width:100%" src="images/wcwh_text.png" hspace="10px" vspace="0px"></p>
+
+UTx000 is a study that spans multiple individuals/studies and gathers a wealth of moment-by-moment data on a person and their envrionment. The project is an arm of the **UT Grand Challenges - Whole Communities, Whole Health Iniative**. The goals of this particular project are to:
 
 * reconcile multiple data modalities
 * establish connections between variables from the same and disparate data modalities
@@ -12,10 +12,13 @@ UTx000 is a study that spans multiple individuals/studies and gathers a wealth o
 The project uses data gathered from four main sources:
 
 * UT's IEL Indoor Air Quality (IAQ) Beacon
-
+<p><img alt="iaq beacon" style="width:50%" src="images/iaqbeacon.png" hspace="10px" vspace="0px"></p>
 * Onnela Labs's [Beiwe](http://wiki.beiwe.org/wiki/Main_Page) Platform
+<p><img alt="beiwe" style="width:50%" src="images/wcwh_text.png" hspace="10px" vspace="0px"></p>
 * Fitbit Wearable Devices gathered on the [Fitabase](https://www.fitabase.com) Platform
+<p><img alt="fitbit" style="width:50%" src="images/fitbit_logo.png" hspace="10px" vspace="0px"></p>
 * Surveys administered by UT's REDCap Platform hosted the by Population Research Center
+<p><img alt="redcap" style="width:50%" src="images/redcap_logo.png" hspace="10px" vspace="0px"></p>
 
 Project Organization
 ------------
