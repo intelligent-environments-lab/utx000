@@ -1,33 +1,22 @@
 UTx000
 ==============================
 
-<p><img alt="wcwh text" style="width:100%" src="images/wcwh_text.png" hspace="10px" vspace="0px"></p>
-
 UTx000 is a study that spans multiple individuals/studies and gathers a wealth of moment-by-moment data on a person and their envrionment. The project is an arm of the **UT Grand Challenges - Whole Communities, Whole Health Iniative**. The goals of this particular project are to:
 
 * reconcile multiple data modalities
 * establish connections between variables from the same and disparate data modalities
 * provide actionable results for participants
 
+Interested in the nitty-gritty of the project? Check out more on the [wiki page](https://github.com/intelligent-environments-lab/utx000/wiki).
+
 Data Modalities
 ------------
 The project uses data gathered from four main sources:
 
 * UT's IEL Indoor Air Quality (IAQ) Beacon
-
-<img alt="iaq beacon" style="width:50%" src="images/iaqbeacon.png" hspace="10px" vspace="0px">
-
 * Onnela Labs's [Beiwe](http://wiki.beiwe.org/wiki/Main_Page) Platform
-
-<img alt="beiwe" style="width:50%" src="images/beiwe.jpeg">
-
 * Fitbit Wearable Devices gathered on the [Fitabase](https://www.fitabase.com) Platform
-
-<img alt="fitbit" style="width:50%" src="images/fitbit_logo.png">
-
 * Surveys administered by UT's REDCap Platform hosted the by Population Research Center
-
-<img alt="redcap" style="width:50%" src="images/redcap_logo.png">
 
 Project Organization
 ------------
