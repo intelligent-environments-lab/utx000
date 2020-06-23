@@ -17,7 +17,7 @@ The project uses data gathered from four main sources:
 
 * Onnela Labs's [Beiwe](http://wiki.beiwe.org/wiki/Main_Page) Platform
 
-<p><img alt="beiwe" style="width:50%" src="images/wcwh_text.png" hspace="10px" vspace="0px"></p>
+<p><img alt="beiwe" style="width:50%" src="images/beiwe_logo.png" hspace="10px" vspace="0px"></p>
 
 * Fitbit Wearable Devices gathered on the [Fitabase](https://www.fitabase.com) Platform
 
