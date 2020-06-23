@@ -1,7 +1,7 @@
 UTx000
 ==============================
 
-UTx000 is a study that spans multiple testing groups and gathers a wealth of moment-by-moment data on a person and their envrionment. The goals of this project are to:
+UTx000 is a study that spans multiple individuals/studies and gathers a wealth of moment-by-moment data on a person and their envrionment. The goals of this project are to:
 
 * reconcile multiple data modalities
 * establish connections between variables from the same and disparate data modalities
