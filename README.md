@@ -13,15 +13,15 @@ The project uses data gathered from four main sources:
 
 * UT's IEL Indoor Air Quality (IAQ) Beacon
 
-<p><img alt="iaq beacon" style="width:50%" src="images/iaqbeacon.png" hspace="10px" vspace="0px"></p>
+<img alt="iaq beacon" style="width:50%" src="images/iaqbeacon.png" hspace="10px" vspace="0px">
 
 * Onnela Labs's [Beiwe](http://wiki.beiwe.org/wiki/Main_Page) Platform
 
-<p><img alt="beiwe" style="width:50%" src="images/beiwe.jpeg" hspace="10px" vspace="0px"></p>
+<img alt="beiwe" style="width:50%" src="images/beiwe.jpeg" hspace="10px" vspace="0px">
 
 * Fitbit Wearable Devices gathered on the [Fitabase](https://www.fitabase.com) Platform
 
-<p><img alt="fitbit" style="width:50%" src="images/fitbit_logo.png"></p>
+<img alt="fitbit" style="width:50%" src="images/fitbit_logo.png">
 
 * Surveys administered by UT's REDCap Platform hosted the by Population Research Center
 
