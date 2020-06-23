@@ -21,11 +21,11 @@ The project uses data gathered from four main sources:
 
 * Fitbit Wearable Devices gathered on the [Fitabase](https://www.fitabase.com) Platform
 
-<p><img alt="fitbit" style="width:50%" src="images/fitbit_logo.png" hspace="10px" vspace="0px"></p>
+<p><img alt="fitbit" style="width:50%" src="images/fitbit_logo.png"></p>
 
 * Surveys administered by UT's REDCap Platform hosted the by Population Research Center
 
-<p><img alt="redcap" style="width:50%" src="images/redcap_logo.png" hspace="10px" vspace="0px"></p>
+<p><img alt="redcap" style="width:50%" src="images/redcap_logo.png"></p>
 
 Project Organization
 ------------
