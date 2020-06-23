@@ -17,15 +17,15 @@ The project uses data gathered from four main sources:
 
 * Onnela Labs's [Beiwe](http://wiki.beiwe.org/wiki/Main_Page) Platform
 
-<p><img alt="beiwe" style="width:50%" src="images/beiwe.jpeg" align="left"></p>
+<img alt="beiwe" style="width:50%" src="images/beiwe.jpeg">
 
 * Fitbit Wearable Devices gathered on the [Fitabase](https://www.fitabase.com) Platform
 
-<p><img alt="fitbit" style="width:50%" src="images/fitbit_logo.png" align="left"></p>
+<img alt="fitbit" style="width:50%" src="images/fitbit_logo.png">
 
 * Surveys administered by UT's REDCap Platform hosted the by Population Research Center
 
-<p><img alt="redcap" style="width:50%" src="images/redcap_logo.png"></p>
+<img alt="redcap" style="width:50%" src="images/redcap_logo.png">
 
 Project Organization
 ------------
