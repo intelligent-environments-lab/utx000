@@ -9,6 +9,8 @@ UTx000 is a study that spans multiple individuals/studies and gathers a wealth o
 * establish connections between variables from the same and disparate data modalities
 * provide actionable results for participants
 
+Data Modalities
+------------
 The project uses data gathered from four main sources:
 
 * UT's IEL Indoor Air Quality (IAQ) Beacon
