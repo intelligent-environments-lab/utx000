@@ -94,3 +94,6 @@ target/
 
 # big files
 *3.0-hef-participant_report_generator*
+
+# weird files
+*~
