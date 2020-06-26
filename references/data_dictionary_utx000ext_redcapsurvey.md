@@ -36,7 +36,7 @@ Similar to above, this "survey" was just meant to check that a participant had r
 
 ## Environment and Experiences Questionnaire
 
-* Fields were repeated multiple times and answered based on number of roommates
+\* Fields were repeated multiple times and answered based on number of roommates
 
 | Field Name | Variable Type | Answer Choices | Example |
 | --- | --- | --- | --- |
