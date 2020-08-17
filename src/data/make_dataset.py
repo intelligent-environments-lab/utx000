@@ -201,6 +201,73 @@ class ut3000():
 
         return True
 
+class bpeace2():
+    '''
+    Class used to process bpeace2 data (Spring 2020 into Summer 2020)
+    '''
+
+    def __init__(self):
+        self.study = 'bpeace2'
+        pass
+
+    def move_to_purgatory(self,path_to_file,path_to_destination):
+        '''
+        Moves problematic file to the purgatory data directory
+        '''
+        print('Moving to purgatory...')
+        os.replace(path_to_file, path_to_destination)
+
+    def process_beacon(self,data_dir='../../data/raw/bpeace2/beacon/'):
+        '''
+        Combines data from all sensors on all beacons
+        '''
+
+        beacon_data = pd.DataFrame()
+        beacon_list = [30,1,21,34,22,28,24,41,26,48,46,25,15,44,23,29,10,16,36,38,40,5,17,6,13,19,32,11,7]
+        print('Reading for beacon:')
+        for beacon in beacon_list:
+            print(f'\t{beacon}')
+            beacon_df = pd.DataFrame()
+            if beacon < 10:
+                number = f'0{beacon}'
+            else:
+                number = f'{beacon}'
+            py3_df = pd.DataFrame()
+            for file in os.listdir(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/'):
+                try:
+                    day_df = pd.read_csv(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/{file}',
+                                        index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
+                    py3_df = pd.concat([py3_df,day_df])
+                except Exception as inst:
+                    print(f'{inst}; filename: {file}')
+                    self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
+
+            py3_df = py3_df.resample('5T').mean()
+            py2_df = pd.DataFrame()
+            for file in os.listdir(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/'):
+                try:
+                    day_df = pd.read_csv(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/{file}',
+                                    index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
+                except Exception as inst:
+                    print(f'{inst}; filename: {file}')
+                    self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/{file}',f'../../data/purgatory/{self.study}-B{number}-py2-{file}')
+
+                py2_df = pd.concat([py2_df,day_df])
+                
+            py2_df = py2_df.resample('5T').mean()
+                
+            beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
+            beacon_df['Beacon'] = beacon
+            
+            beacon_data = pd.concat([beacon_data,beacon_df])
+
+        try:
+            beacon_data.to_csv(f'../../data/processed/bpeace2-beacon.csv')
+        except:
+            return False
+
+        return True
+
 def main():
     '''
     Runs data processing scripts to turn raw data from (../raw) into
@@ -212,10 +279,12 @@ def main():
     print('\t1. UT2000 Beacon')
     print('\t2. UT3000 Fitbit Sleep Stages')
     print('\t3. UT3000 HEH Survey')
+    print('\t4. BPEACE2 Beacon')
     ans = int(input('Answer: '))
     ut1000_processor = ut1000()
     ut2000_processor = ut2000()
     ut3000_processor = ut3000()
+    bpeace2_processor = bpeace2()
 
     # UT2000 Beacon Data
     if ans == 0 or ans == 1:
@@ -239,6 +308,13 @@ def main():
             logger.info(f'Data for UT3000 HEH survey processed')
         else:
             logger.error(f'Data for UT3000 HEH survey NOT processed')
+
+    # BPEACE2 Beacon Data
+    if ans == 0 or ans == 4:
+        if bpeace2_processor.process_beacon():
+            logger.info(f'Data for BPEACE2 beacons processed')
+        else:
+            logger.error(f'Data for BPEACE2 beacons NOT processed')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
