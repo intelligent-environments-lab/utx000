@@ -12,7 +12,7 @@ class ut1000():
     '''
 
     def __init__(self):
-        pass
+        self.study = 'ut1000'
 
 class ut2000():
     '''
@@ -20,7 +20,7 @@ class ut2000():
     '''
 
     def __init__(self):
-        pass
+        self.study = 'ut2000'
 
     def get_beacon_datetime_index(self,df,resample_rate='10T'):
         '''
@@ -103,7 +103,7 @@ class ut3000():
     '''
 
     def __init__(self):
-        pass
+        self.study = 'ut3000'
 
     def process_beiwe_or_fitbit(self,dir_string='fitbit',file_string='dailySteps_merged'):
         '''
@@ -208,7 +208,6 @@ class bpeace2():
 
     def __init__(self):
         self.study = 'bpeace2'
-        pass
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
