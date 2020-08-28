@@ -41,6 +41,10 @@ This file breaks down the various surveys administered during the UT3000 study i
 | Has anyone commented on bad odors when entering your home? | Str | Yes, No | No | 
 | Do you use 'air cleaner' devices? | Str | Yes, No | No | 
 | Does your house have carpet? | Str | Yes, No | No | 
+| If yes, about what % of the total area is carpeted? | Int | Enter VAlue | 50 |
+| Does your house have: | Str | hardwood, tile floors | hardwood | 
+| If yes, about what % of the total area is hardwood? | Int | Enter VAlue | 25 |
+| If yes, about what % of the total area is tile floor? | Int | Enter VAlue | 25 |
 | Do you cook at home?  | Str | Yes, No | No | 
 | Do you turn on the kitchen exhaust fan? | Str | Yes, No | No | 
 | In the past three weeks, have you had the flu? | Str | Yes, No | No | 
@@ -54,7 +58,25 @@ This file breaks down the various surveys administered during the UT3000 study i
 | Did you receive a silicon band as a participant in the  extended study? | Str | Yes, No | No | 
 | If yes, did you consistently wear it as indicated? | Str | Yes, No | No | 
 | Do you use perfumes, cologne, or body lotions? | Str | Yes, No | No | 
+| If yes, how often per day do you apply these products? | Int | Enter VAlue | 2 |
+| How often do you wash your hands per day? | Int | Enter VAlue | 10 |
+| How often do you take a shower or bathe per week? | Int | Enter VAlue | 10 |
 | Do you use electric scooters? | Str | Yes, No | No | 
+| If yes, how many times a day? | Int | Enter Value | 1 | 
+| If yes, how many times per week? | Int | Enter Value | 1 |
 
+## Beiwe 
+
+| Question Type | Question Text | Answer Options | Example |
+| --- | --- | --- | --- | 
+| Checkbox | For the following questions; please describe your behavior during the PAST FIFTEEN MINUTES... I spent MOST of my time in the following place: | Bar; Party; Cafe; Restaurant; Campus; Fraternity; Sorority House; Gym; Home (dorm; apartment); Library; Religious facility; Store / Mall; Work; Vehicle; Friend; None of the above; other | other |
+| Checkbox | For the following questions; please describe your behavior during the PAST FIFTEEN MINUTES...I spent MOST of my time with the following people: | Classmates; students; Co-workers; Family; Friends; No one; alone; Roommates; Significant other; Strangers; Other | Friends |
+| Checkbox | For the following questions; please describe your behavior during the PAST FIFTEEN MINUTES...I spent MOST of my time | Attending classes; meetings; Browsing the Internet; using social media; Commuting; traveling; Doing household chores; running errands; Eating; drinking; Exercising; physical activity; sports; Resting; napping; doing nothing; Studying; reading; preparing for an exam; Talking; texting; socializing; Watching TV; movies; Working at job; None of the above; Other | napping |
+| Checkbox | For the following questions; please describe your behavior during the PAST FIFTEEN MINUTES I spent time interacting with others by: | Talking in person; Talking on the phone; Chatting on Whatsapp or other chat app; Chatting on a dating app; Emailing; Video-chatting; Interacting on Facebook; Interacting on Instagram; Interacting on Snapchat; Interacting on Twitter; Other form of social interaction; Not applicable; was not interacting with anyone | Talking in person |
+| Radio Button | I am feeling CONTENT: | Not at all; A little bit; Quite a bit; Very much |  |
+| Radio Button | I am feeling STRESSED: | Not at all; A little bit; Quite a bit; Very much |  |
+| Radio Button | I am feeling LONELY: | Not at all; A little bit; Quite a bit; Very much |  |
+| Radio Button | I am feeling SAD: | Not at all; A little bit; Quite a bit; Very much |  |
+| Radio Button | My ENERGY LEVEL is: | Low energy; Somewhat low energy; Neutral; Somewhat high energy; High energy |  |
 
 
