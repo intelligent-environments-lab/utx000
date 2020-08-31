@@ -61,8 +61,11 @@ class single_var:
             ax.set_ylabel('')
         
         # Setting limits
-        ## x - should never be specified
-        ax.set_xlim([t[0],t[-1]])
+        ## x      
+        if 'xlim' in kwargs.keys():
+            ax.set_ylim(kwargs['xlim'])
+        else:
+            ax.set_xlim([t[0],t[-1]])
         ## y
         if 'ylim' in kwargs.keys():
             ax.set_ylim(kwargs['ylim'])

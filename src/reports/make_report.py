@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 
 import logging
@@ -14,6 +14,12 @@ import matplotlib.dates as mdates
 
 import jinja2
 import pdfkit
+
+import sys
+sys.path.append('../../')
+
+from src.features import build_features
+from src.visualization import visualize
 
 class beiwe_participation_report():
     '''
@@ -271,6 +277,125 @@ class beiwe_participation_report():
         self.create_plots()
         self.generate_report()
 
+class iaq_beacon_study_report():
+    '''
+
+    '''
+
+    def __init__(self, study, study_start, study_end):
+        '''
+        Imports the raw data from the IAQ Beacon
+
+        Parameters
+        - study: string holding the study name which helps find the correct processed file
+        - study_start: datetime corresponding to the start of the study
+        - study_end: datetime corresponding to the end of the study
+        '''
+
+        # parameters
+        self.study = study
+        self.study_start = study_start
+        self.study_end = study_end
+
+    def load_data(self):
+        '''
+        Loads in the data from the processed data dir if the data file exists
+
+        Returns True if the data file was correctly processed
+        '''
+        print('\tImporting data...')
+        try:
+            self.data = pd.read_csv(f'../../data/processed/{self.study}-beacon.csv',index_col='Timestamp',parse_dates=True)
+        except Exception as inst:
+            print(f'\t{inst}')
+            print('\tUnable to process data file - check study name or run make_dataset script')
+            return False
+
+        # importing user-created functions
+        self.beacon_stats = build_features.beacon_statistics()
+        self.plotter = visualize.single_var(self.study)
+
+        return True
+
+    def create_plots(self):
+        '''
+        Creates the plots that will be added to the reports
+        '''
+        # time series
+        for sensor in self.data.columns:
+            for beacon_no in self.data['Beacon'].unique():
+                # getting data for beacon between study period 
+                data_by_beacon = self.data[self.data['Beacon'] == beacon_no]
+                data_by_beacon = data_by_beacon[self.study_start:self.study_end]
+                # plotting and saving
+                if len(data_by_beacon) < 2 or np.nanmean(data_by_beacon[sensor]) < -50:
+                    fig, ax = self.plotter.timeseries([self.study_start,self.study_end],[0,0],figsize=(12,6),label='Percent Completion',ylim=[-0.1,1.1],yticks=np.arange(0,1.1,1))
+                else:
+                    fig, ax = self.plotter.timeseries(data_by_beacon.index,data_by_beacon[sensor],figsize=(12,6),label='Measured Values in Relevant Units')
+
+                plt.savefig(f'../../reports/figures/{self.study}-beacon{beacon_no}-{sensor}-timeseries.png')
+                plt.close()
+
+        # reliability figure
+        agg_complete, hour_complete = self.beacon_stats.get_percent_completeness(self.data,self.study_start,self.study_end)
+        for sensor in self.data.columns:
+            print(f'\tGetting reliability data for: {sensor}')
+            for key in hour_complete.keys():
+                # beacon_no == key
+                if len(hour_complete[key].index) < 2:
+                    fig, ax = self.plotter.timeseries([self.study_start,self.study_end],[0,0],figsize=(12,6),label='Percent Completion',ylim=[-0.1,1.1],yticks=np.arange(0,1.1,1))
+                else:
+                    # Inserting extra timestamps at +1 hours every other location
+                    dt = [x for y in zip(hour_complete[key].index,hour_complete[key].index+timedelta(hours=1)) for x in y]
+                    # Repeating entries to match with doubled indices
+                    percent = np.repeat(hour_complete[key]['CO2'],2)
+                    fig, ax = self.plotter.timeseries(dt,percent,figsize=(12,6),label='Percent Completion',ylim=[-0.1,1.1],yticks=np.arange(0,1.1,1))
+                    
+                plt.savefig(f'../../reports/figures/{self.study}-beacon{key}-{sensor}-reliability.png')
+                plt.close()
+
+    def get_filename(self,beginning,ending):
+        '''
+        This function is used in the html file to pull in the figures
+
+        Parameters:
+        - beginning: list of two values
+        '''
+        return f'/Users/hagenfritz/Projects/utx000/reports/figures/{beginning[0]}-beacon{beginning[1]}-{ending}.png'
+
+    def generate_report(self):
+        '''
+        Generates the report by loading the relevant variables/figures in the html file
+        '''
+
+        # generate reports for each beacon
+        for beacon_no in self.data['Beacon'].unique():
+            templateLoader = jinja2.FileSystemLoader(searchpath="/Users/hagenfritz/Projects/utx000/reports/templates/")
+            templateEnv = jinja2.Environment(loader=templateLoader)
+            templateEnv.filters['get_filename'] = self.get_filename
+            TEMPLATE_FILE = "beacon_study_operation_template.html"
+            template = templateEnv.get_template(TEMPLATE_FILE)
+            outputText = template.render(study=self.study,beacon_no=beacon_no,start_date=self.study_start.date(),end_date=self.study_end.date())
+            
+            # html file output
+            html_file = open(f'/Users/hagenfritz/Projects/utx000/reports/beacon_check/beacon{beacon_no}_{self.study_start.date()}-{self.study_end.date()}.html', 'w')
+            html_file.write(outputText)
+            html_file.close()
+
+            # pdf file output
+            pdfkit.from_file(f'/Users/hagenfritz/Projects/utx000/reports/beacon_check/beacon{beacon_no}_{self.study_start.date()}-{self.study_end.date()}.html',
+                f'/Users/hagenfritz/Projects/utx000/reports/beacon_check/beacon{beacon_no}_{self.study_start.date()}-{self.study_end.date()}.pdf')
+
+    def generate_report_from_processed(self):
+        '''
+        Generates the report from the processed data
+        '''
+        data_was_loaded = self.load_data()
+        if data_was_loaded:
+            self.create_plots()
+            self.generate_report()
+        else:
+            print('No report generated')
 
 def main():
     '''
@@ -281,6 +406,7 @@ def main():
     # Control 
     print('Generate Report ToC')
     print('\t1. Beiwe Participation Check')
+    print('\t2. IAQ Beacon Study Report')
     ans = int(input('Number choice: '))
 
     # Generate Biewe Check Report
@@ -289,6 +415,14 @@ def main():
         dateThru = input('Date Thru for Beiwe Participation Check (%m%d%Y): ')
         report_gen = beiwe_participation_report(datetime.strptime(dateThru,'%m%d%Y'))
         report_gen.generate_report_from_interim()
+        logger.info('Generated')
+    if ans == 2:
+        logger.info('Generating IAQ Beacon Study Report...')
+        study_name = input('Name of Study: ')
+        study_start = input('Date Start for Study Check (%m%d%Y): ')
+        study_end = input('Date Start for Study Check (%m%d%Y): ')
+        report_gen = iaq_beacon_study_report(study_name,datetime.strptime(study_start,'%m%d%Y'),datetime.strptime(study_end,'%m%d%Y'))
+        report_gen.generate_report_from_processed()
         logger.info('Generated')
     else:
         print('\nInvalid choice - please try running again')
