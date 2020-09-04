@@ -321,35 +321,45 @@ class iaq_beacon_study_report():
         '''
         Creates the plots that will be added to the reports
         '''
+        # Getting just the sensors (all columns but the last one)
+        sensors = self.data.columns[:-1]
+
         # time series
-        for sensor in self.data.columns:
+        print('\tCreating figures...')
+        # TVOC,eCO2,Lux,Visible,Infrared,NO2,T_NO2,RH_NO2,CO,T_CO,RH_CO,Temperature [C],Relative Humidity,CO2,PM_N_0p5,PM_N_1,PM_N_2p5,PM_N_4,PM_N_10,PM_C_1,PM_C_2p5,PM_C_4,PM_C_10
+        thresholds = [100,2000,10000,0,50,100,26,50,35000,26,50,26,50,2000,0,0,0,0,5,12,24,35]
+        for sensor, threshold in zip(sensors,thresholds):
+            t_neg = self.beacon_stats.get_measurement_time(self.data,self.study_start,self.study_end,sensor=sensor)
+            t_threshold = self.beacon_stats.get_measurement_time(self.data,self.study_start,self.study_end,sensor=sensor,threshold=threshold,below=False)
             for beacon_no in self.data['Beacon'].unique():
                 # getting data for beacon between study period 
                 data_by_beacon = self.data[self.data['Beacon'] == beacon_no]
                 data_by_beacon = data_by_beacon[self.study_start:self.study_end]
                 # plotting and saving
-                if len(data_by_beacon) < 2 or np.nanmean(data_by_beacon[sensor]) < -50:
+                if len(data_by_beacon) < 3 or np.nanmean(data_by_beacon[sensor]) < -50:
                     fig, ax = self.plotter.timeseries([self.study_start,self.study_end],[0,0],figsize=(12,6),label='Percent Completion',ylim=[-0.1,1.1],yticks=np.arange(0,1.1,1))
                 else:
                     fig, ax = self.plotter.timeseries(data_by_beacon.index,data_by_beacon[sensor],figsize=(12,6),label='Measured Values in Relevant Units')
+                    ax.set_title(f'Time Negative: {t_neg[beacon_no]}, Time Above {threshold}: {t_threshold[beacon_no]} minutes')
 
                 plt.savefig(f'../../reports/figures/{self.study}-beacon{beacon_no}-{sensor}-timeseries.png')
                 plt.close()
 
         # reliability figure
-        agg_complete, hour_complete = self.beacon_stats.get_percent_completeness(self.data,self.study_start,self.study_end)
-        for sensor in self.data.columns:
-            print(f'\tGetting reliability data for: {sensor}')
+        for sensor in sensors:
+            agg_complete, hour_complete = self.beacon_stats.get_percent_completeness(self.data,self.study_start,self.study_end,sensor=sensor)
             for key in hour_complete.keys():
                 # beacon_no == key
-                if len(hour_complete[key].index) < 2:
+                if len(hour_complete[key].index) < 3:
                     fig, ax = self.plotter.timeseries([self.study_start,self.study_end],[0,0],figsize=(12,6),label='Percent Completion',ylim=[-0.1,1.1],yticks=np.arange(0,1.1,1))
                 else:
                     # Inserting extra timestamps at +1 hours every other location
                     dt = [x for y in zip(hour_complete[key].index,hour_complete[key].index+timedelta(hours=1)) for x in y]
                     # Repeating entries to match with doubled indices
-                    percent = np.repeat(hour_complete[key]['CO2'],2)
+                    percent = np.repeat(hour_complete[key][sensor],2)
                     fig, ax = self.plotter.timeseries(dt,percent,figsize=(12,6),label='Percent Completion',ylim=[-0.1,1.1],yticks=np.arange(0,1.1,1))
+                    reliability = round(agg_complete[key],2)
+                    ax.set_title(f'Overall Reliability: {reliability}')
                     
                 plt.savefig(f'../../reports/figures/{self.study}-beacon{key}-{sensor}-reliability.png')
                 plt.close()
@@ -368,6 +378,7 @@ class iaq_beacon_study_report():
         Generates the report by loading the relevant variables/figures in the html file
         '''
 
+        print('\tGenerating report...')
         # generate reports for each beacon
         for beacon_no in self.data['Beacon'].unique():
             templateLoader = jinja2.FileSystemLoader(searchpath="/Users/hagenfritz/Projects/utx000/reports/templates/")
