@@ -1,8 +1,13 @@
+# Visual packages
 import matplotlib.pyplot as plt 
-from datetime import datetime, timedelta
 import matplotlib.dates as mdates
-import numpy as np
+import seaborn as sns
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
+# Other packages
+from datetime import datetime, timedelta
+import numpy as np
+import pandas as pd
 
 class single_var:
     '''
@@ -110,6 +115,76 @@ class single_var:
         else:
             # default
             pass
+            
+        # saving figure
+        if save:
+            # default location for Hagen's projects
+            y_var = input('Shorthand for y-variable: ') ## user input for variable to identify figure
+            plt.savefig(f'../../reports/figures/{self.study}-{yvar}-{self.fig_type}.pdf')
+        
+        # return the fig and axis so user can do more unique modifications
+        return fig, ax
+
+    def heatmap(self, df, col, save=False, **kwargs):
+        '''
+        Creates a heatmap from the data provided with days as rows and hours as columns
+        
+        Parameters:
+        - df: dataframe indexed by datetime with a column holding the data of interest
+        - col: integer or string corresponding to the column of interest in the dataframe
+        
+        Optional Parameters (of note):
+        - colorbar: dictionary with the keys: colors, ratios, and ticks that specify the
+          colors in the colorbar, the relative locations of those colors, and the ticks
+          to include on the bar (first and last tick specify the bounds of the plot)
+
+        Returns:
+        - fig: the figure handle
+        - ax: the axis handle
+        '''
+        
+        self.fig_type = 'heatmap'
+        # setting up figure
+        if 'figsize' in kwargs.keys():
+            fig, ax = plt.subplots(figsize=kwargs['figsize'])
+        else:
+            fig, ax = plt.subplots(figsize=(16,8))
+        
+        # transforming the dataframe into the correct format
+        df_by_hour = df.resample('1h').mean()
+        df_by_hour['date'] = df_by_hour.index.date
+        df_by_hour['hour'] = df_by_hour.index.hour
+        try:
+            # if column specified by integer
+            df_by_hour_by_var = df_by_hour.iloc[:,[col,-1,-2]]
+        except:
+            # column specified by name
+            df_by_hour_by_var = df_by_hour.loc[:,[col,'date','hour']]
+            
+        df_transformed = pd.pivot_table(df_by_hour_by_var, values=col, index='date', columns='hour')
+        
+        # axis ticks
+        labels = []
+        for d in df_transformed.index:
+            labels.append(datetime.strftime(d,'%m/%d'))
+            
+        # colorbar
+        def create_cmap(colors,nodes):
+            cmap = LinearSegmentedColormap.from_list("mycmap", list(zip(nodes, colors)))
+            return cmap
+
+        # plotting
+        if 'colorbar' in kwargs.keys():
+            sns.heatmap(df_transformed, yticklabels=labels, vmin=kwargs['colorbar']['ticks'][0], vmax=kwargs['colorbar']['ticks'][-1],
+                        cmap=create_cmap(kwargs['colorbar']['colors'],kwargs['colorbar']['ratios']),
+                        cbar_kws={'ticks':kwargs['colorbar']['ticks']},
+                        ax=ax)
+        else:
+            sns.heatmap(df_transformed, yticklabels=labels, ax=ax)
+        
+        # fixing axis labels
+        ax.set_xlabel('Hour of Day')
+        ax.set_ylabel('')
             
         # saving figure
         if save:
