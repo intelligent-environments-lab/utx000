@@ -55,7 +55,7 @@ class beacon_statistics():
 
         return aggregate_completeness, hourly_completeness
 
-    def get_measurement_ime(self, df, start_time, end_time, sensor='CO2', beacon_no=-1, measurement_interval=5, threshold=0, below=True):
+    def get_measurement_time(self, df, start_time, end_time, sensor='CO2', threshold=0, below=True, beacon_no=-1, measurement_interval=5):
         '''
         Determine the number of measurements above or below certain threshold
 
