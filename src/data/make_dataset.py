@@ -216,9 +216,11 @@ class bpeace2():
         print('Moving to purgatory...')
         os.replace(path_to_file, path_to_destination)
 
-    def process_beacon(self,data_dir='../../data/raw/bpeace2/beacon/'):
+    def process_beacon(self):
         '''
         Combines data from all sensors on all beacons
+
+        Returns True if able to save one dataframe that contains all the data at regular intervals in /data/processed directory
         '''
 
         beacon_data = pd.DataFrame()
@@ -267,6 +269,83 @@ class bpeace2():
 
         return True
 
+    def process_weekly_surveys(self):
+        '''
+        Processes raw weekly survey answers. The survey IDs are:
+        - eQ2L3J08ChlsdSXXKOoOjyLJ: morning
+        - 7TaT8zapOWO0xdtONnsY8CE0: evening
+        
+        Returns True if able to save two dataframes for morning/evening survey data in /data/processed directory
+        '''
+        # defining some variables for ease of understanding
+        parent_dir = '../../data/raw/bpeace2/beiwe/survey_answers/'
+        morning_survey_id = 'eQ2L3J08ChlsdSXXKOoOjyLJ'
+        evening_survey_id = '7TaT8zapOWO0xdtONnsY8CE0'
+        
+        # defining the final dataframes to append to
+        evening_survey_df = pd.DataFrame()
+        morning_survey_df = pd.DataFrame()
+        
+        # Morning Survey Data
+        # -------------------
+        # looping through the participants and then all their data
+        for participant in os.listdir(parent_dir):
+            # making sure we don't read from any hidden directories/files
+            if len(participant) == 8:
+                pid = participant
+                participant_df = pd.DataFrame(columns=['ID','Content','Stress','Lonely','Sad','Energy','TST','SOL','NAW','Restful'])
+            
+                for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/'):
+                    # reading raw data
+                    df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/{file}')
+                    # adding new row
+                    try:
+                        participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S')] = [pid,df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],
+                                                                                               df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer']]
+                    except KeyError:
+                        print(f'Problem with morning survey {file} for Participant {pid} - Participant most likely did not answer a question')
+                        #self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-morning-{file}')
+            
+                # appending participant df to overall df
+                morning_survey_df = morning_survey_df.append(participant_df)
+            else:
+                print(f'Directory {participant} is not valid')
+        
+        # replacing string values with numeric
+        morning_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3},inplace=True)
+        morning_survey_df.replace({'Low energy':0, 'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High Energy':4},inplace=True)
+        
+        # Evening Survey Data
+        # -------------------
+        for participant in os.listdir(parent_dir):
+            if len(participant) == 8:
+                pid = participant
+                # less columns
+                participant_df = pd.DataFrame(columns=['ID','Content','Stress','Lonely','Sad','Energy'])
+            
+                for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/'):
+                    df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/{file}')
+                    try:
+                        participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S')] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer']]
+                    except KeyError:
+                        print(f'Problem with evening survey {file} for Participant {pid} - Participant most likely did not answer a question')
+                        #self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-evening-{file}')
+            
+                evening_survey_df = evening_survey_df.append(participant_df)
+            else:
+                print(f'Directory {participant} is not valid')
+                
+        evening_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3},inplace=True)
+        evening_survey_df.replace({'Low energy':0, 'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High Energy':4},inplace=True)
+
+        try:
+            morning_survey_df.to_csv(f'../../data/processed/bpeace2-evening-survey.csv')
+            evening_survey_df.to_csv(f'../../data/processed/bpeace2-morning-survey.csv')
+        except:
+            return False
+
+        return True
+
 def main():
     '''
     Runs data processing scripts to turn raw data from (../raw) into
@@ -279,6 +358,7 @@ def main():
     print('\t2. UT3000 Fitbit Sleep Stages')
     print('\t3. UT3000 HEH Survey')
     print('\t4. BPEACE2 Beacon')
+    print('\t5. BPEACE2 Weekly Surveys')
     ans = int(input('Answer: '))
     ut1000_processor = ut1000()
     ut2000_processor = ut2000()
@@ -314,6 +394,13 @@ def main():
             logger.info(f'Data for BPEACE2 beacons processed')
         else:
             logger.error(f'Data for BPEACE2 beacons NOT processed')
+
+    # BPEACE2 Beacon Data
+    if ans == 0 or ans == 5:
+        if bpeace2_processor.process_weekly_surveys():
+            logger.info(f'Data for BPEACE2 morning and evening surveys processed')
+        else:
+            logger.error(f'Data for BPEACE2 morning and evening surveys NOT processed')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
