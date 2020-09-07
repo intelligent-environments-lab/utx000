@@ -213,7 +213,7 @@ class bpeace2():
         '''
         Moves problematic file to the purgatory data directory
         '''
-        print('Moving to purgatory...')
+        print('\t\tMoving to purgatory...')
         os.replace(path_to_file, path_to_destination)
 
     def process_beacon(self):
@@ -288,6 +288,7 @@ class bpeace2():
         
         # Morning Survey Data
         # -------------------
+        print('\tProcessing morning survey data...')
         # looping through the participants and then all their data
         for participant in os.listdir(parent_dir):
             # making sure we don't read from any hidden directories/files
@@ -303,20 +304,25 @@ class bpeace2():
                         participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S')] = [pid,df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],
                                                                                                df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer']]
                     except KeyError:
-                        print(f'Problem with morning survey {file} for Participant {pid} - Participant most likely did not answer a question')
-                        #self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-morning-{file}')
+                        print(f'\t\tProblem with morning survey {file} for Participant {pid} - Participant most likely did not answer a question')
+                        self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-morning-{file}')
             
                 # appending participant df to overall df
                 morning_survey_df = morning_survey_df.append(participant_df)
             else:
-                print(f'Directory {participant} is not valid')
+                print(f'\t\tDirectory {participant} is not valid')
         
         # replacing string values with numeric
-        morning_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3},inplace=True)
-        morning_survey_df.replace({'Low energy':0, 'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High Energy':4},inplace=True)
+        morning_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3,
+                                'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':0,'High Energy':4,
+                                'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
+                                'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
+        # fixing any string inputs outside the above range
+        morning_survey_df['NAW'] = pd.to_numeric(morning_survey_df['NAW'],errors='coerce')
         
         # Evening Survey Data
         # -------------------
+        print('\tProcessing evening survey data...')
         for participant in os.listdir(parent_dir):
             if len(participant) == 8:
                 pid = participant
@@ -328,19 +334,20 @@ class bpeace2():
                     try:
                         participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S')] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer']]
                     except KeyError:
-                        print(f'Problem with evening survey {file} for Participant {pid} - Participant most likely did not answer a question')
-                        #self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-evening-{file}')
+                        print(f'\t\tProblem with evening survey {file} for Participant {pid} - Participant most likely did not answer a question')
+                        self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-evening-{file}')
             
                 evening_survey_df = evening_survey_df.append(participant_df)
             else:
-                print(f'Directory {participant} is not valid')
+                print(f'\t\tDirectory {participant} is not valid')
                 
-        evening_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3},inplace=True)
-        evening_survey_df.replace({'Low energy':0, 'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High Energy':4},inplace=True)
+        evening_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3,
+                                'Low energy':0, 'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,
+                                'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
 
         try:
-            morning_survey_df.to_csv(f'../../data/processed/bpeace2-evening-survey.csv')
-            evening_survey_df.to_csv(f'../../data/processed/bpeace2-morning-survey.csv')
+            morning_survey_df.to_csv(f'../../data/processed/bpeace2-morning-survey.csv')
+            evening_survey_df.to_csv(f'../../data/processed/bpeace2-evening-survey.csv')
         except:
             return False
 
