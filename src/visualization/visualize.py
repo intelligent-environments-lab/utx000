@@ -134,9 +134,11 @@ class single_var:
         - col: integer or string corresponding to the column of interest in the dataframe
         
         Optional Parameters (of note):
-        - colorbar: dictionary with the keys: colors, ratios, and ticks that specify the
-          colors in the colorbar, the relative locations of those colors, and the ticks
-          to include on the bar (first and last tick specify the bounds of the plot)
+        - colorbar: dictionary with the keys:
+            - colors: colors to include in heatmap
+            - ratios: must start at 0 and end at 1 and equal in length to the colors array. These values
+              specify the relative locations where the true color will be
+            - ticks: values to include on the colorbar - length is arbitrary
 
         Returns:
         - fig: the figure handle
