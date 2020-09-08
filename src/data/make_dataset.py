@@ -212,6 +212,8 @@ class bpeace2():
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
         Moves problematic file to the purgatory data directory
+
+        Returns void
         '''
         print('\t\tMoving to purgatory...')
         os.replace(path_to_file, path_to_destination)
@@ -223,45 +225,55 @@ class bpeace2():
         Returns True if able to save one dataframe that contains all the data at regular intervals in /data/processed directory
         '''
 
-        beacon_data = pd.DataFrame()
-        beacon_list = [30,1,21,34,22,28,24,41,26,48,46,25,15,44,23,29,10,16,36,38,40,5,17,6,13,19,32,11,7]
+        beacon_data = pd.DataFrame() # dataframe to hold the final set of data
+        beacon_list = [30,1,21,34,22,28,24,41,26,48,46,25,15,44,23,29,10,16,36,38,40,5,17,6,13,19,32,11,7] # list of all beacons used in the study
         print('Reading for beacon:')
         for beacon in beacon_list:
             print(f'\t{beacon}')
-            beacon_df = pd.DataFrame()
+            beacon_df = pd.DataFrame() # dataframe specific to the beacon
+            # correcting the number since the values <10 have leading zero in directory
             if beacon < 10:
                 number = f'0{beacon}'
             else:
                 number = f'{beacon}'
-            py3_df = pd.DataFrame()
+
+            # Python3 Sensors
+            # ---------------
+            py3_df = pd.DataFrame() # dataframe for sensors using python3
             for file in os.listdir(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/'):
                 try:
+                    # reading in raw data (csv for one day at a time) and appending it to the overal dataframe
                     day_df = pd.read_csv(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/{file}',
                                         index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
                     py3_df = pd.concat([py3_df,day_df])
                 except Exception as inst:
+                    # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
                     print(f'{inst}; filename: {file}')
                     self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
 
-            py3_df = py3_df.resample('5T').mean()
+            py3_df = py3_df.resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+
+            # Python2 Sensors
+            # ---------------
             py2_df = pd.DataFrame()
             for file in os.listdir(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/'):
                 try:
                     day_df = pd.read_csv(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/{file}',
                                     index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
+                    py2_df = pd.concat([py2_df,day_df])
                 except Exception as inst:
                     print(f'{inst}; filename: {file}')
                     self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/{file}',f'../../data/purgatory/{self.study}-B{number}-py2-{file}')
-
-                py2_df = pd.concat([py2_df,day_df])
                 
             py2_df = py2_df.resample('5T').mean()
                 
+            # merging python2 and 3 sensor dataframes and adding column for the beacon
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
             beacon_df['Beacon'] = beacon
             
             beacon_data = pd.concat([beacon_data,beacon_df])
 
+        # saving
         try:
             beacon_data.to_csv(f'../../data/processed/bpeace2-beacon.csv')
         except:
@@ -345,6 +357,7 @@ class bpeace2():
                                 'Low energy':0, 'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
 
+        # saving
         try:
             morning_survey_df.to_csv(f'../../data/processed/bpeace2-morning-survey.csv')
             evening_survey_df.to_csv(f'../../data/processed/bpeace2-evening-survey.csv')
