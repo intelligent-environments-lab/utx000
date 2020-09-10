@@ -324,7 +324,7 @@ class iaq_beacon_study_report():
         # Getting just the sensors (all columns but the last one)
         sensors = self.data.columns[:-1]
 
-        # time series
+        # time series - line and heatmap
         print('\tCreating figures...')
         # TVOC,eCO2,Lux,Visible,Infrared,NO2,T_NO2,RH_NO2,CO,T_CO,RH_CO,Temperature [C],Relative Humidity,CO2,PM_N_0p5,PM_N_1,PM_N_2p5,PM_N_4,PM_N_10,PM_C_1,PM_C_2p5,PM_C_4,PM_C_10
         thresholds = [100,2000,10000,0,50,100,26,50,35000,26,50,26,50,2000,0,0,0,0,5,12,24,35]
@@ -362,6 +362,32 @@ class iaq_beacon_study_report():
                     ax.set_title(f'Overall Reliability: {reliability}')
                     
                 plt.savefig(f'../../reports/figures/{self.study}-beacon{key}-{sensor}-reliability.png')
+                plt.close()
+
+        # heatmap
+        limited_sensors = ['TVOC','Lux','NO2','T_NO2','CO','T_CO','Temperature [C]','CO2','PM_C_2p5','PM_C_10']
+        colorbars = [{'colors':["green", "yellow", "orange", "red", "purple"],'ratios':[0.0, 0.03, 0.1, 0.3, 1],'ticks':[0,65,220,660,2200]},
+                    {'colors':["black","purple","red","orange","yellow","green"],'ratios':[0.0, 0.1, 0.16, 0.2, 0.64, 1],'ticks':[0,50,80,100,320,500]},
+                    {'colors':["green", "yellow", "orange", "red", "purple", "black"],'ratios':[0.0, 0.04, 0.08, 0.29, 0.52, 1],'ticks':[0,50,100,360,650,1250]},
+                    {'colors':["cyan","blue","green","orange","red"],'ratios':[0.0, 0.2, 0.4, 0.7, 1],'ticks':[15,18,20,26,28,31]},
+                    {'colors':["green", "yellow", "orange", "red", "purple", "black"],'ratios':[0.0, 0.15, 0.3, 0.4, 0.5, 1],'ticks':[0,4,9,12,15,30]},
+                    {'colors':["cyan","blue","green","orange","red"],'ratios':[0.0, 0.2, 0.4, 0.7, 1],'ticks':[15,18,20,26,28,31]},
+                    {'colors':["cyan","blue","green","orange","red"],'ratios':[0.0, 0.2, 0.4, 0.7, 1],'ticks':[15,18,20,26,28,31]},
+                    {'colors':['green','yellow','orange','red','purple'],'ratios':[0,0.1,0.25,.5,1],'ticks':[0,600,1000,2500,5000,10000]},
+                    {'colors':["green", "yellow", "orange", "red", "purple", "black"],'ratios':[0.0, 0.048, 0.14, 0.22, 0.6, 1],'ticks':[0,12,35,55,150,250]},
+                    {'colors':["green", "yellow", "orange", "red", "purple", "black"],'ratios':[0.0, 0.11, 0.31, 0.51, 0.71, 1],'ticks':[0,50,150,250,350,500]}]
+        for sensor, colorbar in zip(limited_sensors, colorbars):
+            for beacon_no in self.data['Beacon'].unique():
+                # getting data for beacon between study period 
+                data_by_beacon = self.data[self.data['Beacon'] == beacon_no]
+                data_by_beacon = data_by_beacon[self.study_start:self.study_end]
+                # plotting and saving
+                if len(data_by_beacon) < 3 or np.nanmean(data_by_beacon[sensor]) < -50:
+                    fig, ax = plt.subplots()
+                else:
+                    fig, ax = self.plotter.heatmap(data_by_beacon,sensor,figsize=(18,12),colorbar=colorbar)
+
+                plt.savefig(f'../../reports/figures/{self.study}-beacon{beacon_no}-{sensor}-heatmap.png')
                 plt.close()
 
     def get_filename(self,beginning,ending):
