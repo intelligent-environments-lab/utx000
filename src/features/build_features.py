@@ -102,4 +102,42 @@ class beacon_statistics():
 
         return time
 
-
+    def compare_temperature_readings(self, df):
+        '''
+        Compares temperature readings from the DGS and Sensirion sensors
+        
+        Parameters:
+        - df: dataframe holding the beacon data with columns titled "T_NO2", "T_CO", and "Temperature [C]", "Beacon"
+        
+        Returns:
+        - t_raw: dataframe holding the measured temperature values for all beacons
+        - t_summary: dictionary with beacon numbers as keys and dataframe of statistical values for each t sensor
+        '''
+        
+        t_raw = df[['T_NO2','T_CO','Temperature [C]','Beacon']]
+        t_raw.columns = ['DGS1','DGS2','Sensirion','Beacon']
+        def avg_dgs(x,y):
+            if x < 0:
+                return y
+            elif y < 0:
+                return x
+            else:
+                return (x+y)/2
+            
+        t_raw['DGS_AVG'] = t_raw.apply(lambda row: avg_dgs(row[0],row[1]),axis=1)
+        t_raw['Difference'] = t_raw['Sensirion'] - t_raw['DGS_AVG']
+        
+        t_summary = {}
+        for beacon in t_raw['Beacon'].unique():
+            data_by_beacon = t_raw[t_raw['Beacon'] == beacon]
+            means = [np.nanmean(data_by_beacon['DGS1']),np.nanmean(data_by_beacon['DGS2']),np.nanmean(data_by_beacon['Sensirion'])]
+            mins = [np.nanmin(data_by_beacon['DGS1']),np.nanmin(data_by_beacon['DGS2']),np.nanmin(data_by_beacon['Sensirion'])]
+            maxs = [np.nanmax(data_by_beacon['DGS1']),np.nanmax(data_by_beacon['DGS2']),np.nanmax(data_by_beacon['Sensirion'])]
+            p25s = [np.nanpercentile(data_by_beacon['DGS1'],25),np.nanpercentile(data_by_beacon['DGS2'],25),np.nanpercentile(data_by_beacon['Sensirion'],25)]
+            p75s = [np.nanpercentile(data_by_beacon['DGS1'],75),np.nanpercentile(data_by_beacon['DGS2'],75),np.nanpercentile(data_by_beacon['Sensirion'],75)]
+        
+            beacon_df = pd.DataFrame(data={'Min':mins,'Max':maxs,'Mean':means,'25th':p25s,'75th':p75s},
+                  index=['DGS1', 'DGS2', 'Sensirion'])
+            t_summary[beacon] = beacon_df
+            
+        return t_raw, t_summary
