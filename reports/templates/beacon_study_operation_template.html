@@ -66,6 +66,8 @@
 					<p style="text-align:center;"><strong>Figure 1.1 </strong>TVOC timeseries data with units of parts-per-million during the study period</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('TVOC-reliability') }}"></p>
 					<p style="text-align:center;"><strong>Figure 1.2 </strong>Reliability of the TVOC sensor during the study period</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('TVOC-heatmap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 1.3 </strong>Heatmap of TVOC measurements during the study period</p>
 				</div>
 			</div>
 			<div id="lux">
@@ -78,6 +80,8 @@
 					<p style="text-align:center;"><strong>Figure 2.2 </strong>Infrared levels during the study period</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('Lux-reliability') }}"></p>
 					<p style="text-align:center;"><strong>Figure 2.3 </strong>Reliability of the light sensor during the study period</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('Lux-heatmap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 2.4 </strong>Heatmap of light measurements during the study period</p>
 				</div>
 			</div>
 			<div id="no2">
@@ -88,6 +92,8 @@
 					<p style="text-align:center;"><strong>Figure 3.1 </strong>NO2 timeseries data with units of parts-per-billion during the study period</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('NO2-reliability') }}"></p>
 					<p style="text-align:center;"><strong>Figure 3.2 </strong>Reliability of the NO2 sensor during the study period</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('NO2-heatmap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 3.3 </strong>Heatmap of the NO2 measurements during the study period</p>
 				</div>
 			</div>
 			<div id="co">
@@ -98,6 +104,8 @@
 					<p style="text-align:center;"><strong>Figure 4.1 </strong>CO timeseries data with units of parts-per-billion during the study period</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('CO-reliability') }}"></p>
 					<p style="text-align:center;"><strong>Figure 4.2 </strong>Reliability of the CO sensor during the study period</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('CO-heatmap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 4.2 </strong>Heatmap of the CO measurements during the study period</p>
 				</div>
 			</div>
 			<div id="temperature">
@@ -110,7 +118,12 @@
 					<p style="text-align:center;"><strong>Figure 5.2 </strong>Temperature timeseries data in units of Celsius during the study period by the DGS-CO sensor</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('T_NO2-timeseries') }}"></p>
 					<p style="text-align:center;"><strong>Figure 5.3 </strong>Temperature timeseries data in units of Celsius during the study period by the DGS-NO2 sensor</p>
-					
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('Temperature [C]-heatmap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 5.4 </strong>Temperature heatmap data in units of Celsius during the study period by the Sensirion SCD30 sensor</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('T_CO-heatmap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 5.5 </strong>Temperature heatmap data in units of Celsius during the study period by the DGS-CO sensor</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('T_NO2-heatmap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 5.6 </strong>Temperature heatmap data in units of Celsius during the study period by the DGS-NO2 sensor</p>
 				</div>
 			</div>
 			<div id="rh">
@@ -130,13 +143,17 @@
 				<p>The Particulate Matter values (PM1, PM2.5, and PM10) and reliability are summarized below</p>
 				<div id="1">
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_1-timeseries') }}"></p>
-					<p style="text-align:center;"><strong>Figure 7.1 </strong>PM1 Timeseries data with units of micrograms per cubic metter during the study period</p>
+					<p style="text-align:center;"><strong>Figure 7.1 </strong>PM1 Timeseries data with units of micrograms per cubic meter</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_2p5-timeseries') }}"></p>
-					<p style="text-align:center;"><strong>Figure 7.2 </strong>PM2.5 Timeseries data with units of micrograms per cubic metter during the study period</p>
+					<p style="text-align:center;"><strong>Figure 7.2 </strong>PM2.5 Timeseries data with units of micrograms per cubic meter</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_2p5-heatmap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 7.2 </strong>PM2.5 heatmap  with units of micrograms per cubic meter</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_10-timeseries') }}"></p>
-					<p style="text-align:center;"><strong>Figure 7.3 </strong>PM10 Timeseries data with units of micrograms per cubic metter during the study period</p>
+					<p style="text-align:center;"><strong>Figure 7.2 </strong>PM2.5 Timeseries data with units of micrograms per cubic meter</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_10-heatmap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 7.3 </strong>PM10 heatmap with units of micrograms per cubic meter</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_2p5-reliability') }}"></p>
-					<p style="text-align:center;"><strong>Figure 7.4 </strong>Reliability of the PM sensor (using PM2.5 values) during the study period</p>
+					<p style="text-align:center;"><strong>Figure 7.4 </strong>Reliability of the PM sensor (using PM2.5 values)</p>
 				</div>
 			</div>
 		</div>
