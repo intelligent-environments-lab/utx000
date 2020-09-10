@@ -323,11 +323,12 @@ class iaq_beacon_study_report():
         '''
         # Getting just the sensors (all columns but the last one)
         sensors = self.data.columns[:-1]
+        print('\tCreating figures...')
 
         # time series - line and heatmap
-        print('\tCreating figures...')
-        # TVOC,eCO2,Lux,Visible,Infrared,NO2,T_NO2,RH_NO2,CO,T_CO,RH_CO,Temperature [C],Relative Humidity,CO2,PM_N_0p5,PM_N_1,PM_N_2p5,PM_N_4,PM_N_10,PM_C_1,PM_C_2p5,PM_C_4,PM_C_10
-        thresholds = [100,2000,10000,0,50,100,26,50,35000,26,50,26,50,2000,0,0,0,0,5,12,24,35]
+        print('\t\tTime series...')
+        # TVOC,Lux,Visible,Infrared,NO2,T_NO2,RH_NO2,CO,T_CO,RH_CO,Temperature [C],Relative Humidity,CO2,PM_N_0p5,PM_N_1,PM_N_2p5,PM_N_4,PM_N_10,PM_C_1,PM_C_2p5,PM_C_4,PM_C_10
+        thresholds = [100,10000,0,50,100,26,50,35000,26,50,26,50,2000,0,0,0,0,5,12,24,35]
         for sensor, threshold in zip(sensors,thresholds):
             t_neg = self.beacon_stats.get_measurement_time(self.data,self.study_start,self.study_end,sensor=sensor)
             t_threshold = self.beacon_stats.get_measurement_time(self.data,self.study_start,self.study_end,sensor=sensor,threshold=threshold,below=False)
@@ -337,7 +338,7 @@ class iaq_beacon_study_report():
                 data_by_beacon = data_by_beacon[self.study_start:self.study_end]
                 # plotting and saving
                 if len(data_by_beacon) < 3 or np.nanmean(data_by_beacon[sensor]) < -50:
-                    fig, ax = self.plotter.timeseries([self.study_start,self.study_end],[0,0],figsize=(12,6),label='Percent Completion',ylim=[-0.1,1.1],yticks=np.arange(0,1.1,1))
+                    fig, ax = plt.subplots()
                 else:
                     fig, ax = self.plotter.timeseries(data_by_beacon.index,data_by_beacon[sensor],figsize=(12,6),label='Measured Values in Relevant Units')
                     ax.set_title(f'Time Negative: {t_neg[beacon_no]}, Time Above {threshold}: {t_threshold[beacon_no]} minutes')
@@ -346,12 +347,13 @@ class iaq_beacon_study_report():
                 plt.close()
 
         # reliability figure
+        print('\t\tReliability...')
         for sensor in sensors:
             agg_complete, hour_complete = self.beacon_stats.get_percent_completeness(self.data,self.study_start,self.study_end,sensor=sensor)
             for key in hour_complete.keys():
                 # beacon_no == key
                 if len(hour_complete[key].index) < 3:
-                    fig, ax = self.plotter.timeseries([self.study_start,self.study_end],[0,0],figsize=(12,6),label='Percent Completion',ylim=[-0.1,1.1],yticks=np.arange(0,1.1,1))
+                    fig, ax = plt.subplots()
                 else:
                     # Inserting extra timestamps at +1 hours every other location
                     dt = [x for y in zip(hour_complete[key].index,hour_complete[key].index+timedelta(hours=1)) for x in y]
@@ -365,6 +367,7 @@ class iaq_beacon_study_report():
                 plt.close()
 
         # heatmap
+        print('\t\tHeatmaps...')
         limited_sensors = ['TVOC','Lux','NO2','T_NO2','CO','T_CO','Temperature [C]','CO2','PM_C_2p5','PM_C_10']
         colorbars = [{'colors':["green", "yellow", "orange", "red", "purple"],'ratios':[0.0, 0.03, 0.1, 0.3, 1],'ticks':[0,65,220,660,2200]},
                     {'colors':["black","purple","red","orange","yellow","green"],'ratios':[0.0, 0.1, 0.16, 0.2, 0.64, 1],'ticks':[0,50,80,100,320,500]},
@@ -385,10 +388,29 @@ class iaq_beacon_study_report():
                 if len(data_by_beacon) < 3 or np.nanmean(data_by_beacon[sensor]) < -50:
                     fig, ax = plt.subplots()
                 else:
-                    fig, ax = self.plotter.heatmap(data_by_beacon,sensor,figsize=(18,12),colorbar=colorbar)
+                    fig, ax = self.plotter.heatmap(data_by_beacon,sensor,figsize=(16,16),colorbar=colorbar)
 
                 plt.savefig(f'../../reports/figures/{self.study}-beacon{beacon_no}-{sensor}-heatmap.png')
                 plt.close()
+
+        # Specific Plots
+        # --------------
+        print('\t\tOther...')
+        # heatmap - difference in temperature readings
+        t_df, t_dict = self.beacon_stats.compare_temperature_readings(self.data)
+        for beacon_no in t_df['Beacon'].unique():
+            # getting data for beacon between study period 
+            t_by_beacon = t_df[t_df['Beacon'] == beacon_no]
+            t_by_beacon = t_by_beacon[self.study_start:self.study_end]
+            # plotting and saving
+            if len(t_by_beacon) < 3:
+                fig, ax = plt.subplots()
+            else:
+                fig, ax = self.plotter.heatmap(t_by_beacon,'Difference',figsize=(16,16),
+                    colorbar={'colors':["blue", "green", "red"],'ratios':[0.0, 0.5, 1],'ticks':[-5,-4,-3,-2,-1,0,1,2,3,4,5]})
+
+            plt.savefig(f'../../reports/figures/{self.study}-beacon{beacon_no}-deltaT-heatmap.png')
+            plt.close()
 
     def get_filename(self,beginning,ending):
         '''
@@ -425,12 +447,12 @@ class iaq_beacon_study_report():
 
     def generate_report_from_processed(self):
         '''
-        Generates the report from the processed data
+        Creates a pipeline that loads data, creates the plots, and loads it into the html template file
         '''
-        data_was_loaded = self.load_data()
+        data_was_loaded = self.load_data() # load
         if data_was_loaded:
-            self.create_plots()
-            self.generate_report()
+            self.create_plots() # create plots
+            self.generate_report() # generate report
         else:
             print('No report generated')
 
