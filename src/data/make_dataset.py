@@ -281,6 +281,13 @@ class bpeace2():
 
         return True
 
+    def process_gps(self):
+        '''
+        Processes the raw gps data into one csv file for each participant and saves into /data/processed/
+
+        Returns 
+        '''
+
     def process_weekly_surveys(self):
         '''
         Processes raw weekly survey answers. The survey IDs are:
