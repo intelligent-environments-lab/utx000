@@ -281,7 +281,7 @@ class bpeace2():
 
         return True
 
-    def process_gps(self):
+    def process_gps(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/extension/data/beiwe/gps/'):
         '''
         Processes the raw gps data into one csv file for each participant and saves into /data/processed/
 
@@ -382,13 +382,18 @@ class bpeace2():
 
         return True
 
-    def process_environment_survey(self):
+    def process_environment_survey(self, data_file='../../data/raw/bpeace2/surveys/EESurvey_E1_raw.csv'):
         '''
         Processes raw environment survey (first instance) and combines relevant data into processed directory
 
         Returns True if processed, False otherwise
         '''
         print('\tProcessing first environment survey...')
+
+        ee = pd.read_csv(data_file,usecols=[0,2,4,5,6,7,8,9],parse_dates=[1])
+        ee.columns = ['REDCap','Timestamp','Apartment','Duplex','House','Dorm','Hotel','Other']
+        ee.dropna(subset=['Timestamp'],inplace=True)
+        ee.set_index('Timestamp',inplace=True)
 
         # saving
         try:
