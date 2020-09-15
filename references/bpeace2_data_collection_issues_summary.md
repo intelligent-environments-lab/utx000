@@ -1,4 +1,10 @@
-This file is meant to house a small table that highlights the issues surrounding data collection from the multiple modalities. In terms of data collection/availability the main components for each of the modalities are:
+# Data Modality Collection Notes
+
+This file is meant to house a small table that highlights the issues surrounding data collection from the multiple modalities.
+
+## Data Modalities
+
+In terms of data collection/availability the main components for each of the modalities are:
 
 - **Beacon**: All sensors which include:
   - CO2
@@ -14,9 +20,12 @@ This file is meant to house a small table that highlights the issues surrounding
   - Weekly Survey (13)
 - **Fitbit**: There are multiple data streams from Fitbit, but all should be collecting the same amount of data over the collection period except for sleep which required the participants to wear the device to bed. 
 
+## Data Availability Tags
+
 The following labels help to summarize the data availability:
 - **Full**: Denotes a nearly complete dataset for all major components of the data collection modality i.e. all sensors for
   
+## Data Availability Table
 
 | Beiwe ID | Beacon Data | Beiwe Data | EMAs | Fitbit Data | REDCap Surveys |
 | --- | --- | --- | --- | --- | --- | 
