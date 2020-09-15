@@ -227,9 +227,9 @@ class bpeace2():
 
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         beacon_list = [30,1,21,34,22,28,24,41,26,48,46,25,15,44,23,29,10,16,36,38,40,5,17,6,13,19,32,11,7] # list of all beacons used in the study
-        print('Reading for beacon:')
+        print('\tProcessing beacon data...\n\t\tReading for beacon:')
         for beacon in beacon_list:
-            print(f'\t{beacon}')
+            print(f'\t\t{beacon}')
             beacon_df = pd.DataFrame() # dataframe specific to the beacon
             # correcting the number since the values <10 have leading zero in directory
             if beacon < 10:
@@ -287,6 +287,15 @@ class bpeace2():
 
         Returns 
         '''
+        print('\tProcessing gps data...')
+
+        # saving
+        try:
+            gps_df.to_csv(f'../../data/processed/bpeace2-gps.csv')
+        except:
+            return False
+
+        return True
 
     def process_weekly_surveys(self):
         '''
@@ -373,6 +382,23 @@ class bpeace2():
 
         return True
 
+    def process_environment_survey(self):
+        '''
+        Processes raw environment survey (first instance) and combines relevant data into processed directory
+
+        Returns True if processed, False otherwise
+        '''
+        print('\tProcessing first environment survey...')
+
+        # saving
+        try:
+            ee.to_csv(f'../../data/processed/bpeace2-ee-survey.csv')
+        except:
+            return False
+
+        return True
+
+
 def main():
     '''
     Runs data processing scripts to turn raw data from (../raw) into
@@ -380,12 +406,14 @@ def main():
     '''
     logger = logging.getLogger(__name__)
     print('Data Import Table of Contents:')
-    print('\t0. All')
     print('\t1. UT2000 Beacon')
     print('\t2. UT3000 Fitbit Sleep Stages')
     print('\t3. UT3000 HEH Survey')
-    print('\t4. BPEACE2 Beacon')
-    print('\t5. BPEACE2 Weekly Surveys')
+    print('\t4. All BPEACE2 Data')
+    print('\t5. BPEACE2 Beacon')
+    print('\t6. BPEACE2 Weekly EMAs')
+    print('\t7. BPEACE2 GPS')
+    print('\t8. BPEACE2 REDCap Environment and Experiences Survey')
     ans = int(input('Answer: '))
     ut1000_processor = ut1000()
     ut2000_processor = ut2000()
@@ -393,14 +421,14 @@ def main():
     bpeace2_processor = bpeace2()
 
     # UT2000 Beacon Data
-    if ans == 0 or ans == 1:
+    if ans == 1:
         if ut2000_processor.process_beacon():
             logger.info(f'Data for UT2000 beacons processed')
         else:
             logger.error(f'Data for UT2000 beacons NOT processed')
 
     # UT3000 Fitbit Sleep Data
-    if ans == 0 or ans == 2:
+    if ans == 2:
         modality='fitbit'
         var_='sleepStagesDay_merged'
         if ut3000_processor.process_beiwe_or_fitbit(modality, var_):
@@ -409,25 +437,39 @@ def main():
             logger.error(f'Data for UT3000 {modality} {var_} NOT processed')
 
     # UT3000 Home Environment Survey
-    if ans == 0 or ans == 3:
+    if ans == 3:
         if ut3000_processor.process_heh():
             logger.info(f'Data for UT3000 HEH survey processed')
         else:
             logger.error(f'Data for UT3000 HEH survey NOT processed')
 
     # BPEACE2 Beacon Data
-    if ans == 0 or ans == 4:
+    if ans == 4 or ans == 5:
         if bpeace2_processor.process_beacon():
             logger.info(f'Data for BPEACE2 beacons processed')
         else:
             logger.error(f'Data for BPEACE2 beacons NOT processed')
 
-    # BPEACE2 Beacon Data
-    if ans == 0 or ans == 5:
+    # BPEACE2 survey Data
+    if ans == 4 or ans == 6:
         if bpeace2_processor.process_weekly_surveys():
             logger.info(f'Data for BPEACE2 morning and evening surveys processed')
         else:
             logger.error(f'Data for BPEACE2 morning and evening surveys NOT processed')
+
+    # BPEACE2 gps Data
+    if ans == 4 or ans == 7:
+        if bpeace2_processor.process_gps():
+            logger.info(f'Data for BPEACE2 GPS processed')
+        else:
+            logger.error(f'Data for BPEACE2 GPS NOT processed')
+
+    # BPEACE2 EE Survey
+    if ans == 4 or ans == 8:
+        if bpeace2_processor.process_environment_survey():
+            logger.info(f'Data for BPEACE2 environment and experiences survey processed')
+        else:
+            logger.error(f'Data for BPEACE2 environment and experiences survey NOT processed')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
