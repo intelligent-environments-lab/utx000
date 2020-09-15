@@ -30,3 +30,4 @@ The following labels help to summarize the data availability:
 | Beiwe ID | Beacon Data | Beiwe Data | EMAs | Fitbit Data | REDCap Surveys |
 | --- | --- | --- | --- | --- | --- | 
 | i4w8dx6l | < 7 days | No GPS | Limited | Unknown | Unknown |
+| nvtfpaor | < 7 days | No GPS | Limited | Unknown | Unknown |
