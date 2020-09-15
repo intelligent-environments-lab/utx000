@@ -73,7 +73,7 @@
 			<div id="lux">
 				<h3>Light Levels</h3>
 				<p>The light level values and reliability are summarized below</p>
-				<div id="1">
+				<div id="2">
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('Lux-timeseries') }}"></p>
 					<p style="text-align:center;"><strong>Figure 2.1 </strong>Light level timeseries data in units of lux during the study period</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('Infrared-timeseries') }}"></p>
@@ -87,7 +87,7 @@
 			<div id="no2">
 				<h3>Nitrogen Dioxide</h3>
 				<p>The NO2 values and reliability are summarized below</p>
-				<div id="1">
+				<div id="3">
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('NO2-timeseries') }}"></p>
 					<p style="text-align:center;"><strong>Figure 3.1 </strong>NO2 timeseries data with units of parts-per-billion during the study period</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('NO2-reliability') }}"></p>
@@ -99,7 +99,7 @@
 			<div id="co">
 				<h3>Carbon Monoxide</h3>
 				<p>The CO values and reliability are summarized below</p>
-				<div id="1">
+				<div id="4">
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('CO-timeseries') }}"></p>
 					<p style="text-align:center;"><strong>Figure 4.1 </strong>CO timeseries data with units of parts-per-billion during the study period</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('CO-reliability') }}"></p>
@@ -111,7 +111,7 @@
 			<div id="temperature">
 				<h3>Temperature</h3>
 				<p>The temperature values from three various sensors and reliability are summarized below</p>
-				<div id="1">
+				<div id="5">
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('Temperature [C]-timeseries') }}"></p>
 					<p style="text-align:center;"><strong>Figure 5.1 </strong>Temperature timeseries data in Celsius measured by the Sensirion SCD30 sensor</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('T_CO-timeseries') }}"></p>
@@ -131,7 +131,7 @@
 			<div id="rh">
 				<h3>Relative Humidity</h3>
 				<p>The RH values from three various sensors and reliability are summarized below</p>
-				<div id="1">
+				<div id="6">
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('Relative Humidity-timeseries') }}"></p>
 					<p style="text-align:center;"><strong>Figure 6.1 </strong>Relative humidity timeseries data during the study period by the Sensirion SCD30 sensor</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('RH_CO-timeseries') }}"></p>
@@ -143,19 +143,31 @@
 			<div id="pm">
 				<h3>Particulate Matter</h3>
 				<p>The Particulate Matter values (PM1, PM2.5, and PM10) and reliability are summarized below</p>
-				<div id="1">
+				<div id="7">
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_1-timeseries') }}"></p>
 					<p style="text-align:center;"><strong>Figure 7.1 </strong>PM1 Timeseries data with units of micrograms per cubic meter</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_2p5-timeseries') }}"></p>
 					<p style="text-align:center;"><strong>Figure 7.2 </strong>PM2.5 Timeseries data with units of micrograms per cubic meter</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_2p5-heatmap') }}"></p>
-					<p style="text-align:center;"><strong>Figure 7.2 </strong>PM2.5 heatmap  with units of micrograms per cubic meter</p>
+					<p style="text-align:center;"><strong>Figure 7.3 </strong>PM2.5 heatmap  with units of micrograms per cubic meter</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_10-timeseries') }}"></p>
-					<p style="text-align:center;"><strong>Figure 7.2 </strong>PM2.5 Timeseries data with units of micrograms per cubic meter</p>
+					<p style="text-align:center;"><strong>Figure 7.4 </strong>PM2.5 Timeseries data with units of micrograms per cubic meter</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_10-heatmap') }}"></p>
-					<p style="text-align:center;"><strong>Figure 7.3 </strong>PM10 heatmap with units of micrograms per cubic meter</p>
+					<p style="text-align:center;"><strong>Figure 7.5 </strong>PM10 heatmap with units of micrograms per cubic meter</p>
 					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('PM_C_2p5-reliability') }}"></p>
-					<p style="text-align:center;"><strong>Figure 7.4 </strong>Reliability of the PM sensor (using PM2.5 values)</p>
+					<p style="text-align:center;"><strong>Figure 7.6 </strong>Reliability of the PM sensor (using PM2.5 values)</p>
+				</div>
+			</div>
+			<div id="co2">
+				<h3>Carbon Dioxide</h3>
+				<p>The Carbon Dioxide concentrations and reliability are summarized below</p>
+				<div id="8">
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('CO2-timeseries') }}"></p>
+					<p style="text-align:center;"><strong>Figure 8.1 </strong>CO2 timeseries data with units of micrograms per cubic meter</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('CO2-heatamap') }}"></p>
+					<p style="text-align:center;"><strong>Figure 8.2 </strong>CO2 heatmap  with units of micrograms per cubic meter</p>
+					<p style="text-align:center;"><img src="{{ [study, beacon_no] | get_filename('CO2-reliability') }}"></p>
+					<p style="text-align:center;"><strong>Figure 8.3 </strong>Reliability of the CO2 sensor</p>
 				</div>
 			</div>
 		</div>
