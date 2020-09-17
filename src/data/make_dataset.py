@@ -262,6 +262,7 @@ class bpeace2():
                     self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
 
             py3_df = py3_df.resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+            py3_df['CO'] *= 1000 # converting ppb measurements to ppm
 
             # Python2 Sensors
             # ---------------
