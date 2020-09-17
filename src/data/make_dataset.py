@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-from datetime import datetime
+import scipy.stats as stats
+
+from datetime import datetime, timedelta
+
 import os
 import logging
 from pathlib import Path
@@ -208,6 +211,7 @@ class bpeace2():
 
     def __init__(self):
         self.study = 'bpeace2'
+        self.id_crossover = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='id')
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
@@ -236,6 +240,12 @@ class bpeace2():
                 number = f'0{beacon}'
             else:
                 number = f'{beacon}'
+            # getting other ids
+            for i in range(len(self.id_crossover)):
+                if beacon == self.id_crossover['Beacon'][i]:
+                    beiwe = self.id_crossover['Beiwe'][i]
+                    fitbit = self.id_crossover['Fitbit'][i]
+                    redcap = self.id_crossover['REDCap'][i]
 
             # Python3 Sensors
             # ---------------
@@ -270,6 +280,9 @@ class bpeace2():
             # merging python2 and 3 sensor dataframes and adding column for the beacon
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
             beacon_df['Beacon'] = beacon
+            beacon_df['Beiwe'] = beiwe
+            beacon_df['Fitbit'] = fitbit
+            beacon_df['REDCap'] = redcap
             
             beacon_data = pd.concat([beacon_data,beacon_df])
 
@@ -284,12 +297,46 @@ class bpeace2():
     def process_gps(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/extension/data/beiwe/gps/'):
         '''
         Processes the raw gps data into one csv file for each participant and saves into /data/processed/
+        
+        All GPS data are recorded at 1-second intervals and stored in separate data files for every hour. The
+        data are combined into one dataframe per participant, downsampled to 5-minute intervals using the
+        mode value for those 5-minutes (after rounding coordinates to five decimal places), and combined into
+        a final dataframe that contains all participants' data. 
 
-        Returns 
+        Returns True is able to process the data, false otherwise.
         '''
         print('\tProcessing gps data...')
 
-        # saving
+        gps_df = pd.DataFrame()
+        for participant in os.listdir(data_dir):
+            if len(participant) == 8: # checking to make sure we only look for participant directories
+                pid = participant
+                print(f'\t\tWorking for Participant: {pid}')
+                participant_df = pd.DataFrame() # 
+                for file in os.listdir(f'{data_dir}{pid}/gps/'):
+                    if file[-1] == 'v': # so we only import cs[v] files
+                        try:
+                            hourly_df = pd.read_csv(f'{data_dir}{pid}/gps/{file}',usecols=[1,2,3,4,5]) # all columns but UTC
+                        except KeyError:
+                            print(f'Problem with gps data for {file} for Participant {pid}')
+                            self.move_to_purgatory(f'{data_dir}{pid}/gps/{file}',f'../../data/purgatory/{self.study}-{pid}-gps-{file}')
+                    
+                        if len(hourly_df) > 0: # append to participant df if there were data for that hour
+                            participant_df = participant_df.append(hourly_df,ignore_index=True)
+                    
+                # converting utc to cdt
+                participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
+                participant_df.drop(['UTC time'],axis=1,inplace=True)
+                participant_df.set_index('Time',inplace=True)
+                # rounding gps and taking the mode for every 5-minutes
+                participant_df = round(participant_df,5)
+                participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
+                participant_df['Beiwe'] = pid
+                
+                gps_df = gps_df.append(participant_df)
+
+        # saving               
+        gps_df.columns = ['Lat','Long','Alt','Accuracy','Beiwe']
         try:
             gps_df.to_csv(f'../../data/processed/bpeace2-gps.csv')
         except:
