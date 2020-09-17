@@ -11,7 +11,7 @@ Time between shipment and receiving is too little - RTC must have gotten damaged
 ### Sensor Notes
 
 ### Debugging
- - [ ] RTC: Need to check the RTC because there is no way that the beacon would have been shipped out and received/plugged in on the same day of shipping. FedEx tracking says that the beacon arrived 06/08 meaning that the battery was most likely displodged somewhere along the way. The figures shows we only had a few hours of downtime when, in reality, we should have had closer to a week. This time difference makes sense too since we should have seen the beacon logging data up until the participant moved since there is very little reason they would have unplugged it before then. The gap between the move out date and the last day of logging is just over a week which lines up pretty well.
+ - [x] RTC: Need to check the RTC because there is no way that the beacon would have been shipped out and received/plugged in on the same day of shipping. FedEx tracking says that the beacon arrived 06/08 meaning that the battery was most likely displodged somewhere along the way. The figures shows we only had a few hours of downtime when, in reality, we should have had closer to a week. This time difference makes sense too since we should have seen the beacon logging data up until the participant moved since there is very little reason they would have unplugged it before then. The gap between the move out date and the last day of logging is just over a week which lines up pretty well.
 
 ## Beacon 5
 
