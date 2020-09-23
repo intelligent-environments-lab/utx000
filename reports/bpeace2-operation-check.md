@@ -103,12 +103,13 @@ None.
 ![b19]()
 
 ### General Notes
-
+Shipment dates correspond with data collection. Sensors seem to be cooperating really well. 
 
 ### Sensor Notes
-
+None
 
 ### Debugging
+- [ ] Dates: Need to check move-out date
 
 ## Beacon 21
 
@@ -181,12 +182,15 @@ GPS: We lose a good chunk of GPS data near the end of the beacon recording perio
 ![b28]()
 
 ### General Notes
-
+Shipment dates correspond decently well although participant didn't start logging data until much later (after they moved at least).
 
 ### Sensor Notes
-
+- Light: No light sensor data - must have gotten disconnected
+- NO2: Data are sparse 
 
 ### Debugging
+- [ ] Light: Check connections/wires. Might need to crimp new ones. 
+- [ ] NO2: Check T/RH data
 
 ## Beacon 29
 
@@ -206,13 +210,13 @@ No tracking information but my records indicate that it was shipped out on 06/10
 ![b32]()
 
 ### General Notes
-
+Participant plugged in the device late and then unplugged before they moved and did not plug the device back in.
 
 ### Sensor Notes
-
+NO2 seems a bit spotty, but not nearly as bad as some of the other beacons.
 
 ### Debugging
-
+None
 
 ## Beacon 34
 
@@ -232,20 +236,20 @@ The gap between sending and receiving the beacon is about 1 day which is _surpri
 ![b36]()
 
 ### General Notes
-
+Shipment details seem to correspond with data collection.
 
 ### Sensor Notes
-
+- NO2: Some spottiness here and there but generally very good.
 
 ### Debugging
-
+- [ ] Dates: Need to check if the move-out date is correct or even occurred since there looks to be no break in the measurements. 
 
 ## Beacon 38
 
 ![b38]()
 
 ### General Notes
-Records indicate the beacon shipped on 06/10, but did not start recording data until 06/15 which could be explained by the location of the participant since they lived outside Austin. No shipping info to check against. R
+Records indicate the beacon shipped on 06/10, but did not start recording data until 06/15 which could be explained by the location of the participant since they lived outside Austin. No shipping info to check against. 
 
 ### Sensor Notes
 - Beacon sensors: Pretty spotty which might just be because of how the beacons were plugged in that perhaps they had too low of power. The gaps also don't align with the move out date.
@@ -276,7 +280,7 @@ Two conflicting shipment dates, but the participant did not start recording unti
 ![b46]()
 
 ### General Notes
-No tracking for the outbound package that I can find, but my records indicate that I sent it on 06/15 and the last recorded event on that date was at 17:15. The next available data starts at 22:09 on 06/17 but the beacon stops recorded at 23:23 that same day and does not come back online until 14:48 on 06/20. Two-day shipping out to the participants was common so I can believe it arrived on 06/17, but not sure why it was only active for an hour. 
+Shipment dates match with measurment dates. However, we only get a few hours on 06/17 so we should start including data starting 06/20.
 
 ### Sensor Notes
 - PM: Seems to be exhibiting problems and no GPS data...
