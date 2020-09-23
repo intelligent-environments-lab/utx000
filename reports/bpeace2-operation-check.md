@@ -59,19 +59,18 @@ Subtracting the arrival time according to FedEx by the first measurement recorde
 ### Debugging
 - [ ] Dates: Check what could have caused that gap
 
-
 ## Beacon 15
 
 ![b15]()
 
 ### General Notes
-
+Sending and receiving times make sense despite the odd measurement intervals. The first data point corresponds to one data point, so we might as well restrict the data to just the first interval and later. The first interval, while small, is still two nights of data. 
 
 ### Sensor Notes
-
+- RTC: There might be a few minutes of difference between the actual and RTC time based on the first file when connected to WiFi (09/17).
 
 ### Debugging
-
+- [ ] Dates: Might be worthwhile to investigate those time gaps
 
 ## Beacon 16
 
@@ -91,12 +90,13 @@ All sensors seem to drop out for what looks like a day in the middle of the week
 ![b17]()
 
 ### General Notes
-
+Shipping and receiving dates make sense and the data actually extends well into September (09/15). Not sure why the large gaps in collection, but RTC and the other sensors seem to be working fine.
 
 ### Sensor Notes
-
+None.
 
 ### Debugging
+- [ ] Dates: Might be worthwhile to investigate those time gaps
 
 ## Beacon 19
 
