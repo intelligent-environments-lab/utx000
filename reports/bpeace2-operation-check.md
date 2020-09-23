@@ -6,7 +6,7 @@ This file analyzes the operation of the beacons during the BPEACE2 study as part
 [b1]()
 
 ### General Notes
-Time between shipment and receiving is too little - RTC must have gotten damaged.
+Time between shipment and receiving is too little - RTC must have gotten damaged. _However_, perhaps we can use the time difference between FedEx arrival time and the wrong first measurement from the beacon to calculate the offset and therefore get the correct timestamp. 
 
 ### Sensor Notes
 
@@ -32,12 +32,33 @@ Sensors seemed to be working just fine other than the time mix-up
 ![b10]()
 
 ### General Notes
-
+Shipment out and back makes sense - beacon arrived on 06/08 and last recording was on 06/05. Last recorded datapoint was on 09/10 and checking the return data file (09/23), the RTC might have been off by a few minutes, but shouldn't compromise the data.
 
 ### Sensor Notes
-
+- CO: The data are very spotty
 
 ### Debugging
+- [ ] Dates: The participant noted that they moved in the middle of the study, but there are no breaks in the data stream.
+- [ ] Check T/RH data from CO sensor to see if it shows the same spottiness as the actual CO measurements.
+
+## Beacon 13
+
+![b13]()
+
+### General Notes
+The RTC messed up once if not twice. However, we can determine the time difference by comparing the last day's worth of data recorded by the participant compared to the first data point measured when the beacon was connected to WiFi. The data should continue to append to the participant's final datafile before the beacon gets connected to WiFi on the day that I pull data from them. So subtracting the first timestamp on the datafile after connecting to WiFi (11:01 08/28/2020) by the last timestamp on the datafile previous to this day (18:31 08/21/2020), we can get the offset (6 days, 59400 seconds). _However_, I am not certain if this holds for the entire study period or just the portion after the missing data. We need to diagnose what happened there, but for now the data should be corrected by this offset.
+
+#### There is too much complexity in the timestamps for this beacon - I do not think we can salvage the data
+Subtracting the arrival time according to FedEx by the first measurement recorded by the participant's beacon at 13:17 on 06/03, we get 6 days and 22 hours. If we add this amount back to the lst time recorded by the participant at 19:07 on 08/21, we get a time of 16:59 on 08/28 which is greater than the first timestamp for the beacon connected to WiFi at 11:01 on 08/28. My guess is that in the gap in mid-July, more RTC drift from being unplugged caused the sensor to drift too high. We **cannot** use the second time frame because we don't know when the last measured value by the participant was made nor do we have a decent estimate since they would have most likely dropped the package off in a drop box and not had the packaged picked up from their residence. Subtracting the un-connected beacon from the connected beacon timestamps will give the offset between the last measured value by the participant and the first measured value by WiFi. However this does not account for transit time.
+
+### Sensor Notes
+- RTC: Messed up once or multiple times - why that big gap?
+- PM2.5: For whatever reason, things were great before the gap
+- CO2: Same story as the PM2.5 sensor
+
+### Debugging
+- [ ] Dates: Check what could have caused that gap
+
 
 ## Beacon 15
 
@@ -91,15 +112,16 @@ All sensors seem to drop out for what looks like a day in the middle of the week
 
 ## Beacon 21
 
-![b17]()
+![b21]()
 
 ### General Notes
-
+No shipping confirmation information, but my crude records indicate that the beacon was shipped out on the 06/08 and the last datapoint recorded was at 19:04. Sensor started recording again on 06/10 which corresponds with the typical shipping time. Last data point was recorded on 09/15 and looks like I recorded data on 09/17 - **TLDR the RTC seems fine**
 
 ### Sensor Notes
-
+- RTC: If the RTC was off, it would have been less than a few minutes since there is no discernable problems from reading the return (09/17) data file.
 
 ### Debugging
+None
 
 ## Beacon 22
 
@@ -112,6 +134,7 @@ Seems the participant had their beacon plugged in up until they moved and then p
 - PM: Seems to have been troubles with the sensor during the main study period, but the sensor seemed to be working well during the second period after the participant moved.
 
 ### Debugging
+None
 
 ## Beacon 24
 
