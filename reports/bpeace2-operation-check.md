@@ -27,6 +27,31 @@ Sensors seemed to be working just fine other than the time mix-up
 ### Debugging
 - [ ] RTC: Attach a new one
 
+## Beacon 10
+
+![b10]()
+
+### General Notes
+
+
+### Sensor Notes
+
+
+### Debugging
+
+## Beacon 15
+
+![b15]()
+
+### General Notes
+
+
+### Sensor Notes
+
+
+### Debugging
+
+
 ## Beacon 16
 
 ![b16]()
@@ -39,6 +64,42 @@ All sensors seem to drop out for what looks like a day in the middle of the week
 
 ### Debugging
 - [ ] Beacon Sensors: check if there might be anything leading up to that event that would have caused an issue.
+
+## Beacon 17
+
+![b17]()
+
+### General Notes
+
+
+### Sensor Notes
+
+
+### Debugging
+
+## Beacon 19
+
+![b19]()
+
+### General Notes
+
+
+### Sensor Notes
+
+
+### Debugging
+
+## Beacon 21
+
+![b17]()
+
+### General Notes
+
+
+### Sensor Notes
+
+
+### Debugging
 
 ## Beacon 22
 
@@ -92,6 +153,18 @@ GPS: We lose a good chunk of GPS data near the end of the beacon recording perio
 ### Debugging
 - [ ] Dates: Can shipment could occur after 19:00?
 
+## Beacon 28
+
+![b28]()
+
+### General Notes
+
+
+### Sensor Notes
+
+
+### Debugging
+
 ## Beacon 29
 
 ![b29]()
@@ -105,6 +178,19 @@ No tracking information but my records indicate that it was shipped out on 06/10
 ### Debugging
 - [ ] NO2: Check to see how the T/RH data looks from this sensor.
 
+## Beacon 32
+
+![b32]()
+
+### General Notes
+
+
+### Sensor Notes
+
+
+### Debugging
+
+
 ## Beacon 34
 
 [b34]()
@@ -117,6 +203,19 @@ The gap between sending and receiving the beacon is about 1 day which is _surpri
 
 ### Debugging
 - [ ] Dates: Need to check if the move-out date is correct or even occurred since there looks to be no break in the measurements. 
+
+## Beacon 36
+
+![b36]()
+
+### General Notes
+
+
+### Sensor Notes
+
+
+### Debugging
+
 
 ## Beacon 38
 
@@ -162,14 +261,4 @@ No tracking for the outbound package that I can find, but my records indicate th
 ### Debugging
 - [ ] Dates: Is there a way to find out why the device came online for a short while?
 - [ ] GPS: Check again if GPS data are available
-
-## Beacon 22
-
-![b22]()
-
-### General Notes
-
-### Sensor Notes
-
-### Debugging
 
