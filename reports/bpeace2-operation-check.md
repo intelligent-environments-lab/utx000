@@ -3,7 +3,7 @@ This file analyzes the operation of the beacons during the BPEACE2 study as part
 
 ## Beacon 1
 
-![b1](beacon10_operation_schedule.png)
+![b1](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon10_operation_schedule.png)
 
 ### General Notes
 Time between shipment and receiving is too little - RTC must have gotten damaged. _However_, perhaps we can use the time difference between FedEx arrival time and the wrong first measurement from the beacon to calculate the offset and therefore get the correct timestamp. 
