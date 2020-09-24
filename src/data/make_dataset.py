@@ -286,6 +286,10 @@ class bpeace2():
             beacon_df['Beiwe'] = beiwe
             beacon_df['Fitbit'] = fitbit
             beacon_df['REDCap'] = redcap
+            # getting relevant data only
+            start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
+            end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
+            beacon_df = beacon_df[start_date:end_date]
             
             beacon_data = pd.concat([beacon_data,beacon_df])
 
