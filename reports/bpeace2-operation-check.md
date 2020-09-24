@@ -3,7 +3,7 @@ This file analyzes the operation of the beacons during the BPEACE2 study as part
 
 ## Beacon 1
 
-![b1](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon10_operation_schedule.png)
+![b1](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon1_operation_schedule.png)
 
 ### General Notes
 Time between shipment and receiving is too little - RTC must have gotten damaged. _However_, perhaps we can use the time difference between FedEx arrival time and the wrong first measurement from the beacon to calculate the offset and therefore get the correct timestamp. 
@@ -15,7 +15,7 @@ Time between shipment and receiving is too little - RTC must have gotten damaged
 
 ## Beacon 5
 
-[b5]()
+![b5](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon5_operation_schedule.png)
 
 ### General Notes
 The RTC did not come back with the beacon and checking the dates, there were problems with it from the beginning. The 06/08 data file which corresponds to the date I sent the beacon out looks to have been over-written starting at 16:22 which would be an apporximate time to when I stopped the initial calibration and packed up the device. Regardless, the device was supposed to be in transit between 06/08 and 06/09 but has data recorded continuously from 06/08 to 06/09. 
@@ -29,7 +29,7 @@ Sensors seemed to be working just fine other than the time mix-up
 
 ## Beacon 10
 
-![b10]()
+![b10](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon10_operation_schedule.png)
 
 ### General Notes
 Shipment out and back makes sense - beacon arrived on 06/08 and last recording was on 06/05. Last recorded datapoint was on 09/10 and checking the return data file (09/23), the RTC might have been off by a few minutes, but shouldn't compromise the data.
@@ -43,7 +43,7 @@ Shipment out and back makes sense - beacon arrived on 06/08 and last recording w
 
 ## Beacon 13
 
-![b13]()
+![b13](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon13_operation_schedule.png)
 
 ### General Notes
 The RTC messed up once if not twice. However, we can determine the time difference by comparing the last day's worth of data recorded by the participant compared to the first data point measured when the beacon was connected to WiFi. The data should continue to append to the participant's final datafile before the beacon gets connected to WiFi on the day that I pull data from them. So subtracting the first timestamp on the datafile after connecting to WiFi (11:01 08/28/2020) by the last timestamp on the datafile previous to this day (18:31 08/21/2020), we can get the offset (6 days, 59400 seconds). _However_, I am not certain if this holds for the entire study period or just the portion after the missing data. We need to diagnose what happened there, but for now the data should be corrected by this offset.
@@ -61,7 +61,7 @@ Subtracting the arrival time according to FedEx by the first measurement recorde
 
 ## Beacon 15
 
-![b15]()
+![b15](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon15_operation_schedule.png)
 
 ### General Notes
 Sending and receiving times make sense despite the odd measurement intervals. The first data point corresponds to one data point, so we might as well restrict the data to just the first interval and later. The first interval, while small, is still two nights of data. 
@@ -74,7 +74,7 @@ Sending and receiving times make sense despite the odd measurement intervals. Th
 
 ## Beacon 16
 
-![b16]()
+![b16](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon16_operation_schedule.png)
 
 ### General Notes
 Beacon arrived on 06/09, but participant did not start recording until 07/27.
@@ -87,7 +87,7 @@ All sensors seem to drop out for what looks like a day in the middle of the week
 
 ## Beacon 17
 
-![b17]()
+![b17](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon17_operation_schedule.png)
 
 ### General Notes
 Shipping and receiving dates make sense and the data actually extends well into September (09/15). Not sure why the large gaps in collection, but RTC and the other sensors seem to be working fine.
@@ -100,7 +100,7 @@ None.
 
 ## Beacon 19
 
-![b19]()
+![b19](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon19_operation_schedule.png)
 
 ### General Notes
 Shipment dates correspond with data collection. Sensors seem to be cooperating really well. 
@@ -113,7 +113,7 @@ None
 
 ## Beacon 21
 
-![b21]()
+![b21](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon21_operation_schedule.png)
 
 ### General Notes
 No shipping confirmation information, but my crude records indicate that the beacon was shipped out on the 06/08 and the last datapoint recorded was at 19:04. Sensor started recording again on 06/10 which corresponds with the typical shipping time. Last data point was recorded on 09/15 and looks like I recorded data on 09/17 - **TLDR the RTC seems fine**
@@ -126,7 +126,7 @@ None
 
 ## Beacon 22
 
-![b22]()
+![b22](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon22_operation_schedule.png)
 
 ### General Notes
 Seems the participant had their beacon plugged in up until they moved and then plugged the device in again at their new location since I did not pick the device up until 09/03. I downloaded the data from the device on the same day which is why there are no discernable data points after 09/03 corresponding to when I would have plugged in the device at my apartment. The last recorded data point by the participant was at 9:35 on 09/03 and then it seems I plugged the device in at 18:53 that day to pull the data off. 
@@ -139,7 +139,7 @@ None
 
 ## Beacon 24
 
-![b24]()
+![b24](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon24_operation_schedule.png)
 
 ### General Notes
 Sensor was shipped out just after 19:00 on 06/08 (last recorded measurement at 19:04) and arrived at the participant's location on 06/10 at 14:04. Participant did not start logging data until the next day though if all the times are correct. The measurements on 06/08 after 19:00 concern me since I believe the dropbox pick up is done at 18:00 although it could be 20:00, but that seems unlikely. Also the only data collected on 06/08 is from 18:19 to 19:04 even though on 06/07 the sensor recorded up to 23:59. 
@@ -153,7 +153,7 @@ Sensor was shipped out just after 19:00 on 06/08 (last recorded measurement at 1
 
 ## Beacon 25
 
-![b25]()
+![b25](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon25_operation_schedule.png)
 
 ### General Notes
 Beacon was shipped on 06/03 and arrived the next day at 06/04 and started recording at 11:54 (arrived at 11:31 - I knew I liked this participant).
@@ -166,7 +166,7 @@ None
 
 ## Beacon 26
 
-![b26]()
+![b26](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon26_operation_schedule.png)
 
 ### General Notes
 Just like #24, the beacon last recorded data with me at 19:05 on 06/08 which was the day it was shipped out. It also recorded data up until 23:59 on 06/07 and then nothing on 06/08 until 18:35. Shipment arrived on 06/10 but participant did not start recording until 06/20 at 18:43 and kept recording until 8:46 on 09/08 which is the day they shipped it back. 
@@ -179,7 +179,7 @@ GPS: We lose a good chunk of GPS data near the end of the beacon recording perio
 
 ## Beacon 28
 
-![b28]()
+![b28](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon28_operation_schedule.png)
 
 ### General Notes
 Shipment dates correspond decently well although participant didn't start logging data until much later (after they moved at least).
@@ -194,7 +194,7 @@ Shipment dates correspond decently well although participant didn't start loggin
 
 ## Beacon 29
 
-![b29]()
+![b29](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon29_operation_schedule.png)
 
 ### General Notes
 No tracking information but my records indicate that it was shipped out on 06/10. The beacon stopped recording at 12:13 on 06/10 and started again at 12:01 on 06/11 which makes sense given most of the beacons were sent with 2-day shipping but often arrived early. 
@@ -207,7 +207,7 @@ No tracking information but my records indicate that it was shipped out on 06/10
 
 ## Beacon 32
 
-![b32]()
+![b32](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon32_operation_schedule.png)
 
 ### General Notes
 Participant plugged in the device late and then unplugged before they moved and did not plug the device back in.
@@ -220,7 +220,7 @@ None
 
 ## Beacon 34
 
-[b34]()
+[b34](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon34_operation_schedule.png)
 
 ### General Notes
 The gap between sending and receiving the beacon is about 1 day which is _surprisingly_ correct for this beacon. The beacon last recorded values at 13:18 on 06/10 and was shipped out at 18:00 that day. The package was delivered at 12:01 on 06/11 according to FedEx and began recording at 13:41 on 06/12.
@@ -233,7 +233,7 @@ The gap between sending and receiving the beacon is about 1 day which is _surpri
 
 ## Beacon 36
 
-![b36]()
+![b36](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon36_operation_schedule.png)
 
 ### General Notes
 Shipment details seem to correspond with data collection.
@@ -246,7 +246,7 @@ Shipment details seem to correspond with data collection.
 
 ## Beacon 38
 
-![b38]()
+![b38](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon38_operation_schedule.png)
 
 ### General Notes
 Records indicate the beacon shipped on 06/10, but did not start recording data until 06/15 which could be explained by the location of the participant since they lived outside Austin. No shipping info to check against. 
@@ -261,7 +261,7 @@ Records indicate the beacon shipped on 06/10, but did not start recording data u
 
 ## Beacon 40
 
-![b22]()
+![b40](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon40_operation_schedule.png)
 
 ### General Notes
 Two conflicting shipment dates, but the participant did not start recording until 06/30 and both shipment dates were before then so nothing majorly conflicting. Otherwise spotty connection with the sensors that does not match up with the move-out date. 
@@ -277,7 +277,7 @@ Two conflicting shipment dates, but the participant did not start recording unti
 
 ## Beacon 46
 
-![b46]()
+![b46](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon46_operation_schedule.png)
 
 ### General Notes
 Shipment dates match with measurment dates. However, we only get a few hours on 06/17 so we should start including data starting 06/20.
