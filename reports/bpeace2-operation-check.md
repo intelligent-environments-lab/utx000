@@ -15,7 +15,7 @@ Time between shipment and receiving is too little - RTC must have gotten damaged
 
 ## Beacon 5
 
-![b5](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon5_operation_schedule.png)
+![b5](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beaf34con5_operation_schedule.png)
 
 ### General Notes
 The RTC did not come back with the beacon and checking the dates, there were problems with it from the beginning. The 06/08 data file which corresponds to the date I sent the beacon out looks to have been over-written starting at 16:22 which would be an apporximate time to when I stopped the initial calibration and packed up the device. Regardless, the device was supposed to be in transit between 06/08 and 06/09 but has data recorded continuously from 06/08 to 06/09. 
@@ -220,7 +220,7 @@ None
 
 ## Beacon 34
 
-[b34](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon34_operation_schedule.png)
+![b34](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon34_operation_schedule.png)
 
 ### General Notes
 The gap between sending and receiving the beacon is about 1 day which is _surprisingly_ correct for this beacon. The beacon last recorded values at 13:18 on 06/10 and was shipped out at 18:00 that day. The package was delivered at 12:01 on 06/11 according to FedEx and began recording at 13:41 on 06/12.
