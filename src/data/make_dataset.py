@@ -232,7 +232,8 @@ class bpeace2():
         '''
 
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
-        beacon_list = [30,1,21,34,22,28,24,41,26,48,46,25,15,44,23,29,10,16,36,38,40,5,17,6,13,19,32,11,7] # list of all beacons used in the study
+        # list of all beacons used in the study - 13 removed because of bad data
+        beacon_list = [30,1,21,34,22,28,24,41,26,48,46,25,15,44,23,29,10,16,36,38,40,5,17,6,19,32,11,7]
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
         for beacon in beacon_list:
             print(f'\t\t{beacon}')
@@ -292,6 +293,16 @@ class bpeace2():
             beacon_df = beacon_df[start_date:end_date]
             
             beacon_data = pd.concat([beacon_data,beacon_df])
+            # removing bad values from important variables
+            # variables that should never have anything less than zero
+            for var in ['CO2','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']:
+                beacon_data[var].mask(beacon_data[var] < 0, np.nan, inplace=True)
+            # extreme values
+            beacon_data['Lux'].mask(beacon_data['Lux'] >= 5000, np.nan, inplace=True)
+            beacon_data['NO2'].mask(beacon_data['NO2'] > 4000, np.nan, inplace=True)
+            beacon_data['NO2'].mask(beacon_data['NO2'] < -4000, np.nan, inplace=True)
+            beacon_data['CO'].mask(beacon_data['CO'] < -4, np.nan, inplace=True)
+            beacon_data['PM_C_2p5'].mask(beacon_data['PM_C_2p5'] > 1000, np.nan, inplace=True)
 
         # saving
         try:
