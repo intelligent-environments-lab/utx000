@@ -20,6 +20,8 @@ Time between shipment and receiving is too little - RTC must have gotten damaged
 ### General Notes
 The RTC did not come back with the beacon and checking the dates, there were problems with it from the beginning. The 06/08 data file which corresponds to the date I sent the beacon out looks to have been over-written starting at 16:22 which would be an apporximate time to when I stopped the initial calibration and packed up the device. Regardless, the device was supposed to be in transit between 06/08 and 06/09 but has data recorded continuously from 06/08 to 06/09. 
 
+The sensor arrived at 10:07 on 06/09 so if we assume that the participant plugged the device in around 11:00, we can add to the time it started recording so that the first measurement is at 11:00 am on 06/09. This corresponds to 1118 minutes and should be fine since the participant did NOT move and the beacon was plugged in the entire time. 
+
 ### Sensor Notes
 Sensors seemed to be working just fine other than the time mix-up
 - RTC: Gone - need to attach a new one
@@ -204,6 +206,19 @@ No tracking information but my records indicate that it was shipped out on 06/10
 
 ### Debugging
 - [ ] NO2: Check to see how the T/RH data looks from this sensor.
+
+## Beacon 30
+
+![b30](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon30_operation_schedule.png)
+
+### General Notes
+Tracking indicates beacon was sent out 06/10 and arrived 06/11 - data confirms these dates: stopped recording around noon on 06/10 and package arrived at 12:07 on 06/11 and participant started recording at 12:27 that same day. 
+
+### Sensor Notes
+- NO2: Does NOT have this sensor
+
+### Debugging
+- [ ] 
 
 ## Beacon 32
 
