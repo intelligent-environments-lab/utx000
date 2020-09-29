@@ -6,7 +6,7 @@ This file analyzes the operation of the beacons during the BPEACE2 study as part
 ![b1](https://github.com/intelligent-environments-lab/utx000/blob/master/reports/bpeace2_operation/beacon1_operation_schedule.png)
 
 ### General Notes
-Time between shipment and receiving is too little - RTC must have gotten damaged. _However_, perhaps we can use the time difference between FedEx arrival time and the wrong first measurement from the beacon to calculate the offset and therefore get the correct timestamp. 
+Time between shipment and receiving is too little - RTC must have gotten damaged. _However_, perhaps we can use the time difference between FedEx arrival time and the wrong first measurement from the beacon to calculate the offset and therefore get the correct timestamp. If we use the difference in time from arrival to the first recording on 06/02, we should add 5 days and 20 hours. 
 
 ### Sensor Notes
 
