@@ -10,6 +10,8 @@ import os
 import logging
 from pathlib import Path
 
+import ast
+
 class ut1000():
     '''
     Class dedicated to processing ut1000 data only
@@ -485,6 +487,162 @@ class bpeace2():
 
         return True
 
+    def process_fitbit(self, data_dir='/Volumes/HEF_Dissertation_Research/utx000/extension/data/fitbit/'):
+        '''
+
+        '''
+        print('\tProcessing Fitbit data...')
+
+        def import_fitbit(filename, pt_dir=f"/Volumes/HEF_Dissertation_Research/utx000/extension/data/fitbit/"):
+            '''
+            
+            '''
+            print(f"\tReading from file {filename}")
+            df = pd.DataFrame()
+            for pt in os.listdir(pt_dir):
+                if pt[0] != ".":
+                    print(f"\t\tReading for participant {pt}")
+                    try:
+                        temp = pd.read_csv(f"{pt_dir}{pt}/fitbit_{filename}.csv", index_col=0, parse_dates=True)
+                        if filename[:4] == "intr":
+                            temp = process_fitbit_intraday(temp)
+
+                        temp["beiwe"] = pt
+                        df = df.append(temp)
+                    except FileNotFoundError:
+                        print(f"\t\tFile {filename} not found for participant {pt}")
+                        
+            return df
+
+        def get_device_df(info_df):
+            '''
+            Take dictionary-like entries for fitbit info dataframe for each row in a dataframe and makes a new dataframe
+            
+            Inputs:
+            - info_df: the fitbit info dataframe with the dictionary-like entries
+            
+            Returns a dataframe for the device column
+            '''
+            
+            overall_dict = {}
+            for row in range(len(info_df)):
+                Dict = ast.literal_eval(info_df['devices'][row])
+                if type(Dict) == dict:
+                    Dict = Dict
+                elif type(Dict) in [tuple,list] and len(Dict) > 1:
+                    Dict = Dict[0]
+                else:
+                    continue
+
+                for key in Dict.keys():
+                    overall_dict.setdefault(key, [])
+                    overall_dict[key].append(Dict[key])
+                # adding in the date of recording
+                overall_dict.setdefault('date', [])
+                overall_dict['date'].append(info_df.index[row])
+                
+            df = pd.DataFrame(overall_dict)
+            df['date'] = pd.to_datetime(df['date'],errors='coerce')
+            return df.set_index('date')
+
+        def get_sleep_df(daily_df):
+            '''
+            Creates a dataframe with the daily sleep data summarized
+            
+            Inputs:
+            - daily_df: dataframe created from the daily fitbit csv file
+            
+            Returns a dataframe of the daily sleep data
+            '''
+            overall_dict = {}
+            for row in range(len(daily_df)):
+                if type(daily_df['sleep'][row]) == float:
+                    continue
+                else:
+                    Dict = ast.literal_eval(daily_df['sleep'][row])
+                    if type(Dict) == dict:
+                        Dict = Dict
+                    else:
+                        Dict = Dict[0]
+                    for key in Dict.keys():
+                        overall_dict.setdefault(key, [])
+                        overall_dict[key].append(Dict[key])
+                    # adding in the date of recording
+                    overall_dict.setdefault('date', [])
+                    overall_dict['date'].append(daily_df.index[row])
+                    # adding beiwe id
+                    overall_dict.setdefault('beiwe', [])
+                    overall_dict['beiwe'].append(daily_df['beiwe'][row])
+
+            df = pd.DataFrame(overall_dict)
+            df['date'] = pd.to_datetime(df['date'],errors='coerce')
+            return df.set_index('date')
+
+        def get_minute_sleep_df(daily_sleep):
+            '''
+            Creates a dataframe for the minute sleep data
+            
+            Input(s):
+            - daily_sleep: dataframe holding the daily sleep data with a column called minuteData
+            
+            Returns a dataframe with the timestamp and number corresponding to sleep stage
+            '''
+            
+            overall_dict = {'startDate':[],'endDate':[],'dateTime':[],'value':[],'beiwe':[]}
+            for row in range(len(daily_sleep)):
+                d0 = pd.to_datetime(daily_sleep['startTime'][row])
+                d1 = pd.to_datetime(daily_sleep['dateOfSleep'][row])
+                for minute_recording in daily_sleep['minuteData'][row]:
+                    for key in minute_recording.keys():
+                        overall_dict[key].append(minute_recording[key])
+                    # adding start and end dates for sleep period
+                    overall_dict['startDate'].append(d0.date())
+                    overall_dict['endDate'].append(d1.date())
+                    # adding beiwe id
+                    overall_dict['beiwe'].append(daily_sleep['beiwe'][row])
+                    
+            df = pd.DataFrame(overall_dict)
+            df.columns = ['start_date','end_date','time','value','beiwe']
+            return df
+
+        def process_fitbit_intraday(raw_df,resample_rate=60):
+            '''
+            
+            '''
+            try:
+                df = raw_df.resample(f'{resample_rate}T').mean()
+            except TypeError:
+                print(f"\t\tDataframe is most likely empty ({len(raw_df)})")
+                return raw_df
+            return df
+
+        pt_dir = "/Volumes/HEF_Dissertation_Research/utx000/extension/data/fitbit/"
+        daily = import_fitbit("daily_records")
+        info = import_fitbit("info")
+        intra = import_fitbit("intraday_records")
+
+        #device = get_device_df(info)
+        print("\t\tProcessing sleep data")
+        sleep_daily = get_sleep_df(daily)
+        sleep_minute = get_minute_sleep_df(sleep_daily)
+
+        # some cleaning
+        daily.drop(['activities_heart','sleep'],axis=1,inplace=True)
+        sleep_daily.drop(['minuteData'],axis=1,inplace=True)
+
+        # saving
+        try:
+            daily.to_csv(f'../../data/processed/bpeace2-fitbit-daily.csv')
+            info.to_csv(f'../../data/processed/bpeace2-fitbit-info.csv')
+            intra.to_csv(f'../../data/processed/bpeace2-fitbit-intraday.csv')
+
+            #device.to_csv(f'../../data/processed/bpeace2-fitbit-device.csv')
+            sleep_daily.to_csv(f'../../data/processed/bpeace2-fitbit-sleep-daily.csv')
+            sleep_minute.to_csv(f'../../data/processed/bpeace2-fitbit-sleep-minute.csv')
+        except:
+            return False
+
+        return True
 
 def main():
     '''
@@ -501,6 +659,7 @@ def main():
     print('\t6. BPEACE2 Weekly EMAs')
     print('\t7. BPEACE2 GPS')
     print('\t8. BPEACE2 REDCap Environment and Experiences Survey')
+    print('\t9. BPEACE2 Fitbit')
     ans = int(input('Answer: '))
     ut1000_processor = ut1000()
     ut2000_processor = ut2000()
@@ -557,6 +716,13 @@ def main():
             logger.info(f'Data for BPEACE2 environment and experiences survey processed')
         else:
             logger.error(f'Data for BPEACE2 environment and experiences survey NOT processed')
+
+    # BPEACE2 fitbit
+    if ans == 4 or ans == 9:
+        if bpeace2_processor.process_fitbit():
+            logger.info(f'Data for BPEACE2 fitbit processed')
+        else:
+            logger.error(f'Data for BPEACE2 fitbit NOT processed')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
