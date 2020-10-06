@@ -489,13 +489,20 @@ class bpeace2():
 
     def process_fitbit(self, data_dir='/Volumes/HEF_Dissertation_Research/utx000/extension/data/fitbit/'):
         '''
+        Processes fitbit data
 
+        Returns True if processed, False otherwise
         '''
         print('\tProcessing Fitbit data...')
 
         def import_fitbit(filename, pt_dir=f"/Volumes/HEF_Dissertation_Research/utx000/extension/data/fitbit/"):
             '''
-            
+            Imports the specified file for each participant in the directory
+
+            Inputs:
+            - filename: string corresponding to the filename to look for for each participant
+
+            Returns a dataframe with the combined data from all participants
             '''
             print(f"\tReading from file {filename}")
             df = pd.DataFrame()
@@ -545,7 +552,7 @@ class bpeace2():
             df['date'] = pd.to_datetime(df['date'],errors='coerce')
             return df.set_index('date')
 
-        def get_sleep_df(daily_df):
+        def get_daily_sleep(daily_df):
             '''
             Creates a dataframe with the daily sleep data summarized
             
@@ -556,6 +563,11 @@ class bpeace2():
             '''
             overall_dict = {}
             for row in range(len(daily_df)):
+                # in case Fitbit didn't record sleep records for that night - value is NaN
+                pt = daily_df['beiwe'][row]
+                # pts with classic sleep data
+                if pt in ['2xtqkfz1','awa8uces','e8js2jdf','ewvz3zm1','hfttkth7']:
+                    continue
                 if type(daily_df['sleep'][row]) == float:
                     continue
                 else:
@@ -576,34 +588,69 @@ class bpeace2():
 
             df = pd.DataFrame(overall_dict)
             df['date'] = pd.to_datetime(df['date'],errors='coerce')
+            # removing classic sleep stage data
+            df = df[df['type'] != 'classic']
             return df.set_index('date')
 
-        def get_minute_sleep_df(daily_sleep):
+        def get_sleep_stages(daily_sleep):
             '''
             Creates a dataframe for the minute sleep data
             
             Input(s):
             - daily_sleep: dataframe holding the daily sleep data with a column called minuteData
             
-            Returns a dataframe with the timestamp and number corresponding to sleep stage
+            Returns:
+            - sleep_stages: a dataframe with sleep stage data for every stage transition
+            - summary: a dataframe with the nightly sleep stage information
             '''
             
-            overall_dict = {'startDate':[],'endDate':[],'dateTime':[],'value':[],'beiwe':[]}
+            data_dict = {'startDate':[],'endDate':[],'dateTime':[],'level':[],'seconds':[],'beiwe':[]}
+            summary_dict = {'startDate':[],'endDate':[],'deep_count':[],'deep_minutes':[],'light_count':[],'light_minutes':[],
+                            'rem_count':[],'rem_minutes':[],'wake_count':[],'wake_minutes':[],'beiwe':[]}
             for row in range(len(daily_sleep)):
                 d0 = pd.to_datetime(daily_sleep['startTime'][row])
                 d1 = pd.to_datetime(daily_sleep['dateOfSleep'][row])
-                for minute_recording in daily_sleep['minuteData'][row]:
-                    for key in minute_recording.keys():
-                        overall_dict[key].append(minute_recording[key])
-                    # adding start and end dates for sleep period
-                    overall_dict['startDate'].append(d0.date())
-                    overall_dict['endDate'].append(d1.date())
-                    # adding beiwe id
-                    overall_dict['beiwe'].append(daily_sleep['beiwe'][row])
+                sleep_dict = daily_sleep['levels'][row]
+                for key in sleep_dict.keys():
+                    if key == 'data': # data without short wake periods
+                        temp_data = sleep_dict['data']
+                        for temp_data_dict in temp_data:
+                            for data_key in temp_data_dict.keys():
+                                data_dict[data_key].append(temp_data_dict[data_key])
+                            data_dict['startDate'].append(d0.date())
+                            data_dict['endDate'].append(d1.date())
+                            data_dict['beiwe'].append(daily_sleep['beiwe'][row])
+                    elif key == 'summary': # nightly summary data - already in dictionary form
+                        for summary_key in sleep_dict['summary'].keys():
+                            stage_dict = sleep_dict['summary'][summary_key]
+                            for stage_key in ['count','minutes']:
+                                summary_dict[f'{summary_key}_{stage_key}'].append(stage_dict[stage_key])
+                            
+                        summary_dict['startDate'].append(d0.date())
+                        summary_dict['endDate'].append(d1.date())
+                        summary_dict['beiwe'].append(daily_sleep['beiwe'][row])
+                    else: # shortData or data with short wake periods - don't need
+                        pass
                     
-            df = pd.DataFrame(overall_dict)
-            df.columns = ['start_date','end_date','time','value','beiwe']
-            return df
+            sleep_stages = pd.DataFrame(data_dict)
+            sleep_stages.columns = ['start_date','end_date','time','stage','time_at_stage','beiwe'] # renaming columns
+            # adding column for numeric value of sleep stage 
+            def numeric_from_str_sleep_stage(row):
+                if row['stage'] == 'wake':
+                    return 0
+                elif row['stage'] == 'light':
+                    return 1
+                elif row['stage'] == 'deep':
+                    return 2
+                elif row['stage'] == 'rem':
+                    return 3
+                else:
+                    return -1
+                
+            sleep_stages['value'] = sleep_stages.apply(lambda row: numeric_from_str_sleep_stage(row), axis=1)
+            
+            summary = pd.DataFrame(summary_dict)
+            return sleep_stages, summary
 
         def process_fitbit_intraday(raw_df,resample_rate=60):
             '''
@@ -623,12 +670,12 @@ class bpeace2():
 
         #device = get_device_df(info)
         print("\t\tProcessing sleep data")
-        sleep_daily = get_sleep_df(daily)
-        sleep_minute = get_minute_sleep_df(sleep_daily)
+        sleep_daily = get_daily_sleep(daily)
+        sleep_stages, sleep_stages_summary = get_sleep_stages(sleep_daily)
 
         # some cleaning
         daily.drop(['activities_heart','sleep'],axis=1,inplace=True)
-        sleep_daily.drop(['minuteData'],axis=1,inplace=True)
+        sleep_daily.drop(['levels','type'],axis=1,inplace=True)
 
         # saving
         try:
@@ -638,7 +685,8 @@ class bpeace2():
 
             #device.to_csv(f'../../data/processed/bpeace2-fitbit-device.csv')
             sleep_daily.to_csv(f'../../data/processed/bpeace2-fitbit-sleep-daily.csv')
-            sleep_minute.to_csv(f'../../data/processed/bpeace2-fitbit-sleep-minute.csv')
+            sleep_stages.to_csv(f'../../data/processed/bpeace2-fitbit-sleep-stages.csv')
+            sleep_stages_summary.to_csv(f'../../data/processed/bpeace2-fitbit-sleep-stages-summary.csv')
         except:
             return False
 
