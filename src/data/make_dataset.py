@@ -566,7 +566,7 @@ class bpeace2():
                 # in case Fitbit didn't record sleep records for that night - value is NaN
                 pt = daily_df['beiwe'][row]
                 # pts with classic sleep data
-                if pt in ['2xtqkfz1','awa8uces','e8js2jdf','ewvz3zm1','hfttkth7']:
+                if pt in ['awa8uces','ewvz3zm1']:
                     continue
                 if type(daily_df['sleep'][row]) == float:
                     continue
