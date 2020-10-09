@@ -267,6 +267,10 @@ class bpeace2():
                     self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
 
             py3_df = py3_df.resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+            if number in ['28','29','32','34','36','38','40','46','30','44']:
+                print('\t\t\tNo NO2 sensor - removing values')
+                py3_df['CO'] = py3_df['NO2']
+                py3_df['NO2'] = np.nan
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
 
             # Python2 Sensors
@@ -283,8 +287,18 @@ class bpeace2():
                 
             py2_df = py2_df.resample('5T').mean()
                 
-            # merging python2 and 3 sensor dataframes and adding column for the beacon
+            # merging python2 and 3 sensor dataframes
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
+            # removing bad values from important variables
+            important_vars = ['TVOC','CO2','NO2','CO','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
+            # variables that should never have anything less than zero
+            for var in ['CO2','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
+                beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
+            # removing extreme values (zscore greater than 2.5)
+            for var in important_vars:
+                beacon_df['z'] = abs(beacon_df[var] - np.nanmean(beacon_df[var])) / np.nanstd(beacon_df[var])
+                beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+            # adding columns for the pt details
             beacon_df['Beacon'] = beacon
             beacon_df['Beiwe'] = beiwe
             beacon_df['Fitbit'] = fitbit
@@ -295,16 +309,6 @@ class bpeace2():
             beacon_df = beacon_df[start_date:end_date]
             
             beacon_data = pd.concat([beacon_data,beacon_df])
-            # removing bad values from important variables
-            # variables that should never have anything less than zero
-            for var in ['CO2','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']:
-                beacon_data[var].mask(beacon_data[var] < 0, np.nan, inplace=True)
-            # extreme values
-            beacon_data['Lux'].mask(beacon_data['Lux'] >= 5000, np.nan, inplace=True)
-            beacon_data['NO2'].mask(beacon_data['NO2'] > 4000, np.nan, inplace=True)
-            beacon_data['NO2'].mask(beacon_data['NO2'] < -4000, np.nan, inplace=True)
-            beacon_data['CO'].mask(beacon_data['CO'] < -4, np.nan, inplace=True)
-            beacon_data['PM_C_2p5'].mask(beacon_data['PM_C_2p5'] > 1000, np.nan, inplace=True)
 
         # saving
         try:
