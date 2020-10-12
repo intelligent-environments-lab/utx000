@@ -97,3 +97,6 @@ target/
 
 # weird files
 *~
+
+# Adobe Files
+*.ai
