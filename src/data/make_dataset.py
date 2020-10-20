@@ -417,7 +417,7 @@ class bpeace2():
                     df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/{file}')
                     # adding new row
                     try:
-                        participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S')] = [pid,df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],
+                        participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=5)] = [pid,df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],
                                                                                                df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer']]
                     except KeyError:
                         print(f'\t\tProblem with morning survey {file} for Participant {pid} - Participant most likely did not answer a question')
@@ -448,7 +448,7 @@ class bpeace2():
                 for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/'):
                     df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/{file}')
                     try:
-                        participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S')] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer']]
+                        participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=5)] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer']]
                     except KeyError:
                         print(f'\t\tProblem with evening survey {file} for Participant {pid} - Participant most likely did not answer a question')
                         self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-evening-{file}')
