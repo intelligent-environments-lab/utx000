@@ -659,7 +659,7 @@ class bpeace2():
             summary = pd.DataFrame(summary_dict)
             return sleep_stages, summary
 
-        def process_fitbit_intraday(raw_df,resample_rate=60):
+        def process_fitbit_intraday(raw_df,resample_rate=1):
             '''
             
             '''
@@ -682,6 +682,7 @@ class bpeace2():
 
         # some cleaning
         daily.drop(['activities_heart','sleep'],axis=1,inplace=True)
+        daily = daily[daily['activities_steps'] > 0 ]
         sleep_daily.drop(['levels','type'],axis=1,inplace=True)
 
         # saving
