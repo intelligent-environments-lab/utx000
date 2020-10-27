@@ -104,3 +104,5 @@ target/
 # video files
 *.mp4
 *.Mp4
+*.mov
+*.MOV
