@@ -267,10 +267,15 @@ class bpeace2():
                     self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
 
             py3_df = py3_df.resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+            # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
             if number in ['28','29','32','34','36','38','40','46','30','44']:
                 print('\t\t\tNo NO2 sensor - removing values')
                 py3_df['CO'] = py3_df['NO2']
                 py3_df['NO2'] = np.nan
+                py3_df['T_CO'] = py3_df['T_NO2']
+                py3_df['T_NO2'] = np.nan
+                py3_df['RH_CO'] = py3_df['RH_NO2']
+                py3_df['RH_NO2'] = np.nan
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
 
             # Python2 Sensors
