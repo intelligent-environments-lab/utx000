@@ -106,3 +106,7 @@ target/
 *.Mp4
 *.mov
 *.MOV
+*.mp3
+*.mp4a
+*.m4a
+
