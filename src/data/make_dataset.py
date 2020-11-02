@@ -499,7 +499,7 @@ class bpeace2():
 
         return True
 
-    def process_fitbit(self, data_dir='/Volumes/HEF_Dissertation_Research/utx000/extension/data/fitbit/'):
+    def process_fitbit(self):
         '''
         Processes fitbit data
 
@@ -507,7 +507,7 @@ class bpeace2():
         '''
         print('\tProcessing Fitbit data...')
 
-        def import_fitbit(filename, pt_dir=f"/Volumes/HEF_Dissertation_Research/utx000/extension/data/fitbit/"):
+        def import_fitbit(filename, pt_dir=f"../../data/raw/bpeace2/fitbit/"):
             '''
             Imports the specified file for each participant in the directory
 
@@ -578,7 +578,7 @@ class bpeace2():
                 # in case Fitbit didn't record sleep records for that night - value is NaN
                 pt = daily_df['beiwe'][row]
                 # pts with classic sleep data
-                if pt in ['awa8uces','ewvz3zm1']:
+                if pt in ['awa8uces','ewvz3zm1','pgvvwyvh']:
                     continue
                 if type(daily_df['sleep'][row]) == float:
                     continue
@@ -675,7 +675,6 @@ class bpeace2():
                 return raw_df
             return df
 
-        pt_dir = "/Volumes/HEF_Dissertation_Research/utx000/extension/data/fitbit/"
         daily = import_fitbit("daily_records")
         info = import_fitbit("info")
         intra = import_fitbit("intraday_records")
