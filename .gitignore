@@ -102,7 +102,7 @@ target/
 *.ai
 
 # video files
-*.mp4
+*.mp4*
 *.Mp4
 *.mov
 *.MOV
