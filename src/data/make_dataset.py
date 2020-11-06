@@ -234,7 +234,7 @@ class bpeace2():
         '''
 
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
-        # list of all beacons used in the study - 13 removed because of bad data
+        # list of all beacons used in the study
         beacon_list = [30,1,21,34,22,28,24,41,26,48,46,25,15,44,23,29,10,16,36,38,40,5,17,6,19,32,11,7]
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
         for beacon in beacon_list:
