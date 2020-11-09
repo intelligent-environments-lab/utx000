@@ -235,7 +235,7 @@ class bpeace1():
 
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         # list of all beacons used in the study
-        beacon_list = [29,28,27,26,25,24,23,22,20,19,18,17,16,15,14,13,12,11,9,7,6,5,4,3,2,1]
+        beacon_list = [29,28,27,26,25,24,23,22,20,19,18,17,16,15,14,13,12,11,10,9,7,6,5,4,3,2,1]
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
         for beacon in beacon_list:
             print(f'\t\t{beacon}')
@@ -290,37 +290,36 @@ class bpeace1():
                     print(f'{inst}; filename: {file}')
                     self.move_to_purgatory(f'../../data/raw/bpeace1/beacon/B{number}/sensirion/{file}',f'../../data/purgatory/{self.study}-B{number}-py2-{file}')
                 
+            for col in py2_df.columns:
+                py2_df[col] = pd.to_numeric(py2_df[col],errors='coerce')
+
             py2_df = py2_df.resample('5T').mean()
                 
             # merging python2 and 3 sensor dataframes
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
+            # getting relevant data only
+            start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
+            end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
+            beacon_df = beacon_df[start_date:end_date]
             # removing bad values from important variables
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
             # variables that should never have anything less than zero
-            try:
-                for var in ['CO2','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
-                    beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
-                # variables that should never be less than a certain limit
-                for var, threshold in zip(['CO2','Lux'],[100,-1]):
-                    beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
-                # removing extreme values (zscore greater than 2.5)
-                for var in important_vars:
-                    beacon_df['z'] = abs(beacon_df[var] - np.nanmean(beacon_df[var])) / np.nanstd(beacon_df[var])
-                    beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
-                # adding columns for the pt details
-                beacon_df['Beacon'] = beacon
-                beacon_df['Beiwe'] = beiwe
-                beacon_df['Fitbit'] = fitbit
-                beacon_df['REDCap'] = redcap
-                # getting relevant data only
-                start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
-                end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
-                beacon_df = beacon_df[start_date:end_date]
-                
-                beacon_data = pd.concat([beacon_data,beacon_df])
-            except Exception as inst:
-                print(f'Beacon {beacon} - {inst}')
-                print(beacon_df.head())
+            for var in ['CO2','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
+                beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
+            # variables that should never be less than a certain limit
+            for var, threshold in zip(['CO2','Lux'],[100,-1]):
+                beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
+            # removing extreme values (zscore greater than 2.5)
+            for var in important_vars:
+                beacon_df['z'] = abs(beacon_df[var] - np.nanmean(beacon_df[var])) / np.nanstd(beacon_df[var])
+                beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+            # adding columns for the pt details
+            beacon_df['Beacon'] = beacon
+            beacon_df['Beiwe'] = beiwe
+            beacon_df['Fitbit'] = fitbit
+            beacon_df['REDCap'] = redcap
+            
+            beacon_data = pd.concat([beacon_data,beacon_df])
 
         # saving
         try:
@@ -413,10 +412,17 @@ class bpeace2():
                     print(f'{inst}; filename: {file}')
                     self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/{file}',f'../../data/purgatory/{self.study}-B{number}-py2-{file}')
                 
+            for col in py2_df.columns:
+                py2_df[col] = pd.to_numeric(py2_df[col],errors='coerce')
+
             py2_df = py2_df.resample('5T').mean()
                 
             # merging python2 and 3 sensor dataframes
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
+            # getting relevant data only
+            start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
+            end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
+            beacon_df = beacon_df[start_date:end_date]
             # removing bad values from important variables
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
             # variables that should never have anything less than zero
@@ -434,10 +440,6 @@ class bpeace2():
             beacon_df['Beiwe'] = beiwe
             beacon_df['Fitbit'] = fitbit
             beacon_df['REDCap'] = redcap
-            # getting relevant data only
-            start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
-            end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
-            beacon_df = beacon_df[start_date:end_date]
             
             beacon_data = pd.concat([beacon_data,beacon_df])
 
