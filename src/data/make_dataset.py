@@ -207,6 +207,129 @@ class ut3000():
 
         return True
 
+class bpeace1():
+    '''
+    Class used to process bpeace1 data (Spring 2020)
+    '''
+
+    def __init__(self):
+        self.study = 'bpeace1'
+        self.id_crossover = pd.read_excel('../../data/raw/bpeace1/admin/id_crossover.xlsx',sheet_name='id')
+        self.beacon_id = pd.read_excel('../../data/raw/bpeace1/admin/id_crossover.xlsx',sheet_name='beacon')
+
+    def move_to_purgatory(self,path_to_file,path_to_destination):
+        '''
+        Moves problematic file to the purgatory data directory
+
+        Returns void
+        '''
+        print('\t\tMoving to purgatory...')
+        os.replace(path_to_file, path_to_destination)
+
+    def process_beacon(self):
+        '''
+        Combines data from all sensors on all beacons
+
+        Returns True if able to save one dataframe that contains all the data at regular intervals in /data/processed directory
+        '''
+
+        beacon_data = pd.DataFrame() # dataframe to hold the final set of data
+        # list of all beacons used in the study
+        beacon_list = [29,28,27,26,25,24,23,22,20,19,18,17,16,15,14,13,12,11,9,7,6,5,4,3,2,1]
+        print('\tProcessing beacon data...\n\t\tReading for beacon:')
+        for beacon in beacon_list:
+            print(f'\t\t{beacon}')
+            beacon_df = pd.DataFrame() # dataframe specific to the beacon
+            # correcting the number since the values <10 have leading zero in directory
+            if beacon < 10:
+                number = f'0{beacon}'
+            else:
+                number = f'{beacon}'
+            # getting other ids
+            for i in range(len(self.id_crossover)):
+                if beacon == self.id_crossover['Beacon'][i]:
+                    beiwe = self.id_crossover['Beiwe'][i]
+                    fitbit = self.id_crossover['Fitbit'][i]
+                    redcap = self.id_crossover['REDCap'][i]
+
+            # Python3 Sensors
+            # ---------------
+            py3_df = pd.DataFrame() # dataframe for sensors using python3
+            for file in os.listdir(f'../../data/raw/bpeace1/beacon/B{number}/adafruit/'):
+                try:
+                    # reading in raw data (csv for one day at a time) and appending it to the overal dataframe
+                    day_df = pd.read_csv(f'../../data/raw/bpeace1/beacon/B{number}/adafruit/{file}',
+                                        index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
+                    py3_df = pd.concat([py3_df,day_df])
+                except Exception as inst:
+                    # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
+                    print(f'{inst}; filename: {file}')
+                    self.move_to_purgatory(f'../../data/raw/bpeace1/beacon/B{number}/adafruit/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
+
+            py3_df = py3_df.resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+            # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
+            if number in ['28','29']:
+                print('\t\t\tNo NO2 sensor - removing values')
+                py3_df['CO'] = py3_df['NO2']
+                py3_df['NO2'] = np.nan
+                py3_df['T_CO'] = py3_df['T_NO2']
+                py3_df['T_NO2'] = np.nan
+                py3_df['RH_CO'] = py3_df['RH_NO2']
+                py3_df['RH_NO2'] = np.nan
+            py3_df['CO'] /= 1000 # converting ppb measurements to ppm
+
+            # Python2 Sensors
+            # ---------------
+            py2_df = pd.DataFrame()
+            for file in os.listdir(f'../../data/raw/bpeace1/beacon/B{number}/sensirion/'):
+                try:
+                    day_df = pd.read_csv(f'../../data/raw/bpeace1/beacon/B{number}/sensirion/{file}',
+                                    index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
+                    py2_df = pd.concat([py2_df,day_df])
+                except Exception as inst:
+                    print(f'{inst}; filename: {file}')
+                    self.move_to_purgatory(f'../../data/raw/bpeace1/beacon/B{number}/sensirion/{file}',f'../../data/purgatory/{self.study}-B{number}-py2-{file}')
+                
+            py2_df = py2_df.resample('5T').mean()
+                
+            # merging python2 and 3 sensor dataframes
+            beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
+            # removing bad values from important variables
+            important_vars = ['TVOC','CO2','NO2','CO','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
+            # variables that should never have anything less than zero
+            try:
+                for var in ['CO2','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
+                    beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
+                # variables that should never be less than a certain limit
+                for var, threshold in zip(['CO2','Lux'],[100,-1]):
+                    beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
+                # removing extreme values (zscore greater than 2.5)
+                for var in important_vars:
+                    beacon_df['z'] = abs(beacon_df[var] - np.nanmean(beacon_df[var])) / np.nanstd(beacon_df[var])
+                    beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+                # adding columns for the pt details
+                beacon_df['Beacon'] = beacon
+                beacon_df['Beiwe'] = beiwe
+                beacon_df['Fitbit'] = fitbit
+                beacon_df['REDCap'] = redcap
+                # getting relevant data only
+                start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
+                end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
+                beacon_df = beacon_df[start_date:end_date]
+                
+                beacon_data = pd.concat([beacon_data,beacon_df])
+            except Exception as inst:
+                print(f'Beacon {beacon} - {inst}')
+                print(beacon_df.head())
+
+        # saving
+        try:
+            beacon_data.to_csv(f'../../data/processed/bpeace1-beacon.csv')
+        except:
+            return False
+
+        return True
+
 class bpeace2():
     '''
     Class used to process bpeace2 data (Spring 2020 into Summer 2020)
@@ -715,15 +838,21 @@ def main():
     print('\t2. UT3000 Fitbit Sleep Stages')
     print('\t3. UT3000 HEH Survey')
     print('\t4. All BPEACE2 Data')
-    print('\t5. BPEACE2 Beacon')
-    print('\t6. BPEACE2 Weekly EMAs')
-    print('\t7. BPEACE2 GPS')
-    print('\t8. BPEACE2 REDCap Environment and Experiences Survey')
-    print('\t9. BPEACE2 Fitbit')
+    print('\t5. BPEACE1 Beacon')
+    print('\t6. BPEACE1 Weekly EMAs')
+    print('\t7. BPEACE1 Fitbit')
+    print('\t8. All BPEACE2 Data')
+    print('\t9. BPEACE2 Beacon')
+    print('\t10. BPEACE2 Weekly EMAs')
+    print('\t11. BPEACE2 Fitbit')
+    print('\t12. BPEACE2 GPS')
+    print('\t13. BPEACE2 REDCap Environment and Experiences Survey')
+
     ans = int(input('Answer: '))
     ut1000_processor = ut1000()
     ut2000_processor = ut2000()
     ut3000_processor = ut3000()
+    bpeace1_processor = bpeace1()
     bpeace2_processor = bpeace2()
 
     # UT2000 Beacon Data
@@ -748,41 +877,47 @@ def main():
             logger.info(f'Data for UT3000 HEH survey processed')
         else:
             logger.error(f'Data for UT3000 HEH survey NOT processed')
+    # BPEACE1 Beacon Data
+    if ans == 4 or ans == 5:
+        if bpeace1_processor.process_beacon():
+            logger.info(f'Data for BPEACE1 beacons processed')
+        else:
+            logger.error(f'Data for BPEACE1 beacons NOT processed')
 
     # BPEACE2 Beacon Data
-    if ans == 4 or ans == 5:
+    if ans == 8 or ans == 9:
         if bpeace2_processor.process_beacon():
             logger.info(f'Data for BPEACE2 beacons processed')
         else:
             logger.error(f'Data for BPEACE2 beacons NOT processed')
 
     # BPEACE2 survey Data
-    if ans == 4 or ans == 6:
+    if ans == 8 or ans == 10:
         if bpeace2_processor.process_weekly_surveys():
             logger.info(f'Data for BPEACE2 morning and evening surveys processed')
         else:
             logger.error(f'Data for BPEACE2 morning and evening surveys NOT processed')
 
+    # BPEACE2 fitbit
+    if ans == 8 or ans == 11:
+        if bpeace2_processor.process_fitbit():
+            logger.info(f'Data for BPEACE2 fitbit processed')
+        else:
+            logger.error(f'Data for BPEACE2 fitbit NOT processed')
+
     # BPEACE2 gps Data
-    if ans == 4 or ans == 7:
+    if ans == 8 or ans == 12:
         if bpeace2_processor.process_gps():
             logger.info(f'Data for BPEACE2 GPS processed')
         else:
             logger.error(f'Data for BPEACE2 GPS NOT processed')
 
     # BPEACE2 EE Survey
-    if ans == 4 or ans == 8:
+    if ans == 8 or ans == 13:
         if bpeace2_processor.process_environment_survey():
             logger.info(f'Data for BPEACE2 environment and experiences survey processed')
         else:
             logger.error(f'Data for BPEACE2 environment and experiences survey NOT processed')
-
-    # BPEACE2 fitbit
-    if ans == 4 or ans == 9:
-        if bpeace2_processor.process_fitbit():
-            logger.info(f'Data for BPEACE2 fitbit processed')
-        else:
-            logger.error(f'Data for BPEACE2 fitbit NOT processed')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
