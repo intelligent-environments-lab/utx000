@@ -341,10 +341,12 @@ class bpeace1():
         parent_dir = '../../data/raw/bpeace1/beiwe/survey_answers/'
         morning_survey_id = 'vBewaVfZ6oWcsiAoPvF6CZi7'
         evening_survey_id = 'OymqfwTdyaHFIsJoUNIfPWyG'
+        weekly_survey_id = 'aMIwBMFUgO8Rtw2ZFjyMTzDn'
         
         # defining the final dataframes to append to
         evening_survey_df = pd.DataFrame()
         morning_survey_df = pd.DataFrame()
+        weekly_survey_df = pd.DataFrame()
         
         # Morning Survey Data
         # -------------------
@@ -386,7 +388,7 @@ class bpeace1():
         for participant in os.listdir(parent_dir):
             if len(participant) == 8:
                 pid = participant
-                # less columns
+                # pre-allocating dataframe columns
                 participant_df = pd.DataFrame(columns=['ID','Content','Stress','Lonely','Sad','Energy'])
             
                 for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/'):
@@ -405,14 +407,43 @@ class bpeace1():
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
-
+        # Weekly Survey Data
+        # -------------------
+        print('\tProcessing weekly survey data...')
+        for participant in os.listdir(parent_dir):
+            if len(participant) == 8:
+                pid = participant
+                # less columns
+                participant_df = pd.DataFrame(columns=['ID','Upset','Unable','Stressed','Confident','Your_Way','Cope','Able','Top','Angered','Overcome'])
+            
+                for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/'):
+                    df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/{file}')
+                    try:
+                        participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=6)] = [pid,df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],df.loc[9,'answer'],df.loc[10,'answer']]
+                    except KeyError:
+                        try:
+                            participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=6)] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],df.loc[9,'answer']]
+                        except:
+                            print(f'\t\tProblem with weekly survey {file} for Participant {pid} - Participant most likely did not answer a question')
+                            self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-weekly-{file}')
+            
+                weekly_survey_df = weekly_survey_df.append(participant_df)
+            else:
+                print(f'\t\tDirectory {participant} is not valid')
+                
+        weekly_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3,
+                                'Never':0,'Almost Never':1,'Sometimes':2,'Fairly Often':3,'Very Often':4,
+                                'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
+                                'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
+                                'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
         # saving
         try:
             morning_survey_df.to_csv(f'../../data/processed/bpeace1-morning-survey.csv')
             evening_survey_df.to_csv(f'../../data/processed/bpeace1-evening-survey.csv')
+            weekly_survey_df.to_csv(f'../../data/processed/bpeace1-weekly-survey.csv')
         except:
             return False
-
+ 
         return True
 
 class bpeace2():
@@ -616,10 +647,12 @@ class bpeace2():
         parent_dir = '../../data/raw/bpeace2/beiwe/survey_answers/'
         morning_survey_id = 'eQ2L3J08ChlsdSXXKOoOjyLJ'
         evening_survey_id = '7TaT8zapOWO0xdtONnsY8CE0'
+        weekly_survey_id = 'lh9veS0aSw2KfrfwSytYjxVr'
         
         # defining the final dataframes to append to
         evening_survey_df = pd.DataFrame()
         morning_survey_df = pd.DataFrame()
+        weekly_survey_df = pd.DataFrame()
         
         # Morning Survey Data
         # -------------------
@@ -681,10 +714,44 @@ class bpeace2():
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
 
+        # Weekly Survey Data
+        # -------------------
+        print('\tProcessing weekly survey data...')
+        for participant in os.listdir(parent_dir):
+            if len(participant) == 8:
+                pid = participant
+                # less columns
+                participant_df = pd.DataFrame(columns=['ID','Upset','Unable','Stressed','Confident','Your_Way','Cope','Able','Top','Angered','Overcome'])
+            
+                try:
+                    for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/'):
+                        df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/{file}')
+                        try:
+                            participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=6)] = [pid,df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],df.loc[9,'answer'],df.loc[10,'answer']]
+                        except KeyError:
+                            try:
+                                participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=6)] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],df.loc[9,'answer']]
+                            except:
+                                print(f'\t\tProblem with weekly survey {file} for Participant {pid} - Participant most likely did not answer a question')
+                                self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-weekly-{file}')
+                
+                    weekly_survey_df = weekly_survey_df.append(participant_df)
+                except FileNotFoundError:
+                    print(f'\t\tParticipant {pid} does not seem to have submitted any weekly surveys - check directory')
+            else:
+                print(f'\t\tDirectory {participant} is not valid')
+                
+        weekly_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3,
+                                'Never':0,'Almost Never':1,'Sometimes':2,'Fairly Often':3,'Very Often':4,
+                                'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
+                                'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
+                                'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
+
         # saving
         try:
             morning_survey_df.to_csv(f'../../data/processed/bpeace2-morning-survey.csv')
             evening_survey_df.to_csv(f'../../data/processed/bpeace2-evening-survey.csv')
+            weekly_survey_df.to_csv(f'../../data/processed/bpeace2-weekly-survey.csv')
         except:
             return False
 
