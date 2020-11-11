@@ -50,7 +50,7 @@ class ut2000():
         
         return df
 
-    def process_beacon(self,data_dir='/Users/hagenfritz/Projects/utx000/data/raw/ut2000/beacon/'):
+    def process_beacon(self,data_dir='../../data/raw/ut2000/beacon/'):
         '''
         Combines data from all sensors on all beacons
         '''
@@ -97,7 +97,7 @@ class ut2000():
                 beacons = pd.concat([beacons,beaconDF])
 
         try:
-            beacons.to_csv(f'~/Projects/utx000/data/processed/ut2000-beacon.csv')
+            beacons.to_csv(f'../../data/processed/ut2000-beacon.csv')
         except:
             return False
 
@@ -120,11 +120,11 @@ class ut3000():
         df = pd.DataFrame()
         for i in range(2):
             # import the file and attach a study tag
-            temp = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/raw/ut{i+1}000/{dir_string}/{file_string}.csv')
+            temp = pd.read_csv(f'../../data/raw/ut{i+1}000/{dir_string}/{file_string}.csv')
             temp['study'] = f'ut{i+1}000'
             
             # import the id crossover file and attach so we have record, beiwe, and beacon id
-            crossover = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/raw/ut{i+1}000/admin/id_crossover.csv')
+            crossover = pd.read_csv(f'../../data/raw/ut{i+1}000/admin/id_crossover.csv')
             if 'Id' in temp.columns: # fitbit
                 temp = pd.merge(left=temp,right=crossover,left_on='Id',right_on='record',how='left')
             elif 'pid' in temp.columns: # beiwe
@@ -143,7 +143,7 @@ class ut3000():
             df['TotalMinutesNREM'] = df['TotalMinutesLight'] + df['TotalMinutesDeep'] 
             df['REM2NREM'] = df['TotalMinutesREM'] / df['TotalMinutesNREM']
 
-        df.to_csv(f'/Users/hagenfritz/Projects/utx000/data/processed/ut3000-{dir_string}-{file_string}.csv',index=False)
+        df.to_csv(f'../../data/processed/ut3000-{dir_string}-{file_string}.csv',index=False)
             
         return True
 
@@ -153,8 +153,8 @@ class ut3000():
         '''
 
         # Importing data
-        heh_1 = pd.read_csv('/Users/hagenfritz/Projects/utx000/data/raw/ut1000/surveys/heh.csv')
-        heh_2 = pd.read_csv('/Users/hagenfritz/Projects/utx000/data/raw/ut2000/surveys/heh.csv')
+        heh_1 = pd.read_csv('../../data/raw/ut1000/surveys/heh.csv')
+        heh_2 = pd.read_csv('../../data/raw/ut2000/surveys/heh.csv')
         # Dropping all the NaN values from the ut2000 survey
         heh_2.dropna(subset=['livingsit'],inplace=True)
         # Re-mapping choices to numbers - 0 for no, 1 for yes
@@ -176,8 +176,8 @@ class ut3000():
         heh_1['study'] = 'ut1000'
         heh_2['study'] = 'ut2000'
         # Adding beiwe and beacon IDs
-        idCross1 = pd.read_csv('~/Projects/utx000/data/raw/ut1000/admin/id_crossover.csv')
-        idCross2 = pd.read_csv('~/Projects/utx000/data/raw/ut2000/admin/id_crossover.csv')
+        idCross1 = pd.read_csv('../../data/raw/ut1000/admin/id_crossover.csv')
+        idCross2 = pd.read_csv('../../data/raw/ut2000/admin/id_crossover.csv')
         heh_1 = pd.merge(left=heh_1,left_on='record_id',right=idCross1,right_on='record',how='left')
         heh_2 = pd.merge(left=heh_2,left_on='record_id',right=idCross2,right_on='record',how='left')
         # combining
@@ -203,7 +203,7 @@ class ut3000():
         # Adding zero where NaN
         heh.fillna(0, inplace=True)
         # saving the file!
-        heh.to_csv(f'/Users/hagenfritz/Projects/utx000/data/processed/ut3000-heh.csv',index=False) 
+        heh.to_csv(f'../../data/processed/ut3000-heh.csv',index=False) 
 
         return True
 
@@ -444,6 +444,175 @@ class bpeace1():
         except:
             return False
  
+        return True
+
+    def process_gps(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/gps/'):
+        '''
+        Processes the raw gps data into one csv file for each participant and saves into /data/processed/
+        
+        All GPS data are recorded at 1-second intervals and stored in separate data files for every hour. The
+        data are combined into one dataframe per participant, downsampled to 5-minute intervals using the
+        mode value for those 5-minutes (after rounding coordinates to five decimal places), and combined into
+        a final dataframe that contains all participants' data. 
+
+        Returns True is able to process the data, false otherwise.
+        '''
+        print('\tProcessing gps data...')
+
+        gps_df = pd.DataFrame()
+        for participant in os.listdir(data_dir):
+            if len(participant) == 8: # checking to make sure we only look for participant directories
+                pid = participant
+                print(f'\t\tWorking for Participant: {pid}')
+                participant_df = pd.DataFrame() # 
+                for file in os.listdir(f'{data_dir}{pid}/gps/'):
+                    if file[-1] == 'v': # so we only import cs[v] files
+                        try:
+                            hourly_df = pd.read_csv(f'{data_dir}{pid}/gps/{file}',usecols=[1,2,3,4,5]) # all columns but UTC
+                        except KeyError:
+                            print(f'Problem with gps data for {file} for Participant {pid}')
+                            self.move_to_purgatory(f'{data_dir}{pid}/gps/{file}',f'../../data/purgatory/{self.study}-{pid}-gps-{file}')
+                    
+                        if len(hourly_df) > 0: # append to participant df if there were data for that hour
+                            participant_df = participant_df.append(hourly_df,ignore_index=True)
+                    
+                # converting utc to cdt
+                participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
+                participant_df.drop(['UTC time'],axis=1,inplace=True)
+                participant_df.set_index('Time',inplace=True)
+                # rounding gps and taking the mode for every 5-minutes
+                participant_df = round(participant_df,5)
+                participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
+                # converting values to numeric and removing NaN datapoints
+                participant_df.columns = ['Lat','Long','Alt','Accuracy']
+                for col in ['Lat','Long','Alt','Accuracy']:
+                    participant_df[col] = pd.to_numeric(participant_df[col],errors='coerce')
+
+                participant_df.dropna(inplace=True)
+                participant_df['Beiwe'] = pid
+                
+                gps_df = gps_df.append(participant_df)
+
+        try:
+            gps_df.to_csv(f'../../data/processed/bpeace1-gps.csv')
+        except:
+            return False
+
+        return True
+
+    def process_accelerometer(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/accelerometer/'):
+        '''
+        Processes the raw accelerometer data from each participant into a single csv.
+
+        Accelerometer data are downsampled to 1 second intervals.
+
+        Returns True is able to process the data, false otherwise.
+        '''
+        print('\tProcessing accelerometer data...')
+
+        accel_df = pd.DataFrame()
+        for pt in os.listdir(data_dir):
+            if len(pt) == 8:
+                print(f'\t\tWorking for Participant: {pt}')
+                pt_df = pd.DataFrame()
+                for file in os.listdir(f'{data_dir}{pt}/accelerometer/'):
+                    file_df = pd.read_csv(f'{data_dir}{pt}/accelerometer/{file}',parse_dates = [1],infer_datetime_format=True)
+                    pt_df = pt_df.append(file_df)
+                
+                pt_df.set_index(['UTC time'],inplace=True)
+                pt_df.sort_index(inplace=True)
+                
+                accel_df.append(pt_df)
+
+
+
+        for participant in os.listdir(data_dir):
+            if len(participant) == 8: # checking to make sure we only look for participant directories
+                pid = participant
+                print(f'\t\tWorking for Participant: {pid}')
+                participant_df = pd.DataFrame() # 
+                for file in os.listdir(f'{data_dir}{pid}/accelerometer/'):
+                    if file[-1] == 'v': # so we only import cs[v] files
+                        try:
+                            hourly_df = pd.read_csv(f'{data_dir}{pid}/accelerometer/{file}',usecols=[1,2,3,4,5]) # all columns but UTC
+                        except KeyError:
+                            print(f'Problem with accelerometer data for {file} for Participant {pid}')
+                            self.move_to_purgatory(f'{data_dir}{pid}/accelerometer/{file}',f'../../data/purgatory/{self.study}-{pid}-accelerometer-{file}')
+                    
+                        if len(hourly_df) > 0: # append to participant df if there were data for that hour
+                            participant_df = participant_df.append(hourly_df,ignore_index=True)
+                    
+                # converting utc to cdt
+                participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
+                participant_df.drop(['UTC time'],axis=1,inplace=True)
+                participant_df.set_index('Time',inplace=True)
+                # rounding gps and taking the mode for every 5-minutes
+                
+
+                participant_df.dropna(inplace=True)
+                participant_df['Beiwe'] = pid
+                
+                gps_df = gps_df.append(participant_df)
+
+        try:
+            gps_df.to_csv(f'../../data/processed/bpeace1-accelerometer.csv')
+        except:
+            return False
+
+        return True
+
+    def process_bt(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/gps/'):
+        '''
+        Processes the raw gps data into one csv file for each participant and saves into /data/processed/
+        
+        All GPS data are recorded at 1-second intervals and stored in separate data files for every hour. The
+        data are combined into one dataframe per participant, downsampled to 5-minute intervals using the
+        mode value for those 5-minutes (after rounding coordinates to five decimal places), and combined into
+        a final dataframe that contains all participants' data. 
+
+        Returns True is able to process the data, false otherwise.
+        '''
+        print('\tProcessing gps data...')
+
+        gps_df = pd.DataFrame()
+        for participant in os.listdir(data_dir):
+            if len(participant) == 8: # checking to make sure we only look for participant directories
+                pid = participant
+                print(f'\t\tWorking for Participant: {pid}')
+                participant_df = pd.DataFrame() # 
+                for file in os.listdir(f'{data_dir}{pid}/gps/'):
+                    if file[-1] == 'v': # so we only import cs[v] files
+                        try:
+                            hourly_df = pd.read_csv(f'{data_dir}{pid}/gps/{file}',usecols=[1,2,3,4,5]) # all columns but UTC
+                        except KeyError:
+                            print(f'Problem with gps data for {file} for Participant {pid}')
+                            self.move_to_purgatory(f'{data_dir}{pid}/gps/{file}',f'../../data/purgatory/{self.study}-{pid}-gps-{file}')
+                    
+                        if len(hourly_df) > 0: # append to participant df if there were data for that hour
+                            participant_df = participant_df.append(hourly_df,ignore_index=True)
+                    
+                # converting utc to cdt
+                participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
+                participant_df.drop(['UTC time'],axis=1,inplace=True)
+                participant_df.set_index('Time',inplace=True)
+                # rounding gps and taking the mode for every 5-minutes
+                participant_df = round(participant_df,5)
+                participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
+                # converting values to numeric and removing NaN datapoints
+                participant_df.columns = ['Lat','Long','Alt','Accuracy']
+                for col in ['Lat','Long','Alt','Accuracy']:
+                    participant_df[col] = pd.to_numeric(participant_df[col],errors='coerce')
+
+                participant_df.dropna(inplace=True)
+                participant_df['Beiwe'] = pid
+                
+                gps_df = gps_df.append(participant_df)
+
+        try:
+            gps_df.to_csv(f'../../data/processed/bpeace1-gps.csv')
+        except:
+            return False
+
         return True
 
 class bpeace2():
@@ -993,10 +1162,10 @@ def main():
     print('\t1. UT2000 Beacon')
     print('\t2. UT3000 Fitbit Sleep Stages')
     print('\t3. UT3000 HEH Survey')
-    print('\t4. All BPEACE2 Data')
+    print('\t4. All BPEACE1 Data')
     print('\t5. BPEACE1 Beacon')
     print('\t6. BPEACE1 Weekly EMAs')
-    print('\t7. BPEACE1 Fitbit')
+    print('\t7. BPEACE1 GPS')
     print('\t8. All BPEACE2 Data')
     print('\t9. BPEACE2 Beacon')
     print('\t10. BPEACE2 Weekly EMAs')
@@ -1043,9 +1212,16 @@ def main():
     # BPEACE1 survey Data
     if ans == 4 or ans == 6:
         if bpeace1_processor.process_weekly_surveys():
-            logger.info(f'Data for BPEACE1 beacons processed')
+            logger.info(f'Data for BPEACE1 surveys processed')
         else:
-            logger.error(f'Data for BPEACE1 beacons NOT processed')
+            logger.error(f'Data for BPEACE1 surveys NOT processed')
+
+    # BPEACE1 GPS Data
+    if ans == 4 or ans == 7:
+        if bpeace1_processor.process_gps():
+            logger.info(f'Data for BPEACE1 GPS processed')
+        else:
+            logger.error(f'Data for BPEACE1 GPS NOT processed')
 
     # BPEACE2 Beacon Data
     if ans == 8 or ans == 9:
