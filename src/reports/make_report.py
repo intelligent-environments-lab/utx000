@@ -41,7 +41,7 @@ class beiwe_participation_report():
         '''
         
         # importing datafile
-        temp = pd.read_csv(f"/Users/hagenfritz/Projects/utx000/data/interim/survey_mood_{surveyType}_summary.csv",index_col=0)
+        temp = pd.read_csv(f"../../data/interim/survey_mood_{surveyType}_summary.csv",index_col=0)
         
         # getting dataframe in date range
         df = pd.DataFrame()
@@ -75,7 +75,7 @@ class beiwe_participation_report():
         '''
 
         '''
-        self.acc = pd.read_csv(f'/Users/hagenfritz/Projects/utx000/data/interim/acc_summary.csv',
+        self.acc = pd.read_csv(f'../../data/interim/acc_summary.csv',
                   index_col=0)
 
     def create_plots(self):
@@ -101,7 +101,7 @@ class beiwe_participation_report():
         axes[1].set_xticks(np.arange(1,self.maxDailySurveys+5,1))
             
         plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0, hspace=None)
-        plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/daily_survey_summary_histogram.png')
+        plt.savefig('../../reports/beiwe_check/daily_survey_summary_histogram.png')
 
         # weekly histograms
         fig,ax = plt.subplots(figsize=(12,6))
@@ -111,7 +111,7 @@ class beiwe_participation_report():
         ax.set_xlim([0,5])
         ax.set_ylabel('Number of Participants')
 
-        plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/weekly_survey_summary_histrogram.png')
+        plt.savefig('../../reports/beiwe_check/weekly_survey_summary_histrogram.png')
 
         # participation tier
         for survey,timing in zip([self.morn,self.night],['morning','evening']):
@@ -139,7 +139,7 @@ class beiwe_participation_report():
             for p, spot in zip(per,[0.05,0.3,0.55,0.8]):
                 ax.text(len(df),spot,f'n={int(p)}')
 
-            plt.savefig(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/{timing}_participation_tier.png')
+            plt.savefig(f'../../reports/beiwe_check/{timing}_participation_tier.png')
 
         # moring and evening time series
         fig,ax = plt.subplots(figsize=(12,6))
@@ -170,7 +170,7 @@ class beiwe_participation_report():
         ax.grid(axis='y')    
         ax.legend(title='Survey Timing')
 
-        plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/daily_survey_timeseries.png')
+        plt.savefig('../../reports/beiwe_check/daily_survey_timeseries.png')
 
         # poor participant time series
         fig, axes = plt.subplots(2,1,figsize=(12,6),sharex=True)
@@ -184,7 +184,7 @@ class beiwe_participation_report():
         axes[1].set_ylabel('Evening Surveys Completed')
         plt.subplots_adjust(hspace=0)
         plt.xticks(rotation=-30,ha='left')
-        plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/daily_survey_badparticipants_timeseries.png')
+        plt.savefig('../../reports/beiwe_check/daily_survey_badparticipants_timeseries.png')
 
         # weekly time series
         fig,ax = plt.subplots(figsize=(12,6))
@@ -211,7 +211,7 @@ class beiwe_participation_report():
         ax.set_yticks(np.arange(0,31,2))
 
         ax.grid(axis='y')
-        plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/weekly_survey_timeseries.png')
+        plt.savefig('../../reports/beiwe_check/weekly_survey_timeseries.png')
 
         # acc time series
         fig,ax = plt.subplots(figsize=(12,6))
@@ -239,20 +239,20 @@ class beiwe_participation_report():
             ax.set_ylim([0,1750000])
             ax.set_ylabel('Number of Daily Bytes')
 
-            plt.savefig('/Users/hagenfritz/Projects/utx000/reports/beiwe_check/acc_timeseries.png')
+            plt.savefig('../../reports/beiwe_check/acc_timeseries.png')
         except:
             print('Could not generate accelerometer plot - try changing the data from \'general\' to \'number\' in Excel')
 
     def get_filename(self,filename):
 
-        return f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/{filename}.png'
+        return f'../../reports/beiwe_check/{filename}.png'
 
     def generate_report(self):
         '''
 
         '''
 
-        templateLoader = jinja2.FileSystemLoader(searchpath="/Users/hagenfritz/Projects/utx000/reports/templates/")
+        templateLoader = jinja2.FileSystemLoader(searchpath="../../reports/templates/")
         templateEnv = jinja2.Environment(loader=templateLoader)
         templateEnv.globals['get_filename'] = self.get_filename
         TEMPLATE_FILE = "beiwe_participation_template.html"
@@ -260,13 +260,13 @@ class beiwe_participation_report():
         outputText = template.render(date=self.report_date.date())
         
         # html file output
-        html_file = open(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date.date()}.html', 'w')
+        html_file = open(f'../../reports/beiwe_check/report_{self.report_date.date()}.html', 'w')
         html_file.write(outputText)
         html_file.close()
 
         # pdf file output
-        pdfkit.from_file(f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date.date()}.html',
-            f'/Users/hagenfritz/Projects/utx000/reports/beiwe_check/report_{self.report_date.date()}.pdf')
+        pdfkit.from_file(f'../../reports/beiwe_check/report_{self.report_date.date()}.html',
+            f'../../reports/beiwe_check/report_{self.report_date.date()}.pdf')
 
     def generate_report_from_interim(self):
         '''
@@ -419,7 +419,7 @@ class iaq_beacon_study_report():
         Parameters:
         - beginning: list of two values
         '''
-        return f'/Users/hagenfritz/Projects/utx000/reports/figures/{beginning[0]}-beacon{beginning[1]}-{ending}.png'
+        return f'../../reports/figures/{beginning[0]}-beacon{beginning[1]}-{ending}.png'
 
     def generate_report(self):
         '''
@@ -429,7 +429,7 @@ class iaq_beacon_study_report():
         print('\tGenerating report...')
         # generate reports for each beacon
         for beacon_no in self.data['Beacon'].unique():
-            templateLoader = jinja2.FileSystemLoader(searchpath="/Users/hagenfritz/Projects/utx000/reports/templates/")
+            templateLoader = jinja2.FileSystemLoader(searchpath="../../reports/templates/")
             templateEnv = jinja2.Environment(loader=templateLoader)
             templateEnv.filters['get_filename'] = self.get_filename
             TEMPLATE_FILE = "beacon_study_operation_template.html"
@@ -437,13 +437,13 @@ class iaq_beacon_study_report():
             outputText = template.render(study=self.study,beacon_no=beacon_no,start_date=self.study_start.date(),end_date=self.study_end.date())
             
             # html file output
-            html_file = open(f'/Users/hagenfritz/Projects/utx000/reports/beacon_check/beacon{beacon_no}_{self.study_start.date()}-{self.study_end.date()}.html', 'w')
+            html_file = open(f'../../reports/beacon_check/beacon{beacon_no}_{self.study_start.date()}-{self.study_end.date()}.html', 'w')
             html_file.write(outputText)
             html_file.close()
 
             # pdf file output
-            pdfkit.from_file(f'/Users/hagenfritz/Projects/utx000/reports/beacon_check/beacon{beacon_no}_{self.study_start.date()}-{self.study_end.date()}.html',
-                f'/Users/hagenfritz/Projects/utx000/reports/beacon_check/beacon{beacon_no}_{self.study_start.date()}-{self.study_end.date()}.pdf')
+            pdfkit.from_file(f'../../reports/beacon_check/beacon{beacon_no}_{self.study_start.date()}-{self.study_end.date()}.html',
+                f'../../reports/beacon_check/beacon{beacon_no}_{self.study_start.date()}-{self.study_end.date()}.pdf')
 
     def generate_report_from_processed(self):
         '''
