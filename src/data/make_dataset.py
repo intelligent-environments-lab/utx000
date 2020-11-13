@@ -483,18 +483,19 @@ class bpeace1():
                 participant_df = round(participant_df,5)
                 participant_df = participant_df.resample(f'{resample_rate}T').apply({lambda x: stats.mode(x)[0]})
                 # converting values to numeric and removing NaN datapoints
-                participant_df.columns = ['Lat','Long','Alt','Accuracy','UTC']
+                participant_df.columns = ['UTC Time','Lat','Long','Alt','Accuracy']
                 for col in ['Lat','Long','Alt','Accuracy']:
                     participant_df[col] = pd.to_numeric(participant_df[col],errors='coerce')
 
                 participant_df.dropna(inplace=True)
                 participant_df['Beiwe'] = pid
-                
+
                 gps_df = gps_df.append(participant_df)
 
         try:
             gps_df.to_csv(f'../../data/processed/bpeace1-gps.csv')
-        except:
+        except Exception as inst:
+            print(inst)
             return False
 
         return True
@@ -534,55 +535,39 @@ class bpeace1():
 
         return True
 
-    def process_bt(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/gps/'):
+    def process_noavg_beiwe(self, variable='bluetooth'):
         '''
-        Processes the raw gps data into one csv file for each participant and saves into /data/processed/
+        Processes beiwe variables that cannot be downsampled. 
         
-        All GPS data are recorded at 1-second intervals and stored in separate data files for every hour. The
-        data are combined into one dataframe per participant, downsampled to 5-minute intervals using the
-        mode value for those 5-minutes (after rounding coordinates to five decimal places), and combined into
-        a final dataframe that contains all participants' data. 
+        Inputs:
+        - variable: string of ['bluetooth','wifi','reachability','power_state']
 
         Returns True is able to process the data, false otherwise.
         '''
-        print('\tProcessing gps data...')
+        data_dir = f'/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/{variable}/'
+        print(f'\tProcessing {variable} data...')
 
-        gps_df = pd.DataFrame()
-        for participant in os.listdir(data_dir):
-            if len(participant) == 8: # checking to make sure we only look for participant directories
-                pid = participant
-                print(f'\t\tWorking for Participant: {pid}')
-                participant_df = pd.DataFrame() # 
-                for file in os.listdir(f'{data_dir}{pid}/gps/'):
-                    if file[-1] == 'v': # so we only import cs[v] files
-                        try:
-                            hourly_df = pd.read_csv(f'{data_dir}{pid}/gps/{file}',usecols=[1,2,3,4,5]) # all columns but UTC
-                        except KeyError:
-                            print(f'Problem with gps data for {file} for Participant {pid}')
-                            self.move_to_purgatory(f'{data_dir}{pid}/gps/{file}',f'../../data/purgatory/{self.study}-{pid}-gps-{file}')
+        var_df = pd.DataFrame()
+        for pt in os.listdir(data_dir):
+            if len(pt) == 8:
+                print(f'\t\tWorking for participant {pt}')
+                pt_df = pd.DataFrame()
+                for file in os.listdir(f'{data_dir}{pt}/{variable}/'):
+                    if file[-1] == 'v':
+                        temp = pd.read_csv(f'{data_dir}{pt}/{variable}/{file}',parse_dates=[1],infer_datetime_format=True,engine='python')
+                        pt_df = pt_df.append(temp)
                     
-                        if len(hourly_df) > 0: # append to participant df if there were data for that hour
-                            participant_df = participant_df.append(hourly_df,ignore_index=True)
-                    
-                # converting utc to cdt
-                participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
-                participant_df.set_index('Time',inplace=True)
-                # rounding gps and taking the mode for the specified resample rate
-                participant_df = round(participant_df,5)
-                participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
-                # converting values to numeric and removing NaN datapoints
-                participant_df.columns = ['Lat','Long','Alt','Accuracy']
-                for col in ['Lat','Long','Alt','Accuracy']:
-                    participant_df[col] = pd.to_numeric(participant_df[col],errors='coerce')
-
-                participant_df.dropna(inplace=True)
-                participant_df['Beiwe'] = pid
+                pt_df['UTC time'] = pd.to_datetime(pt_df['UTC time'])
+                pt_df['Time'] = pt_df['UTC time'] - timedelta(hours=6)
+                pt_df.set_index('Time',inplace=True)
+                pt_df['Beiwe'] = pt
                 
-                gps_df = gps_df.append(participant_df)
+                var_df = var_df.append(pt_df)
 
         try:
-            gps_df.to_csv(f'../../data/processed/bpeace1-gps.csv')
-        except:
+            var_df.to_csv(f'../../data/processed/bpeace1-{variable}.csv')
+        except Exception as inst:
+            print(inst)
             return False
 
         return True
@@ -1141,12 +1126,18 @@ def main():
     print('\t9. BPEACE1 Bluetooth')
     print('\t10. BPEACE1 Power State')
     print('\t11. BPEACE1 WiFi')
-    print('\t8. All BPEACE2 Data')
-    print('\t9. BPEACE2 Beacon')
-    print('\t10. BPEACE2 Weekly EMAs')
-    print('\t11. BPEACE2 Fitbit')
-    print('\t12. BPEACE2 GPS')
-    print('\t13. BPEACE2 REDCap Environment and Experiences Survey')
+    print('\t12. BPEACE1 Reachability')
+    print('\t13. All BPEACE2 Data')
+    print('\t14. BPEACE2 Beacon')
+    print('\t15. BPEACE2 Weekly EMAs')
+    print('\t16. BPEACE2 Fitbit')
+    print('\t17. BPEACE2 GPS')
+    print('\t18. BPEACE2 Accelerometer')
+    print('\t19. BPEACE1 Bluetooth')
+    print('\t20. BPEACE1 Power State')
+    print('\t21. BPEACE1 WiFi')
+    print('\t22. BPEACE1 Reachability')
+    print('\t23. BPEACE2 REDCap Environment and Experiences Survey')
 
     ans = int(input('Answer: '))
     ut1000_processor = ut1000()
@@ -1207,55 +1198,62 @@ def main():
 
     # BPEACE1 bluetooth Data
     if ans == 4 or ans == 9:
-        if bpeace1_processor.process_bluetooth():
+        if bpeace1_processor..process_noavg_beiwe():
             logger.info(f'Data for BPEACE1 bluetooth processed')
         else:
             logger.error(f'Data for BPEACE1 bluetooth NOT processed')
 
     # BPEACE1 power state Data
     if ans == 4 or ans == 10:
-        if bpeace1_processor.process_gps():
+        if bpeace1_processor.process_noavg_beiwe(variable='power_state'):
             logger.info(f'Data for BPEACE1 power state processed')
         else:
             logger.error(f'Data for BPEACE1 power state NOT processed')
 
     # BPEACE1 Wifi Data
-    if ans == 4 or ans == 10:
-        if bpeace1_processor.process_gps():
+    if ans == 4 or ans == 11:
+        if bpeace1_processor.process_noavg_beiwe(variable='wifi'):
             logger.info(f'Data for BPEACE1 WiFi processed')
         else:
             logger.error(f'Data for BPEACE1 WiFi NOT processed')
 
+    # BPEACE1 reachability Data
+    if ans == 4 or ans == 12:
+        if bpeace1_processor.process_noavg_beiwe(variable='reachability'):
+            logger.info(f'Data for BPEACE1 reachability processed')
+        else:
+            logger.error(f'Data for BPEACE1 reachability NOT processed')
+
     # BPEACE2 Beacon Data
-    if ans == 12 or ans == 9:
+    if ans == 13 or ans == 14:
         if bpeace2_processor.process_beacon():
             logger.info(f'Data for BPEACE2 beacons processed')
         else:
             logger.error(f'Data for BPEACE2 beacons NOT processed')
 
     # BPEACE2 survey Data
-    if ans == 12 or ans == 10:
+    if ans == 13 or ans == 15:
         if bpeace2_processor.process_weekly_surveys():
             logger.info(f'Data for BPEACE2 morning and evening surveys processed')
         else:
             logger.error(f'Data for BPEACE2 morning and evening surveys NOT processed')
 
     # BPEACE2 fitbit
-    if ans == 12 or ans == 11:
+    if ans == 13 or ans == 16:
         if bpeace2_processor.process_fitbit():
             logger.info(f'Data for BPEACE2 fitbit processed')
         else:
             logger.error(f'Data for BPEACE2 fitbit NOT processed')
 
     # BPEACE2 gps Data
-    if ans == 12 or ans == 12:
+    if ans == 13 or ans == 17:
         if bpeace2_processor.process_gps():
             logger.info(f'Data for BPEACE2 GPS processed')
         else:
             logger.error(f'Data for BPEACE2 GPS NOT processed')
 
     # BPEACE2 EE Survey
-    if ans == 12 or ans == 13:
+    if ans == 13 or ans == 18:
         if bpeace2_processor.process_environment_survey():
             logger.info(f'Data for BPEACE2 environment and experiences survey processed')
         else:
