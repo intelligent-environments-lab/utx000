@@ -363,7 +363,7 @@ class bpeace1():
                     df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/{file}')
                     # adding new row
                     try:
-                        participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=5)] = [pid,df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],
+                        participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=6)] = [pid,df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],
                                                                                                df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer']]
                     except KeyError:
                         print(f'\t\tProblem with morning survey {file} for Participant {pid} - Participant most likely did not answer a question')
@@ -446,7 +446,7 @@ class bpeace1():
  
         return True
 
-    def process_gps(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/gps/'):
+    def process_gps(self,resample_rate=1,data_dir='/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/gps/'):
         '''
         Processes the raw gps data into one csv file for each participant and saves into /data/processed/
         
@@ -477,14 +477,13 @@ class bpeace1():
                             participant_df = participant_df.append(hourly_df,ignore_index=True)
                     
                 # converting utc to cdt
-                participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
-                participant_df.drop(['UTC time'],axis=1,inplace=True)
+                participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=6)
                 participant_df.set_index('Time',inplace=True)
-                # rounding gps and taking the mode for every 5-minutes
+                # rounding gps and taking the mode for the specified resample rate
                 participant_df = round(participant_df,5)
-                participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
+                participant_df = participant_df.resample(f'{resample_rate}T').apply({lambda x: stats.mode(x)[0]})
                 # converting values to numeric and removing NaN datapoints
-                participant_df.columns = ['Lat','Long','Alt','Accuracy']
+                participant_df.columns = ['Lat','Long','Alt','Accuracy','UTC']
                 for col in ['Lat','Long','Alt','Accuracy']:
                     participant_df[col] = pd.to_numeric(participant_df[col],errors='coerce')
 
@@ -500,11 +499,11 @@ class bpeace1():
 
         return True
 
-    def process_accelerometer(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/accelerometer/'):
+    def process_accelerometer(self,resample_rate=100,data_dir='/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/accelerometer/'):
         '''
         Processes the raw accelerometer data from each participant into a single csv.
 
-        Accelerometer data are downsampled to 1 second intervals.
+        Accelerometer data are downsampled to 100 millisecond intervals.
 
         Returns True is able to process the data, false otherwise.
         '''
@@ -516,46 +515,20 @@ class bpeace1():
                 print(f'\t\tWorking for Participant: {pt}')
                 pt_df = pd.DataFrame()
                 for file in os.listdir(f'{data_dir}{pt}/accelerometer/'):
-                    file_df = pd.read_csv(f'{data_dir}{pt}/accelerometer/{file}',parse_dates = [1],infer_datetime_format=True)
+                    file_df = pd.read_csv(f'{data_dir}{pt}/accelerometer/{file}',parse_dates=[1],infer_datetime_format=True)
                     pt_df = pt_df.append(file_df)
                 
-                pt_df.set_index(['UTC time'],inplace=True)
+                pt_df['Time'] = pt_df['UTC time'] - timedelta(hours=6)
+                pt_df.set_index(['Time'],inplace=True)
                 pt_df.sort_index(inplace=True)
+                pt_df = pt_df.resample(f'{resample_rate}ms').mean()
+                pt_df.dropna(inplace=True)
+                pt_df['Beiwe'] = pt
                 
-                accel_df.append(pt_df)
-
-
-
-        for participant in os.listdir(data_dir):
-            if len(participant) == 8: # checking to make sure we only look for participant directories
-                pid = participant
-                print(f'\t\tWorking for Participant: {pid}')
-                participant_df = pd.DataFrame() # 
-                for file in os.listdir(f'{data_dir}{pid}/accelerometer/'):
-                    if file[-1] == 'v': # so we only import cs[v] files
-                        try:
-                            hourly_df = pd.read_csv(f'{data_dir}{pid}/accelerometer/{file}',usecols=[1,2,3,4,5]) # all columns but UTC
-                        except KeyError:
-                            print(f'Problem with accelerometer data for {file} for Participant {pid}')
-                            self.move_to_purgatory(f'{data_dir}{pid}/accelerometer/{file}',f'../../data/purgatory/{self.study}-{pid}-accelerometer-{file}')
-                    
-                        if len(hourly_df) > 0: # append to participant df if there were data for that hour
-                            participant_df = participant_df.append(hourly_df,ignore_index=True)
-                    
-                # converting utc to cdt
-                participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
-                participant_df.drop(['UTC time'],axis=1,inplace=True)
-                participant_df.set_index('Time',inplace=True)
-                # rounding gps and taking the mode for every 5-minutes
-                
-
-                participant_df.dropna(inplace=True)
-                participant_df['Beiwe'] = pid
-                
-                gps_df = gps_df.append(participant_df)
+                accel_df = accel_df.append(pt_df)
 
         try:
-            gps_df.to_csv(f'../../data/processed/bpeace1-accelerometer.csv')
+            accel_df.to_csv(f'../../data/processed/bpeace1-accelerometer.csv')
         except:
             return False
 
@@ -593,9 +566,8 @@ class bpeace1():
                     
                 # converting utc to cdt
                 participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
-                participant_df.drop(['UTC time'],axis=1,inplace=True)
                 participant_df.set_index('Time',inplace=True)
-                # rounding gps and taking the mode for every 5-minutes
+                # rounding gps and taking the mode for the specified resample rate
                 participant_df = round(participant_df,5)
                 participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
                 # converting values to numeric and removing NaN datapoints
@@ -769,13 +741,12 @@ class bpeace2():
                     
                 # converting utc to cdt
                 participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
-                participant_df.drop(['UTC time'],axis=1,inplace=True)
                 participant_df.set_index('Time',inplace=True)
                 # rounding gps and taking the mode for every 5-minutes
                 participant_df = round(participant_df,5)
                 participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
                 # converting values to numeric and removing NaN datapoints
-                participant_df.columns = ['Lat','Long','Alt','Accuracy']
+                participant_df.columns = ['Lat','Long','Alt','Accuracy','UTC']
                 for col in ['Lat','Long','Alt','Accuracy']:
                     participant_df[col] = pd.to_numeric(participant_df[col],errors='coerce')
 
@@ -1166,6 +1137,10 @@ def main():
     print('\t5. BPEACE1 Beacon')
     print('\t6. BPEACE1 Weekly EMAs')
     print('\t7. BPEACE1 GPS')
+    print('\t8. BPEACE1 Accelerometer')
+    print('\t9. BPEACE1 Bluetooth')
+    print('\t10. BPEACE1 Power State')
+    print('\t11. BPEACE1 WiFi')
     print('\t8. All BPEACE2 Data')
     print('\t9. BPEACE2 Beacon')
     print('\t10. BPEACE2 Weekly EMAs')
@@ -1223,36 +1198,64 @@ def main():
         else:
             logger.error(f'Data for BPEACE1 GPS NOT processed')
 
+    # BPEACE1 accelerometer Data
+    if ans == 4 or ans == 8:
+        if bpeace1_processor.process_accelerometer():
+            logger.info(f'Data for BPEACE1 accelerometer processed')
+        else:
+            logger.error(f'Data for BPEACE1 accelerometer NOT processed')
+
+    # BPEACE1 bluetooth Data
+    if ans == 4 or ans == 9:
+        if bpeace1_processor.process_bluetooth():
+            logger.info(f'Data for BPEACE1 bluetooth processed')
+        else:
+            logger.error(f'Data for BPEACE1 bluetooth NOT processed')
+
+    # BPEACE1 power state Data
+    if ans == 4 or ans == 10:
+        if bpeace1_processor.process_gps():
+            logger.info(f'Data for BPEACE1 power state processed')
+        else:
+            logger.error(f'Data for BPEACE1 power state NOT processed')
+
+    # BPEACE1 Wifi Data
+    if ans == 4 or ans == 10:
+        if bpeace1_processor.process_gps():
+            logger.info(f'Data for BPEACE1 WiFi processed')
+        else:
+            logger.error(f'Data for BPEACE1 WiFi NOT processed')
+
     # BPEACE2 Beacon Data
-    if ans == 8 or ans == 9:
+    if ans == 12 or ans == 9:
         if bpeace2_processor.process_beacon():
             logger.info(f'Data for BPEACE2 beacons processed')
         else:
             logger.error(f'Data for BPEACE2 beacons NOT processed')
 
     # BPEACE2 survey Data
-    if ans == 8 or ans == 10:
+    if ans == 12 or ans == 10:
         if bpeace2_processor.process_weekly_surveys():
             logger.info(f'Data for BPEACE2 morning and evening surveys processed')
         else:
             logger.error(f'Data for BPEACE2 morning and evening surveys NOT processed')
 
     # BPEACE2 fitbit
-    if ans == 8 or ans == 11:
+    if ans == 12 or ans == 11:
         if bpeace2_processor.process_fitbit():
             logger.info(f'Data for BPEACE2 fitbit processed')
         else:
             logger.error(f'Data for BPEACE2 fitbit NOT processed')
 
     # BPEACE2 gps Data
-    if ans == 8 or ans == 12:
+    if ans == 12 or ans == 12:
         if bpeace2_processor.process_gps():
             logger.info(f'Data for BPEACE2 GPS processed')
         else:
             logger.error(f'Data for BPEACE2 GPS NOT processed')
 
     # BPEACE2 EE Survey
-    if ans == 8 or ans == 13:
+    if ans == 12 or ans == 13:
         if bpeace2_processor.process_environment_survey():
             logger.info(f'Data for BPEACE2 environment and experiences survey processed')
         else:
