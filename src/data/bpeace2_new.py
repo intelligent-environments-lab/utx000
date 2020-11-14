@@ -41,7 +41,8 @@ class bpeace2():
 
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         # list of all beacons used in the study
-        beacon_list = [30,1,21,34,22,28,24,41,26,48,46,25,15,44,23,29,10,16,36,38,40,5,17,6,19,32,11,7]
+        beacon_list = [1,5,6,7,10,11,15,16,17,19,21,22,23,24,25,26,28,29,30,32,34,36,38,40,41,44,46,48]
+
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
         for beacon in beacon_list:
             print(f'\t\t{beacon}')
@@ -51,12 +52,13 @@ class bpeace2():
                 number = f'0{beacon}'
             else:
                 number = f'{beacon}'
+                
             # getting other ids
-            for i in range(len(self.id_crossover)):
-                if beacon == self.id_crossover['Beacon'][i]:
-                    beiwe = self.id_crossover['Beiwe'][i]
-                    fitbit = self.id_crossover['Fitbit'][i]
-                    redcap = self.id_crossover['REDCap'][i]
+            beacon_crossover_info = self.id_crossover.loc[self.id_crossover['Beacon']==beacon].reset_index(drop=True)
+            beiwe = beacon_crossover_info['Beiwe'][0]
+            fitbit = beacon_crossover_info['Fitbit'][0]
+            redcap = beacon_crossover_info['REDCap'][0]
+            del beacon_crossover_info
 
             # Python3 Sensors
             # ---------------
@@ -561,8 +563,8 @@ def main():
     print('\t9. BPEACE2 Beacon')
     print('\t10. BPEACE2 Weekly EMAs')
     print('\t11. BPEACE2 Fitbit')
-    print('\t12. BPEACE2 GPS')
-    print('\t13. BPEACE2 REDCap Environment and Experiences Survey')
+    # print('\t12. BPEACE2 GPS')
+    # print('\t13. BPEACE2 REDCap Environment and Experiences Survey')
 
     ans = int(input('Answer: '))
 
@@ -590,18 +592,18 @@ def main():
             logger.error(f'Data for BPEACE2 fitbit NOT processed')
 
     # BPEACE2 gps Data
-    if ans == 8 or ans == 12:
-        if bpeace2_processor.process_gps():
-            logger.info(f'Data for BPEACE2 GPS processed')
-        else:
-            logger.error(f'Data for BPEACE2 GPS NOT processed')
+    # if ans == 8 or ans == 12:
+    #     if bpeace2_processor.process_gps():
+    #         logger.info(f'Data for BPEACE2 GPS processed')
+    #     else:
+    #         logger.error(f'Data for BPEACE2 GPS NOT processed')
 
     # BPEACE2 EE Survey
-    if ans == 8 or ans == 13:
-        if bpeace2_processor.process_environment_survey():
-            logger.info(f'Data for BPEACE2 environment and experiences survey processed')
-        else:
-            logger.error(f'Data for BPEACE2 environment and experiences survey NOT processed')
+    # if ans == 8 or ans == 13:
+    #     if bpeace2_processor.process_environment_survey():
+    #         logger.info(f'Data for BPEACE2 environment and experiences survey processed')
+    #     else:
+    #         logger.error(f'Data for BPEACE2 environment and experiences survey NOT processed')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
