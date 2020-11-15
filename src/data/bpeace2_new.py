@@ -131,7 +131,7 @@ class bpeace2():
 
         # saving
         try:
-            beacon_data.to_csv(f'../../data/processed/bpeace2-beacon.csv')
+            beacon_data.to_parquet(f'../../data/processed/bpeace2-beacon.parquet', compression='brotli')
         except:
             return False
 
@@ -577,19 +577,19 @@ def main():
         else:
             logger.error(f'Data for BPEACE2 beacons NOT processed')
 
-    # BPEACE2 survey Data
-    if ans == 8 or ans == 10:
-        if bpeace2_processor.process_weekly_surveys():
-            logger.info(f'Data for BPEACE2 morning and evening surveys processed')
-        else:
-            logger.error(f'Data for BPEACE2 morning and evening surveys NOT processed')
+    # # BPEACE2 survey Data
+    # if ans == 8 or ans == 10:
+    #     if bpeace2_processor.process_weekly_surveys():
+    #         logger.info(f'Data for BPEACE2 morning and evening surveys processed')
+    #     else:
+    #         logger.error(f'Data for BPEACE2 morning and evening surveys NOT processed')
 
-    # BPEACE2 fitbit
-    if ans == 8 or ans == 11:
-        if bpeace2_processor.process_fitbit():
-            logger.info(f'Data for BPEACE2 fitbit processed')
-        else:
-            logger.error(f'Data for BPEACE2 fitbit NOT processed')
+    # # BPEACE2 fitbit
+    # if ans == 8 or ans == 11:
+    #     if bpeace2_processor.process_fitbit():
+    #         logger.info(f'Data for BPEACE2 fitbit processed')
+    #     else:
+    #         logger.error(f'Data for BPEACE2 fitbit NOT processed')
 
     # BPEACE2 gps Data
     # if ans == 8 or ans == 12:
