@@ -694,7 +694,7 @@ class bpeace2():
 
         return True
 
-    def process_gps(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/extension/data/beiwe/gps/'):
+    def process_gps(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/extension/data/beiwe/gps/', home=False):
         '''
         Processes the raw gps data into one csv file for each participant and saves into /data/processed/
         
@@ -731,24 +731,26 @@ class bpeace2():
                 participant_df = round(participant_df,5)
                 participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
                 # converting values to numeric and removing NaN datapoints
-                participant_df.columns = ['Lat','Long','Alt','Accuracy','UTC']
+                participant_df.columns = ['UTC Time','Lat','Long','Alt','Accuracy']
                 for col in ['Lat','Long','Alt','Accuracy']:
                     participant_df[col] = pd.to_numeric(participant_df[col],errors='coerce')
 
                 participant_df.dropna(inplace=True)
-                # getting participant's home coordinates
-                home_coords = self.beacon_id.set_index('Beiwe')
-                home_lat = home_coords.loc[pid,'Lat']
-                home_long = home_coords.loc[pid,'Long']
-                # getting distance
-                R = 6.371*10**6 # radius of the earth in meters
-                participant_df['X_Distance'] = abs( R * (participant_df['Lat'] - home_lat) * math.pi * math.cos(home_long) / 180) 
-                participant_df['Y_Distance'] = abs( R * (participant_df['Long'] - home_long) * math.pi / 180) 
-                dist = []
-                for i in range(len(participant_df)):
-                    dist.append(math.sqrt(math.pow(participant_df.iloc[i,-2],2) + math.pow(participant_df.iloc[i,-1],2)))
-                    
-                participant_df['Distance_Home'] = dist
+                if home == True:
+                    # getting participant's home coordinates
+                    home_coords = self.beacon_id.set_index('Beiwe')
+                    home_lat = home_coords.loc[pid,'Lat']
+                    home_long = home_coords.loc[pid,'Long']
+                    # getting distance
+                    R = 6.371*10**6 # radius of the earth in meters
+                    participant_df['X_Distance'] = abs( R * (participant_df['Lat'] - home_lat) * math.pi * math.cos(home_long) / 180) 
+                    participant_df['Y_Distance'] = abs( R * (participant_df['Long'] - home_long) * math.pi / 180) 
+                    dist = []
+                    for i in range(len(participant_df)):
+                        dist.append(math.sqrt(math.pow(participant_df.iloc[i,-2],2) + math.pow(participant_df.iloc[i,-1],2)))
+                        
+                    participant_df['Distance_Home'] = dist
+
                 participant_df['Beiwe'] = pid
                 
                 gps_df = gps_df.append(participant_df)
@@ -1198,7 +1200,7 @@ def main():
 
     # BPEACE1 bluetooth Data
     if ans == 4 or ans == 9:
-        if bpeace1_processor..process_noavg_beiwe():
+        if bpeace1_processor.process_noavg_beiwe():
             logger.info(f'Data for BPEACE1 bluetooth processed')
         else:
             logger.error(f'Data for BPEACE1 bluetooth NOT processed')
