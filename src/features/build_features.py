@@ -141,3 +141,41 @@ class beacon_statistics():
             t_summary[beacon] = beacon_df
             
         return t_raw, t_summary
+
+def get_restricted_beacon_datasets():
+    pass
+
+def go(functions):
+    # Output of possible options
+    option_list = 'Please choose an option from below:\n\t1. Create restricted beacon datasets'
+    print(option_list)
+    # .format(variable) replaces {} with the value of variable (string formatting)
+    number_of_funcs = len(functions)
+    selected = input("Option: ")
+    try:
+        # index to start from
+        index = int(selected) - 1
+    except ValueError:
+        # check if the user wrote a number (exception handling)
+        print('Invalid input. Not a number')
+        return
+    if index > number_of_funcs - 1 or index < 0:
+        msg = 'Invalid input. Consider a number from 1 to {}'.format(number_of_funcs)
+        print(msg)
+        return
+    # iterate through the functions of the list
+    # starting from the index specified (list slicing)
+    f = functions[index]
+    f()
+
+def main():
+    while(True):
+        functions = []
+        # infinite loop. press Ctrl+C to abort
+        go(functions)
+
+if __name__ == '__main__':
+    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    logging.basicConfig(filename='dataset.log', filemode='w', level=logging.DEBUG, format=log_fmt)
+
+    main()
