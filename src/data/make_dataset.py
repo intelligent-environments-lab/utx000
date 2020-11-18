@@ -633,7 +633,7 @@ class bpeace2():
 
             py3_df = py3_df.resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
             # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
-            if number in ['28','29','32','34','36','38','40','46','30','44']:
+            if number in ['28','29','32','34','36','38','40','46','30','44','48']:
                 print('\t\t\tNo NO2 sensor - removing values')
                 py3_df['CO'] = py3_df['NO2']
                 py3_df['NO2'] = np.nan
