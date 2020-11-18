@@ -455,7 +455,7 @@ class bpeace():
  
         return True
 
-    def process_gps(self,data_dir='/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/gps/',resample_rate=1):
+    def process_gps(self,data_dir='/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/gps/',resample_rate=-1):
         '''
         Processes the raw gps data into one csv file for each participant and saves into /data/processed/
         
@@ -496,7 +496,8 @@ class bpeace():
                 participant_df.set_index('Time',inplace=True)
                 # rounding gps and taking the mode for the specified resample rate
                 participant_df = round(participant_df,5)
-                participant_df = participant_df.resample(f'{resample_rate}T').apply({lambda x: stats.mode(x)[0]})
+                if resample_rate != -1:
+                    participant_df = participant_df.resample(f'{resample_rate}T').apply({lambda x: stats.mode(x)[0]})
                 # converting values to numeric and removing NaN datapoints
                 participant_df.columns = ['UTC Time','Lat','Long','Alt','Accuracy']
                 for col in ['Lat','Long','Alt','Accuracy']:
@@ -508,7 +509,10 @@ class bpeace():
                 gps_df = gps_df.append(participant_df)
 
         try:
-            gps_df.to_csv(f'../../data/processed/{self.study}-gps.csv')
+            if resample_rate == -1:
+                gps_df.to_csv(f'../../data/processed/{self.study}-gps-original.csv')
+            else:
+                gps_df.to_csv(f'../../data/processed/{self.study}-gps.csv')
         except:
             return False
 

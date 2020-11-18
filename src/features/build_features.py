@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
+import geopy.distance
+
 import matplotlib.pyplot as plt
 
 class beacon_statistics():
@@ -142,37 +144,87 @@ class beacon_statistics():
             
         return t_raw, t_summary
 
-def get_restricted_beacon_datasets():
-    pass
+def get_restricted_beacon_datasets(radius=1000):
+    '''
+    Gets the most restricted/filtered dataset for the beacon considering we have fitbit,
+    ema, and gps data for the night the participant slept.
 
-def go(functions):
-    # Output of possible options
-    option_list = 'Please choose an option from below:\n\t1. Create restricted beacon datasets'
-    print(option_list)
-    # .format(variable) replaces {} with the value of variable (string formatting)
-    number_of_funcs = len(functions)
-    selected = input("Option: ")
-    try:
-        # index to start from
-        index = int(selected) - 1
-    except ValueError:
-        # check if the user wrote a number (exception handling)
-        print('Invalid input. Not a number')
-        return
-    if index > number_of_funcs - 1 or index < 0:
-        msg = 'Invalid input. Consider a number from 1 to {}'.format(number_of_funcs)
-        print(msg)
-        return
-    # iterate through the functions of the list
-    # starting from the index specified (list slicing)
-    f = functions[index]
-    f()
+    Inputs:
+    - radius: the threshold to consider for the participants' GPS coordinates 
+
+    Output:
+    - filtered_beacon: dataframe holding filtered beacon data
+    '''
+
+    # Importing necessary processed data files
+    # beacon data
+    beacon = pd.read_csv('../data/processed/bpeace2-beacon.csv',
+                        index_col=0,parse_dates=True,infer_datetime_format=True)
+    # fitbit sleep data
+    sleep = pd.read_csv("../data/processed/bpeace2-fitbit-sleep-daily.csv",
+                    parse_dates=['date','startTime','endTime'],infer_datetime_format=True)
+    end_dates = []
+    for d in sleep['endTime']:
+        end_dates.append(d.date())
+    sleep['endDate'] = end_dates
+    # EMA data
+    ema = pd.read_csv('../data/processed/bpeace2-morning-survey.csv',
+                  index_col=0,parse_dates=True,infer_datetime_format=True)
+    # gps data
+    gps = pd.read_csv('../data/processed/bpeace2-gps.csv',
+                 index_col=0,parse_dates=[0,1],infer_datetime_format=True)
+    # participant info data for beacon users
+    info = pd.read_excel('../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='beacon',
+                    parse_dates=[3,4,5,6],infer_datetime_format=True)
+
+
+    nightly_beacon = pd.DataFrame() # df restricted by fitbit and gps
+    for pt in sleep['beiwe'].unique():
+        if pt in info['Beiwe'].values: # only want beacon particiapnts
+            # getting data per participant
+            gps_pt = gps[gps['Beiwe'] == pt]
+            sleep_pt = sleep[sleep['beiwe'] == pt]
+            beacon_pt = beacon[beacon['Beiwe'] == pt]
+            info_pt = info[info['Beiwe'] == pt]
+            lat_pt = info_pt['Lat'].values[0]
+            long_pt = info_pt['Long'].values[0]
+            # looping through sleep start and end times
+            for start_time, end_time in zip(sleep_pt['startTime'],sleep_pt['endTime']):
+                gps_pt_night = gps_pt[start_time:end_time]
+                beacon_pt_night = beacon_pt[start_time:end_time]
+                # checking distances between pt GPS and home GPS
+                if len(gps_pt_night) > 0:
+                    coords_1 = (lat_pt, long_pt)
+                    coords_2 = (np.nanmean(gps_pt_night['Lat']), np.nanmean(gps_pt_night['Long']))
+                    d = geopy.distance.distance(coords_1, coords_2).m
+                    if d < radius:
+                        # resampling so beacon and gps data are on the same time steps
+                        gps_pt_night = gps_pt_night.resample('5T').mean()
+                        beacon_pt_night = beacon_pt_night.resample('5T').mean()
+                        nightly_temp = gps_pt_night.merge(right=beacon_pt_night,left_index=True,right_index=True,how='inner')
+                        nightly_temp['start_time'] = start_time
+                        nightly_temp['end_time'] = end_time
+                        nightly_temp['Beiwe'] = pt
+
+                        nightly_beacon = nightly_beacon.append(nightly_temp)
+
+    # removing nights without emas the following morning 
+    filtered_beacon = pd.DataFrame()
+    for pt in nightly_beacon['Beiwe'].unique():
+        # getting pt-specific dfs
+        evening_iaq_pt = nightly_beacon[nightly_beacon['Beiwe'] == pt]
+        ema_pt = ema[ema['ID'] == pt]
+        survey_dates = ema_pt.index.date
+        survey_only_iaq = evening_iaq_pt[evening_iaq_pt['end_time'].dt.date.isin(survey_dates)]
+        
+        filtered_beacon = filtered_beacon.append(survey_only_iaq)
+        
+    filtered_beacon.to_csv('../data/processed/bpeace2-beacon-fb_ema_and_gps_restricted.csv')
+
+    return filtered_beacon
 
 def main():
-    while(True):
-        functions = []
-        # infinite loop. press Ctrl+C to abort
-        go(functions)
+    get_restricted_beacon_datasets()
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
