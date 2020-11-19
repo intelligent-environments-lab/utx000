@@ -144,7 +144,7 @@ class beacon_statistics():
             
         return t_raw, t_summary
 
-def get_restricted_beacon_datasets(radius=1000):
+def get_restricted_beacon_datasets(radius=1000,ema=True):
     '''
     Gets the most restricted/filtered dataset for the beacon considering we have fitbit,
     ema, and gps data for the night the participant slept.
@@ -208,18 +208,22 @@ def get_restricted_beacon_datasets(radius=1000):
 
                         nightly_beacon = nightly_beacon.append(nightly_temp)
 
-    # removing nights without emas the following morning 
-    filtered_beacon = pd.DataFrame()
-    for pt in nightly_beacon['Beiwe'].unique():
-        # getting pt-specific dfs
-        evening_iaq_pt = nightly_beacon[nightly_beacon['Beiwe'] == pt]
-        ema_pt = ema[ema['ID'] == pt]
-        survey_dates = ema_pt.index.date
-        survey_only_iaq = evening_iaq_pt[evening_iaq_pt['end_time'].dt.date.isin(survey_dates)]
-        
-        filtered_beacon = filtered_beacon.append(survey_only_iaq)
-        
-    filtered_beacon.to_csv('../data/processed/bpeace2-beacon-fb_ema_and_gps_restricted.csv')
+    if ema == True:
+        # removing nights without emas the following morning 
+        filtered_beacon = pd.DataFrame()
+        for pt in nightly_beacon['Beiwe'].unique():
+            # getting pt-specific dfs
+            evening_iaq_pt = nightly_beacon[nightly_beacon['Beiwe'] == pt]
+            ema_pt = ema[ema['ID'] == pt]
+            survey_dates = ema_pt.index.date
+            survey_only_iaq = evening_iaq_pt[evening_iaq_pt['end_time'].dt.date.isin(survey_dates)]
+            
+            filtered_beacon = filtered_beacon.append(survey_only_iaq)
+            
+        filtered_beacon.to_csv('../data/processed/bpeace2-beacon-fb_ema_and_gps_restricted.csv')
+    else:
+        filtered_beacon = nightly_beacon
+        filtered_beacon.to_csv('../data/processed/bpeace2-beacon-fb_and_gps_restricted.csv')
 
     return filtered_beacon
 
