@@ -144,7 +144,7 @@ class beacon_statistics():
             
         return t_raw, t_summary
 
-def get_restricted_beacon_datasets(radius=1000,ema=True):
+def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True):
     '''
     Gets the most restricted/filtered dataset for the beacon considering we have fitbit,
     ema, and gps data for the night the participant slept.
@@ -208,7 +208,7 @@ def get_restricted_beacon_datasets(radius=1000,ema=True):
 
                         nightly_beacon = nightly_beacon.append(nightly_temp)
 
-    if ema == True:
+    if restrict_by_ema == True:
         # removing nights without emas the following morning 
         filtered_beacon = pd.DataFrame()
         for pt in nightly_beacon['Beiwe'].unique():
