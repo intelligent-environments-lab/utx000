@@ -252,7 +252,7 @@ class bpeace():
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         # list of all beacons used in the study
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
-        for beacon in beacon_list:
+        for beacon in self.beacon_list:
             print(f'\t\t{beacon}')
             beacon_df = pd.DataFrame() # dataframe specific to the beacon
             # correcting the number since the values <10 have leading zero in directory
@@ -317,7 +317,7 @@ class bpeace():
             end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
             beacon_df = beacon_df[start_date:end_date]
             # offsetting CO2 measurements
-            beacon_df['CO2'] -= self.co2_offset.loc[beacon_no,'Offset']
+            beacon_df['CO2'] -= self.co2_offset.loc[beacon,'Offset']
             # removing bad values from important variables
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
             # variables that should never have anything less than zero
