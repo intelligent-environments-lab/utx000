@@ -581,6 +581,7 @@ class bpeace2():
         self.study = 'bpeace2'
         self.id_crossover = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='id')
         self.beacon_id = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='beacon')
+        self.co2_offset = pd.read_csv('../../data/interim/bpeace2-co2-offset.csv',index_col=0)
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
@@ -666,6 +667,8 @@ class bpeace2():
             start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
             end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
             beacon_df = beacon_df[start_date:end_date]
+            # offsetting CO2 measurements
+            beacon_df['CO2'] -= self.co2_offset.loc[beacon,'Offset']
             # removing bad values from important variables
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
             # variables that should never have anything less than zero
