@@ -227,6 +227,7 @@ class bpeace():
             self.id_crossover = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='id')
             self.beacon_id = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='beacon')
             self.beacon_list = [ 1,  5,  6,  7, 10, 11, 15, 16, 17, 19, 21, 22, 24, 25, 26, 28, 29, 30, 32, 34, 36, 38, 40, 41, 44, 46, 48] #13, 23
+            self.co2_offset = pd.read_csv('../../data/interim/bpeace2-co2-offset.csv',index_col=0)
             self.utc_difference = 5 #hours
             self.morning_survey_id = 'eQ2L3J08ChlsdSXXKOoOjyLJ'
             self.evening_survey_id = '7TaT8zapOWO0xdtONnsY8CE0'
@@ -315,6 +316,8 @@ class bpeace():
             start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
             end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
             beacon_df = beacon_df[start_date:end_date]
+            # offsetting CO2 measurements
+            beacon_df['CO2'] -= self.co2_offset.loc[beacon_no,'Offset']
             # removing bad values from important variables
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
             # variables that should never have anything less than zero
