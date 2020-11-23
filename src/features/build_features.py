@@ -208,6 +208,9 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True):
 
                         nightly_beacon = nightly_beacon.append(nightly_temp)
 
+    # Data filtered by fitbit nights only
+    nightly_beacon.to_csv('../data/processed/bpeace2-beacon-fb_and_gps_restricted.csv')
+
     if restrict_by_ema == True:
         # removing nights without emas the following morning 
         filtered_beacon = pd.DataFrame()
@@ -221,11 +224,8 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True):
             filtered_beacon = filtered_beacon.append(survey_only_iaq)
             
         filtered_beacon.to_csv('../data/processed/bpeace2-beacon-fb_ema_and_gps_restricted.csv')
-    else:
-        filtered_beacon = nightly_beacon
-        filtered_beacon.to_csv('../data/processed/bpeace2-beacon-fb_and_gps_restricted.csv')
 
-    return filtered_beacon
+    return nightly_beacon, filtered_beacon
 
 def main():
     get_restricted_beacon_datasets()
