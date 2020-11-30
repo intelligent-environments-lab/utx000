@@ -1,6 +1,23 @@
-ls
+
 # BPEACE2 Beacon Operation Check
 This file analyzes the operation of the beacons during the BPEACE2 study as part of the UTx000 extension during the second half of Spring 2020 into Summer 2020.
+
+## Summary
+The following summarizes the bad, the okay, and the good beacons to use in the analysis of this dataset.
+
+### The Bad
+The following beacons should be excluded from analysis for the given reasons:
+
+- **Beacon 13**: RTC did not log the correct timestamps and the collection was not consistent over the study period so adding or subtracting any amount of time is out of the question. I suppose we could still use the raw data if we were just summarizing the values collected, but absolutely nothing with timestamps can be used. 
+- **Beacon 23**: No data were logged
+- **Beacon 48**: No data were logged
+
+### The Okay
+- **Beacon 1**: The data collected is good, but the timestamps are off (see description below). We can use this data for some analysis such as looking at the data collected, but should not be used in any analysis that requires knowledge of the exact timestamps.
+- **Beacon 5**: Similar problem to Beacon 1 and the same considerations should be taken into account.
+
+### The Good
+The remaining beacons are more or less good.
 
 ## Beacon 1
 
@@ -136,6 +153,17 @@ Seems the participant had their beacon plugged in up until they moved and then p
 
 ### Sensor Notes
 - PM: Seems to have been troubles with the sensor during the main study period, but the sensor seemed to be working well during the second period after the participant moved.
+
+### Debugging
+None
+
+## Beacon 23
+
+### General Notes
+Essentially no data was logged
+
+### Sensor Notes
+None
 
 ### Debugging
 None
@@ -305,3 +333,13 @@ Shipment dates match with measurment dates. However, we only get a few hours on 
 - [ ] Dates: Is there a way to find out why the device came online for a short while?
 - [ ] GPS: Check again if GPS data are available
 
+## Beacon 48
+
+### General Notes
+No data were logged on this beacon during the study period.
+
+### Sensor Notes
+Device seems fine and all the sensors are logging data when connected.
+
+### Debugging
+- [ ] TSL: I broke a wire when opening up the device.
