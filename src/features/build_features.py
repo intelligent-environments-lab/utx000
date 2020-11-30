@@ -1,5 +1,9 @@
 from datetime import datetime, timedelta
 
+import os
+import sys
+import logging
+
 import pandas as pd
 import numpy as np
 
@@ -144,7 +148,7 @@ class beacon_statistics():
             
         return t_raw, t_summary
 
-def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True):
+def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True, data_dir='../'):
     '''
     Gets the most restricted/filtered dataset for the beacon considering we have fitbit,
     ema, and gps data for the night the participant slept.
@@ -158,23 +162,23 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True):
 
     # Importing necessary processed data files
     # beacon data
-    beacon = pd.read_csv('../data/processed/bpeace2-beacon.csv',
+    beacon = pd.read_csv(f'{data_dir}data/processed/bpeace2-beacon.csv',
                         index_col=0,parse_dates=True,infer_datetime_format=True)
     # fitbit sleep data
-    sleep = pd.read_csv("../data/processed/bpeace2-fitbit-sleep-daily.csv",
+    sleep = pd.read_csv(f'{data_dir}data/processed/bpeace2-fitbit-sleep-daily.csv',
                     parse_dates=['date','startTime','endTime'],infer_datetime_format=True)
     end_dates = []
     for d in sleep['endTime']:
         end_dates.append(d.date())
     sleep['endDate'] = end_dates
     # EMA data
-    ema = pd.read_csv('../data/processed/bpeace2-morning-survey.csv',
+    ema = pd.read_csv(f'{data_dir}data/processed/bpeace2-morning-survey.csv',
                   index_col=0,parse_dates=True,infer_datetime_format=True)
     # gps data
-    gps = pd.read_csv('../data/processed/bpeace2-gps.csv',
+    gps = pd.read_csv(f'{data_dir}data/processed/bpeace2-gps.csv',
                  index_col=0,parse_dates=[0,1],infer_datetime_format=True)
     # participant info data for beacon users
-    info = pd.read_excel('../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='beacon',
+    info = pd.read_excel(f'{data_dir}data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='beacon',
                     parse_dates=[3,4,5,6],infer_datetime_format=True)
 
 
@@ -209,7 +213,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True):
                         nightly_beacon = nightly_beacon.append(nightly_temp)
 
     # Data filtered by fitbit nights only
-    nightly_beacon.to_csv('../data/processed/bpeace2-beacon-fb_and_gps_restricted.csv')
+    nightly_beacon.to_csv(f'{data_dir}data/processed/bpeace2-beacon-fb_and_gps_restricted.csv')
 
     if restrict_by_ema == True:
         # removing nights without emas the following morning 
@@ -223,12 +227,12 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True):
             
             filtered_beacon = filtered_beacon.append(survey_only_iaq)
             
-        filtered_beacon.to_csv('../data/processed/bpeace2-beacon-fb_ema_and_gps_restricted.csv')
+        filtered_beacon.to_csv(f'{data_dir}data/processed/bpeace2-beacon-fb_ema_and_gps_restricted.csv')
 
     return nightly_beacon, filtered_beacon
 
 def main():
-    get_restricted_beacon_datasets()
+    get_restricted_beacon_datasets(data_dir='../../')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
