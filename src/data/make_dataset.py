@@ -601,7 +601,7 @@ class bpeace2():
 
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         # list of all beacons used in the study
-        beacon_list = [30,1,21,34,22,28,24,41,26,48,46,25,15,44,23,29,10,16,36,38,40,5,17,6,19,32,11,7]
+        beacon_list = self.beacon_list = [1,5,6,7,10,11,15,16,17,19,21,22,24,25,26,28,29,30,32,34,36,38,40,41,44,46] #13,23,48
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
         for beacon in beacon_list:
             print(f'\t\t{beacon}')
@@ -688,6 +688,12 @@ class bpeace2():
             beacon_df['Beiwe'] = beiwe
             beacon_df['Fitbit'] = fitbit
             beacon_df['REDCap'] = redcap
+
+            # Adding time for bad RTC
+            if beacon == 1:
+                beacon_df.index = beacon_df.index + timedelta(hours=140)
+            if beacon == 5:
+                beacon_df.index = beacon_df.index + timedelta(minutes=1118)
             
             beacon_data = pd.concat([beacon_data,beacon_df])
 

@@ -226,7 +226,7 @@ class bpeace():
         else:
             self.id_crossover = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='id')
             self.beacon_id = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='beacon')
-            self.beacon_list = [ 1,  5,  6,  7, 10, 11, 15, 16, 17, 19, 21, 22, 24, 25, 26, 28, 29, 30, 32, 34, 36, 38, 40, 41, 44, 46, 48] #13, 23
+            self.beacon_list = [1,5,6,7,10,11,15,16, 17, 19, 21, 22, 24, 25, 26, 28, 29, 30, 32, 34, 36, 38, 40, 41, 44, 46, 48] #13, 23
             self.co2_offset = pd.read_csv('../../data/interim/bpeace2-co2-offset.csv',index_col=0)
             self.utc_difference = 5 #hours
             self.morning_survey_id = 'eQ2L3J08ChlsdSXXKOoOjyLJ'
