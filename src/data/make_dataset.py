@@ -670,17 +670,19 @@ class bpeace2():
             # offsetting CO2 measurements
             beacon_df['CO2'] -= self.co2_offset.loc[beacon,'Offset']
             # removing bad values from important variables
-            important_vars = ['TVOC','CO2','NO2','CO','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
+            important_vars = ['TVOC','CO2','NO2','CO','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
             # variables that should never have anything less than zero
-            for var in ['CO2','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
+            for var in ['CO','NO2','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
                 beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
             # variables that should never be less than a certain limit
-            for var, threshold in zip(['CO2','Lux'],[100,-1]):
+            for var, threshold in zip(['CO2','Lux'],[100,-0.05]):
                 beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
             # removing extreme values (zscore greater than 2.5)
             for var in important_vars:
                 beacon_df['z'] = abs(beacon_df[var] - np.nanmean(beacon_df[var])) / np.nanstd(beacon_df[var])
                 beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+
+            beacon_df.drop(['z'],axis=1,inplace=True)
             # adding columns for the pt details
             beacon_df['Beacon'] = beacon
             beacon_df['Beiwe'] = beiwe
