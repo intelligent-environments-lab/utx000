@@ -672,10 +672,13 @@ class bpeace2():
             # removing bad values from important variables
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
             # variables that should never have anything less than zero
-            for var in ['CO','NO2','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
+            for var in ['NO2','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
                 beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
+            # variables that should be corrected to zero if negative
+            for var in ['CO',]:
+                beacon_df[var].mask(beacon_df[var] < 0, 0, inplace=True)
             # variables that should never be less than a certain limit
-            for var, threshold in zip(['CO2','Lux'],[100,-0.05]):
+            for var, threshold in zip(['CO2','Lux'],[100,0]):
                 beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
             # removing extreme values (zscore greater than 2.5)
             for var in important_vars:
