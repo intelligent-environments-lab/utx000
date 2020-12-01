@@ -663,6 +663,13 @@ class bpeace2():
                 
             # merging python2 and 3 sensor dataframes
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
+            # Adding time for bad RTC
+            if beacon == 1:
+                beacon_df.index = beacon_df.index + timedelta(hours=140)
+            if beacon == 5:
+                beacon_df.index = beacon_df.index + timedelta(minutes=1118)
+            if beacon == 11:
+                beacon_df.index = beacon_df.index + timedelta(years=5)
             # getting relevant data only
             start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
             end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
@@ -691,12 +698,6 @@ class bpeace2():
             beacon_df['Beiwe'] = beiwe
             beacon_df['Fitbit'] = fitbit
             beacon_df['REDCap'] = redcap
-
-            # Adding time for bad RTC
-            if beacon == 1:
-                beacon_df.index = beacon_df.index + timedelta(hours=140)
-            if beacon == 5:
-                beacon_df.index = beacon_df.index + timedelta(minutes=1118)
             
             beacon_data = pd.concat([beacon_data,beacon_df])
 
