@@ -192,7 +192,12 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True, data_dir='.
             info_pt = info[info['Beiwe'] == pt]
             lat_pt = info_pt['Lat'].values[0]
             long_pt = info_pt['Long'].values[0]
+            print(f'Working for {pt} - Beacon', info_pt['Beacon'])
             # looping through sleep start and end times
+            print(f'\tNumber of nights of sleep:', len(sleep_pt['startTime']))
+            s = pd.to_datetime(np.nanmin(sleep_pt['endTime'])).date()
+            e = pd.to_datetime(np.nanmax(sleep_pt['endTime'])).date()
+            print(f'\tSpanning {s} to {e}')
             for start_time, end_time in zip(sleep_pt['startTime'],sleep_pt['endTime']):
                 gps_pt_night = gps_pt[start_time:end_time]
                 beacon_pt_night = beacon_pt[start_time:end_time]
@@ -211,6 +216,13 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True, data_dir='.
                         nightly_temp['Beiwe'] = pt
 
                         nightly_beacon = nightly_beacon.append(nightly_temp)
+                        print(f'\tSUCCESS - added data for night {end_time.date()}')
+                    else:
+                        print(f'\tParticipant outside {radius} meters for night {end_time.date()}')
+                else:
+                    print(f'\tNo GPS data for night {end_time.date()}')
+        else:
+            print(f'{pt} did not receive a beacon')
 
     # Data filtered by fitbit nights only
     nightly_beacon.to_csv(f'{data_dir}data/processed/bpeace2-beacon-fb_and_gps_restricted.csv')
