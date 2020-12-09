@@ -32,83 +32,81 @@ class bpeace2():
         print('\t\tMoving to purgatory...')
         os.replace(path_to_file, path_to_destination)
 
-    def process_beacon(self):
+    def process_beacon(self, remove_extreme=True):
         '''
         Combines data from all sensors on all beacons
 
         Returns True if able to save one dataframe that contains all the data at regular intervals in /data/processed directory
         '''
-
-        beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         # list of all beacons used in the study
         beacon_list = [1,5,6,7,10,11,15,16,17,19,21,22,23,24,25,26,28,29,30,32,34,36,38,40,41,44,46,48]
+        beacons_folder='../../data/raw/bpeace2/beacon'
 
-        print('\tProcessing beacon data...\n\t\tReading for beacon:')
+        beacon_data_list = [] # list where each item will be a dataframe for a beacon
+        print('\nProcessing beacon data...')
         for beacon in beacon_list:
-            print(f'\t\t{beacon}')
-            beacon_df = pd.DataFrame() # dataframe specific to the beacon
             # correcting the number since the values <10 have leading zero in directory
-            if beacon < 10:
-                number = f'0{beacon}'
-            else:
-                number = f'{beacon}'
-                
+            number = f'{beacon:02}'
+            print(f'\t{number}')
+
+            beacon_folder=f'{beacons_folder}/B{number}'
+            beacon_df = pd.DataFrame() # dataframe specific to the beacon
+             
             # getting other ids
             beacon_crossover_info = self.id_crossover.loc[self.id_crossover['Beacon']==beacon].reset_index(drop=True)
             beiwe = beacon_crossover_info['Beiwe'][0]
             fitbit = beacon_crossover_info['Fitbit'][0]
             redcap = beacon_crossover_info['REDCap'][0]
             del beacon_crossover_info
-
+            
+            def import_and_merge(csv_dir,number):
+                df_list = []
+                for file in os.listdir(csv_dir+'/'):
+                    try:
+                        # reading in raw data (csv for one day at a time) and appending it to the overal dataframe
+                        day_df = pd.read_csv(f'{csv_dir}/{file}',
+                                            index_col='Timestamp',parse_dates=True,
+                                            infer_datetime_format=True)
+                        df_list.append(day_df)
+                        
+                    except Exception as inst:
+                        # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
+                        #print(f'{inst}; filename: {file}')
+                        print(f'Issue encountered while importing {csv_dir}/{file}, skipping...')
+                        self.move_to_purgatory(f'{csv_dir}/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
+            
+                df = pd.concat(df_list).resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+                return df
+            
             # Python3 Sensors
             # ---------------
-            py3_df = pd.DataFrame() # dataframe for sensors using python3
-            for file in os.listdir(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/'):
-                try:
-                    # reading in raw data (csv for one day at a time) and appending it to the overal dataframe
-                    day_df = pd.read_csv(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/{file}',
-                                        index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
-                    py3_df = pd.concat([py3_df,day_df])
-                except Exception as inst:
-                    # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
-                    print(f'{inst}; filename: {file}')
-                    self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/adafruit/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
-
-            py3_df = py3_df.resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+            # dataframe for sensors using python3
+            py3_df = import_and_merge(f'{beacon_folder}/adafruit', number)
+            
             # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
             if number in ['28','29','32','34','36','38','40','46','30','44']:
                 print('\t\t\tNo NO2 sensor - removing values')
-                py3_df['CO'] = py3_df['NO2']
-                py3_df['NO2'] = np.nan
-                py3_df['T_CO'] = py3_df['T_NO2']
-                py3_df['T_NO2'] = np.nan
-                py3_df['RH_CO'] = py3_df['RH_NO2']
-                py3_df['RH_NO2'] = np.nan
+                
+                py3_df[['CO','T_CO','RH_CO']] = py3_df[['NO2','T_NO2','RH_NO2']]
+                py3_df[['NO2','T_NO2','RH_NO2']] = np.nan
+
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
 
             # Python2 Sensors
             # ---------------
-            py2_df = pd.DataFrame()
-            for file in os.listdir(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/'):
-                try:
-                    day_df = pd.read_csv(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/{file}',
-                                    index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
-                    py2_df = pd.concat([py2_df,day_df])
-                except Exception as inst:
-                    print(f'{inst}; filename: {file}')
-                    self.move_to_purgatory(f'../../data/raw/bpeace2/beacon/B{number}/sensirion/{file}',f'../../data/purgatory/{self.study}-B{number}-py2-{file}')
-                
-            for col in py2_df.columns:
-                py2_df[col] = pd.to_numeric(py2_df[col],errors='coerce')
-
-            py2_df = py2_df.resample('5T').mean()
-                
+            # dataframe for sensors using python3
+            py2_df = import_and_merge(f'{beacon_folder}/sensirion', number)
+            
             # merging python2 and 3 sensor dataframes
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
+            
             # getting relevant data only
-            start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
-            end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
+            beacon_info = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]
+            start_date = beacon_info['start_date'].values[0]
+            end_date = beacon_info['end_date'].values[0]
             beacon_df = beacon_df[start_date:end_date]
+            del beacon_info
+            
             # removing bad values from important variables
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
             # variables that should never have anything less than zero
@@ -117,21 +115,29 @@ class bpeace2():
             # variables that should never be less than a certain limit
             for var, threshold in zip(['CO2','Lux'],[100,-1]):
                 beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
-            # removing extreme values (zscore greater than 2.5)
-            for var in important_vars:
-                beacon_df['z'] = abs(beacon_df[var] - np.nanmean(beacon_df[var])) / np.nanstd(beacon_df[var])
-                beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+            
+            if remove_extreme:
+                # removing extreme values (zscore greater than 2.5)
+                for var in important_vars:
+                    beacon_df['z'] = abs(beacon_df[var] - beacon_df[var].mean()) / beacon_df[var].std(ddof=0)
+                    beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+                beacon_df.drop(columns='z',inplace=True)
+            
             # adding columns for the pt details
             beacon_df['Beacon'] = beacon
             beacon_df['Beiwe'] = beiwe
             beacon_df['Fitbit'] = fitbit
             beacon_df['REDCap'] = redcap
             
-            beacon_data = pd.concat([beacon_data,beacon_df])
-
+            beacon_data_list.append(beacon_df)
+            
+        beacon_data = pd.concat(beacon_data_list)
         # saving
         try:
-            beacon_data.to_parquet(f'../../data/processed/bpeace2-beacon.parquet', compression='brotli')
+            filename = f'../../data/processed/bpeace2-beacon.parquet'
+            if not remove_extreme:
+                filename = f'../../data/processed/bpeace2-beacon-with-extreme.parquet'
+            beacon_data.to_parquet(filename, compression='brotli')
         except:
             return False
 
