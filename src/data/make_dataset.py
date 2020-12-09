@@ -669,7 +669,8 @@ class bpeace2():
             if beacon == 5:
                 beacon_df.index = beacon_df.index + timedelta(minutes=1118)
             if beacon == 11:
-                beacon_df.index = beacon_df.index + timedelta(years=5)
+                print('Adding 5 years')
+                beacon_df.index = beacon_df.index + timedelta(days=1827)
             # getting relevant data only
             start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
             end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
