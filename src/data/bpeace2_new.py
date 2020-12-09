@@ -118,10 +118,22 @@ class bpeace2():
             
             if remove_extreme:
                 # removing extreme values (zscore greater than 2.5)
+                # for var in important_vars:
+                #     beacon_df['z'] = abs(beacon_df[var] - beacon_df[var].mean()) / beacon_df[var].std(ddof=0)
+                #     beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+                # beacon_df.drop(columns='z',inplace=True)
+                
+                #IQR method
                 for var in important_vars:
-                    beacon_df['z'] = abs(beacon_df[var] - beacon_df[var].mean()) / beacon_df[var].std(ddof=0)
-                    beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
-                beacon_df.drop(columns='z',inplace=True)
+                    # Computing IQR
+                    Q1 = beacon_df[var].quantile(0.25)
+                    Q3 = beacon_df[var].quantile(0.75)
+                    IQR = Q3 - Q1
+                    
+                    # Filtering Values between Q1-1.5IQR and Q3+1.5IQR
+                    beacon_df[var].mask(beacon_df[var]<Q1-1.5*IQR,np.nan,inplace=True)
+                    beacon_df[var].mask(beacon_df[var]>Q3+1.5*IQR,np.nan,inplace=True)
+                
             
             # adding columns for the pt details
             beacon_df['Beacon'] = beacon
@@ -134,7 +146,7 @@ class bpeace2():
         beacon_data = pd.concat(beacon_data_list)
         # saving
         try:
-            filename = f'../../data/processed/bpeace2-beacon.parquet'
+            filename = f'../../data/processed/bpeace2-beacon-IQR.parquet'
             if not remove_extreme:
                 filename = f'../../data/processed/bpeace2-beacon-with-extreme.parquet'
             beacon_data.to_parquet(filename, compression='brotli')
