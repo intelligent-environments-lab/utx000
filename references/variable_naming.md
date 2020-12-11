@@ -38,7 +38,7 @@ As we begin to summarize the data, we might create derivatives or summary statis
 - **Fitbit:** Minimum Minutes Spent in REM -> rem_minutes_min
 
 ## Variable Suffix
-We will keep track of the study the variable pertains to by attaching a suffix to the end of the variable name after the root and any modifiers. A Key file exists [here]() that explains what each suffix means. An example might be:
+We will keep track of the study the variable pertains to by attaching a suffix to the end of the variable name after the root and any modifiers. A Key file exists [here](https://github.com/intelligent-environments-lab/utx000/blob/master/references/WCWH%20Study%20Key.xlsx) that explains what each suffix means. An example might be:
 
 - Median evening light level for utx000 study -> lux_evening_median_ux_s20
 
