@@ -711,11 +711,16 @@ class bpeace2():
             else:
                 print('\t\t\tExtreme values retained')
 
+            # dropping NaN values that get in
+            beacon_df.dropna(subset=important_vars,how='all',inplace=True)
+
             # adding columns for the pt details
             beacon_df['Beacon'] = beacon
             beacon_df['Beiwe'] = beiwe
             beacon_df['Fitbit'] = fitbit
             beacon_df['REDCap'] = redcap
+
+
             
             beacon_data = pd.concat([beacon_data,beacon_df])
 
