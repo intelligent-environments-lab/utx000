@@ -305,7 +305,7 @@ def get_sleep_summaries(data_dir='../../'):
     return complete_sleep, ff_sleep
 
 def main():
-    #get_restricted_beacon_datasets(data_dir='../../')
+    get_restricted_beacon_datasets(data_dir='../../')
     get_sleep_summaries()
 
 if __name__ == '__main__':
