@@ -8,8 +8,7 @@ For each variable, the root name will consist of as many words as necessary sepa
 - **Beiwe:** Phone Power State Level -> phone_power_level
 - **Fitbit:** Daily Steps Taken -> steps_daily
 
-Avoid using articles like "a", "the", "of", etc. when naming since they add little meaning and make variable names longer.
-
+### Acronyms in the Root Name
 Acronyms can be used, but make sure they are common knowledge and not easily confused with other variables. Still keep these acronyms lowercase. For instance, good examples include:
 
 - **BEVO Beacon:** Relative Humidity -> rh; this should be fine since if you consider the data source, the beacon, we know it measures environmental data and rh is rather self-explanatory
@@ -21,6 +20,11 @@ Bad examples would be the following:
 - **BEVO Beacon:** Temperature -> t; should not be used since t could stand for time. Temperature can also be measured in multiple units, so something like "t_c" might be better since it avoids confusion with time and includes a unit (see below about modifiers). 
 - **Beiwe:** Identifiers -> id; "id" on its own should be avoided at all times since there are many different IDs from REDCap to Beiwe. In addition, the identifiers data file from Beiwe classifies the phone, not the user. 
 - **Fitbit:** Heart Rate -> hr; again someone could confuse this name with the abbreviation for hours. 
+
+### Root Naming Conventions to Avoid
+Below are some ideas that should be avoided when naming your variable root:
+1. Avoid using articles like "a", "the", "of", etc. when naming since they add little meaning and make variable names longer.
+2. Avoid using single letters like "t" for time since they don't have enough specificity to clear. 
 
 Other exceptions might arise, but use your best judgment when naming the variable.
 
