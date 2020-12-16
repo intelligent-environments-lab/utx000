@@ -148,7 +148,7 @@ class beacon_statistics():
             
         return t_raw, t_summary
 
-def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True, data_dir='../'):
+def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True, data_dir='../../'):
     '''
     Gets the most restricted/filtered dataset for the beacon considering we have fitbit,
     ema, and gps data for the night the participant slept.
@@ -243,8 +243,70 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True, data_dir='.
 
     return nightly_beacon, filtered_beacon
 
+def get_sleep_summaries(data_dir='../../'):
+    '''
+    Gets summary sleep data from EMAs and Fitbit for three datasets:
+    - complete: all nights with both EMA and Fitbit recordings
+    - fully filtered: nights when participants are home and have beacon data too
+
+    Inputs:
+    -
+
+    Returns two dataframes pertaining to the sleep data for both datasets
+    '''
+
+    # Complete
+    # --------
+    print('\tGetting Complete Sleep Summary')
+    # Self-report/EMA sleep
+    ema_sleep = pd.read_csv(f'{data_dir}data/processed/bpeace2-morning-survey.csv',index_col=0,parse_dates=True,infer_datetime_format=True)
+    for column in ['TST','SOL','NAW','Restful']:
+        ema_sleep = ema_sleep[ema_sleep[column].notna()]
+    ema_sleep['date'] = pd.to_datetime(ema_sleep.index.date)
+    # Fitbit-recorded sleep
+    fb_sleep = pd.read_csv(f'{data_dir}data/processed/bpeace2-fitbit-sleep-daily.csv',index_col=0,parse_dates=True,infer_datetime_format=True)
+
+    # Getting complete sleep dataframe
+    complete_sleep = pd.DataFrame() # dataframe to append to
+    pt_list = np.intersect1d(fb_sleep['beiwe'].unique(),ema_sleep['ID'].unique())
+    for pt in pt_list:
+        ema_sleep_beiwe = ema_sleep[ema_sleep['ID'] == pt]
+        fb_sleep_beiwe = fb_sleep[fb_sleep['beiwe'] == pt]
+        complete_sleep = complete_sleep.append(fb_sleep_beiwe.merge(ema_sleep_beiwe,left_on='date',right_on='date',how='inner'))
+    # Saving
+    complete_sleep.set_index('date',inplace=True)
+    complete_sleep.to_csv(f'{data_dir}data/processed/bpeace2-fitbit_beiwe-complete_sleep_summary.csv')
+
+    # Fully Filtered
+    # --------------
+    print('\tGetting Sleep Summary for Fully Filtered Beacon Dataset')
+    # Fully filtered beacon dataset to cross-reference
+    ff_beacon = pd.read_csv(f'{data_dir}data/processed/bpeace2-beacon-fb_ema_and_gps_restricted.csv',
+                                 index_col=0, parse_dates=[0,-2,-1], infer_datetime_format=True)
+    ff_beacon['date'] = ff_beacon['end_time'].dt.date
+
+    # Getting fully filtered sleep dataframe
+    ff_sleep = pd.DataFrame()
+    for pt in ff_beacon['Beiwe'].unique():
+        ff_sleep_pt = complete_sleep[complete_sleep['beiwe'] == pt]
+        ff_pt = ff_beacon[ff_beacon['Beiwe'] == pt]
+        ff_pt_summary = ff_pt.groupby('date').mean()
+
+        ff_sleep = ff_sleep.append(ff_sleep_pt.merge(ff_pt_summary,left_index=True,right_index=True,how='inner'))
+    # cleaning and saving
+    ff_sleep.drop(['dateOfSleep','infoCode','logId','ID',
+       'Lat', 'Long', 'Alt', 'Accuracy', 'TVOC', 'eCO2', 'Lux',
+       'Visible', 'Infrared', 'NO2', 'T_NO2', 'RH_NO2', 'CO', 'T_CO', 'RH_CO',
+       'Temperature [C]', 'Relative Humidity', 'CO2', 'PM_N_0p5', 'PM_N_1',
+       'PM_N_2p5', 'PM_N_4', 'PM_N_10', 'PM_C_1', 'PM_C_2p5', 'PM_C_4',
+       'PM_C_10',],axis=1,inplace=True)
+    ff_sleep.to_csv(f'{data_dir}data/processed/bpeace2-fitbit_beiwe-fully_filtered_sleep_summary.csv')
+
+    return complete_sleep, ff_sleep
+
 def main():
-    get_restricted_beacon_datasets(data_dir='../../')
+    #get_restricted_beacon_datasets(data_dir='../../')
+    get_sleep_summaries()
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
