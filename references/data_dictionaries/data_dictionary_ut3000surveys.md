@@ -1,5 +1,5 @@
-# UT3000 Survey "Data Dictionary"
-This file breaks down the various surveys administered during the UT3000 study in 2018/2019. 
+# UT3000 Survey Data Dictionary
+This file breaks down some of the surveys administered during the UT1000 and UT2000 (combined as UT3000) studies in 2018/2019. 
 
 ## Home Environment Survey
 
