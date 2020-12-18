@@ -72,7 +72,7 @@ Support
 If you are having issues, please contact the project author Hagen Fritz <br>
 Email: HagenFritz@utexas.edu
 
-<img src="https://github.com/intelligent-environments-lab/utx000/blob/master/images/logo%20transparent%20background.png" alt="IEL" width="200"/>
+<img src="https://github.com/intelligent-environments-lab/utx000/blob/master/images/iel-logo-transparent.png" alt="IEL" width="200"/>
 
 License
 -------
