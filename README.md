@@ -1,4 +1,4 @@
-UTx000
+UTX000
 ==============================
 
 <img src="https://github.com/intelligent-environments-lab/utx000/blob/master/images/WCWH-logo.jpg" alt="WCWH" width="200"/>
