@@ -14,6 +14,8 @@ Data Modalities
 The project uses data gathered from four main sources:
 
 * UT's IEL Indoor Air Quality (IAQ) Beacon
+<img src="https://github.com/intelligent-environments-lab/utx000/blob/master/images/iaq-beacon-blank.pdf" alt="BEVO Beacon" width="200"/>
+
 * Onnela Labs's [Beiwe](http://wiki.beiwe.org/wiki/Main_Page) Platform
 * Fitbit Wearable Devices gathered on the [Fitabase](https://www.fitabase.com) Platform
 * Surveys administered by UT's REDCap Platform hosted the by Population Research Center
