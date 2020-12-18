@@ -1,7 +1,7 @@
 UTx000
 ==============================
 
-<img src="https://github.com/intelligent-environments-lab/utx000/blob/master/images/WCWH-logo.jpg" alt="BEVO Beacon" width="200"/>
+<img src="https://github.com/intelligent-environments-lab/utx000/blob/master/images/WCWH-logo.jpg" alt="WCWH" width="200"/>
 
 UTX000 is a study that gathers from multiple individuals/studies and contains a wealth of moment-by-moment data on a person and their envrionment. The project is an arm of [**Whole Communities, Whole Health Iniative - a UT Grand Challenge**](https://bridgingbarriers.utexas.edu/whole-communities-whole-health/). The goals of this particular project are to:
 
@@ -71,6 +71,8 @@ Support
 
 If you are having issues, please contact the project author Hagen Fritz <br>
 Email: HagenFritz@utexas.edu
+
+<img src="https://github.com/intelligent-environments-lab/utx000/blob/master/images/logo%20transparent%20background.png" alt="IEL" width="200"/>
 
 License
 -------
