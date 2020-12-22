@@ -37,8 +37,8 @@ class Diagnostics():
 			else:
 				op3 = input(f"Download data from Beacon {self.beacon} and DELETE after receiving (y/n)? ")
 				if op3.lower() in ["y","yes"]:
-					print(f"WARNING: Running this option will remove all data from the selected Beacons and save the data to this directory:\n\t{self.save_dir}")
-					proceed = input("Do you still wish to proceed (y/n)? ")
+					print(f"WARNING: Running this option will remove all data from the selected Beacons and save the data to the following directory:\n\n\t{self.save_dir}")
+					proceed = input("\nDo you still wish to proceed (y/n)? ")
 					if proceed.lower() in ["y","yes"]:
 						self.downloadData(remove=True,save_dir=self.save_dir)
 					else:
@@ -102,11 +102,13 @@ class Diagnostics():
 		"""
 		Checks the operation of the sensors
 		"""
+		os.system(f'ssh pi@iaq{self.beacon} -o ConnectTimeout=10 "python3 bevo_iaq/Setup/Code/addresses.py"')
 
 	def run(self):
 		"""
 		Runs diagnostics
 		"""
+		self.checkSensors()
 
 	def terminated(self):
 		print("User has terminated program.")
