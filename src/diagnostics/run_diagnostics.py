@@ -66,7 +66,7 @@ class Diagnostics():
         Pulls in updates from git
         """
         print("\n\tUpdating from Git:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install pigpio python-pigpio python3-pigpio & cd bevo_iaq & git reset --hard & git pull & python3 fixnumber.py"')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio & cd bevo_iaq & git reset --hard & git pull & python3 fixnumber.py"')
 
     def downloadData(self, beacon_no, save_dir="../../data/raw/bpeace2/beacon/"):
         """
