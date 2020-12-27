@@ -20,7 +20,7 @@ class Diagnostics():
             self.beacon = input("Enter Beacon Number (0,50): ") # setting to user input
             try:
                 if int(self.beacon) < 10:
-                    self.beacon = [self.beacon] # single beacon number - 0 will be added in run()
+                    self.beacon = [int(self.beacon)] # single beacon number - 0 will be added in run()
             except ValueError:
                 print("You must enter a valid number")
                 self.terminate()
@@ -37,7 +37,7 @@ class Diagnostics():
             print(f"WARNING: Running diagnostics will remove all data from the selected Beacons and save the data to this directory:\n\t{self.save_dir}")
             proceed = input("Do you still wish to proceed (y/n)? ")
             if proceed.lower() in ["y","yes"]:
-                fxns = [self.getUpdates,self.downloadData,self.removeData,self.checkSensors]
+                fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData]
                 self.run(fxns)
             else:
                 self.terminated()
@@ -66,7 +66,9 @@ class Diagnostics():
         Pulls in updates from git
         """
         print("\n\tUpdating from Git:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio & cd bevo_iaq & git reset --hard & git pull & python3 fixnumber.py"')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd bevo_iaq && sudo apt-get install -y pigpio python-pigpio python3-pigpio && git reset --hard && git pull"')
+        os.system(f'scp -o ConnectTimeout=1 test.sh pi@iaq{beacon_no}:/home/pi/test.sh')
+        os.system(f'ssh -o ConnectTimeout=1 pi@iaq{beacon_no} "sh /home/pi/test.sh {beacon_no}"')
 
     def downloadData(self, beacon_no, save_dir="../../data/raw/bpeace2/beacon/"):
         """
@@ -76,20 +78,20 @@ class Diagnostics():
         os.system(f'scp -r -o ConnectTimeout=1 pi@iaq{beacon_no}:/home/pi/DATA/adafruit/ {save_dir}B{beacon_no}/')
         os.system(f'scp -r -o ConnectTimeout=1 pi@iaq{beacon_no}:/home/pi/DATA/sensirion/ {save_dir}B{beacon_no}/')
 
-    def removeData(self, beacon_no):
-        """
-        Removes data from specified beacon
-        """
-        print("\n\tDeleting Data:")
-        #os.system('tput setaf 1; echo REMOVING LOG2/LOG3 DATA; tput sgr 0')
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd DATA/adafruit/ & sudo rm *.csv & cd ../sensirion/ & sudo rm *.csv"')
-
     def checkSensors(self, beacon_no):
         """
         Checks the operation of the sensors
         """
         print("\n\tChecking Sensor Connection:")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "python3 bevo_iaq/Setup/Code/addresses.py"')
+
+    def removeData(self, beacon_no):
+        """
+        Removes data from specified beacon
+        """
+        print("\n\tDeleting Data:")
+        #os.system('tput setaf 1; echo REMOVING LOG2/LOG3 DATA; tput sgr 0')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd DATA/adafruit/ && sudo rm *.csv && cd ../sensirion/ && sudo rm *.csv"')
 
     def run(self,fxns):
         """
