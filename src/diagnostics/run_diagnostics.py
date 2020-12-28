@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 class Diagnostics():
 
-    def __init__(self, single=False, save_dir="../../data/raw/bpeace2/beacon/"):
+    def __init__(self, single=False, save_dir="~/Projects/utx000/data/raw/bpeace2/beacon/"):
         """
         Checks if we want a single beacon, otherwise runs for all. User can
         download, remove, or run diagnostics.
@@ -19,8 +19,7 @@ class Diagnostics():
         if single:
             self.beacon = input("Enter Beacon Number (0,50): ") # setting to user input
             try:
-                if int(self.beacon) < 10:
-                    self.beacon = [int(self.beacon)] # single beacon number - 0 will be added in run()
+                self.beacon = [int(self.beacon)] # single beacon number - 0 will be added in run()
             except ValueError:
                 print("You must enter a valid number")
                 self.terminate()
@@ -37,7 +36,7 @@ class Diagnostics():
             print(f"WARNING: Running diagnostics will remove all data from the selected Beacons and save the data to this directory:\n\t{self.save_dir}")
             proceed = input("Do you still wish to proceed (y/n)? ")
             if proceed.lower() in ["y","yes"]:
-                fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData]
+                fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData,self.reboot]
                 self.run(fxns)
             else:
                 self.terminated()
@@ -66,11 +65,11 @@ class Diagnostics():
         Pulls in updates from git
         """
         print("\n\tUpdating from Git:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd bevo_iaq && sudo apt-get install -y pigpio python-pigpio python3-pigpio && git reset --hard && git pull"')
-        os.system(f'scp -o ConnectTimeout=1 test.sh pi@iaq{beacon_no}:/home/pi/test.sh')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio && cd bevo_iaq/Setup/Code && rm *.pyc && git reset --hard && git pull"')
+        os.system(f'scp -o ConnectTimeout=1 ~/Projects/utx000/src/diagnostics/test.sh pi@iaq{beacon_no}:/home/pi/test.sh')
         os.system(f'ssh -o ConnectTimeout=1 pi@iaq{beacon_no} "sh /home/pi/test.sh {beacon_no}"')
 
-    def downloadData(self, beacon_no, save_dir="../../data/raw/bpeace2/beacon/"):
+    def downloadData(self, beacon_no, save_dir="~/Projects/utx000/data/raw/bpeace2/beacon/"):
         """
         Downloads data from specified beacon
         """
@@ -89,9 +88,16 @@ class Diagnostics():
         """
         Removes data from specified beacon
         """
-        print("\n\tDeleting Data:")
+        print("\n\tDeleting Data...")
         #os.system('tput setaf 1; echo REMOVING LOG2/LOG3 DATA; tput sgr 0')
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd DATA/adafruit/ && sudo rm *.csv && cd ../sensirion/ && sudo rm *.csv"')
+
+    def reboot(self,beacon_no):
+        """
+        Reboots the system for changes to take effect
+        """
+        print("\n\tRebooting...")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 "sudo reboot"')
 
     def run(self,fxns):
         """
@@ -100,7 +106,8 @@ class Diagnostics():
         for i in self.beacon:
             if i < 10:
                 i = '0' + str(i)
-            print(f"Beacon {i}:")
+            #print(f"Beacon {i}:")
+            os.system(f'tput setaf 1; echo Beacon {i}; tput sgr 0')
             for f in fxns:
                 f(i)
 
