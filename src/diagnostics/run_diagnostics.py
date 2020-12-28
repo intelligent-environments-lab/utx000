@@ -36,7 +36,12 @@ class Diagnostics():
             print(f"WARNING: Running diagnostics will remove all data from the selected Beacons and save the data to this directory:\n\t{self.save_dir}")
             proceed = input("Do you still wish to proceed (y/n)? ")
             if proceed.lower() in ["y","yes"]:
-                fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData,self.reboot]
+                shutdown = input("Do you wish to power the device(s) down after (y/n)? ")
+                if shutdown.lower() in ["y","yes"]:
+                    fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData,self.shutdown]
+                else:
+                    fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData,self.reboot]
+                
                 self.run(fxns)
             else:
                 self.terminated()
@@ -98,6 +103,13 @@ class Diagnostics():
         """
         print("\n\tRebooting...")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 "sudo reboot"')
+
+    def shutdown(self,beacon_no):
+        """
+        Reboots the system for changes to take effect
+        """
+        print("\n\tShutting Down...")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 "sudo shutdown -h now"')
 
     def run(self,fxns):
         """
