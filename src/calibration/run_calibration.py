@@ -3,6 +3,8 @@
 import os
 import math
 from datetime import datetime, timedelta
+import dateutil.parser
+import warnings
 # Data Science
 import pandas as pd
 import numpy as np
@@ -196,7 +198,49 @@ class Calibration():
 
         return beacon_data
 
-    def plot_time_series(self,ref_data,beacon_data):
+    def inspect(self,df,timeseries=True):
+        """
+        Visually inspect data in dataframe
+
+        Inputs:
+        - df: dataframe with one column with values or column named "Beacons" that includes the beacon number
+        - timeseries: boolean specifying whether or not to plot the timeseries or not (therefore heatmap)
+        """
+
+        if timeseries:
+            fig, ax = plt.subplots(figsize=(16,6))
+            if "Beacon" in df.columns:
+                for bb in df["Beacon"].unique():
+                    df_by_bb = df[df["Beacon"] == bb]
+                    ax.plot(df_by_bb.index,df_by_bb.iloc[:,0].values,marker=self.get_marker(int(bb)),label=bb)
+            else:
+                ax.plot(df.index.df.iloc[:,0].values)
+
+            ax.legend(bbox_to_anchor=(1,1),frameon=False,ncol=2)
+            plt.show()
+            plt.close()
+        else: #heatmap
+            fig,ax = plt.subplots(figsize=(14,7))
+            if "Beacon" in df.columns:
+                df.columns=["Concentration","Beacon"]
+                df_to_plot = pd.DataFrame()
+                for bb in df["Beacon"].unique():
+                    df_by_bb = df[df["Beacon"] == bb]
+                    df_by_bb.drop("Beacon",axis=1,inplace=True)
+                    df_to_plot = pd.concat([df_to_plot,df_by_bb],axis=1)
+                    df_to_plot.rename(columns={"Concentration":bb}, inplace=True)
+
+                sns.heatmap(df_to_plot.T,vmin=np.nanmin(df_to_plot),vmax=np.nanmax(df_to_plot),ax=ax)
+                locs, labels = plt.xticks()
+                new_labels = []
+                for label in labels:
+                    new_labels.append(dateutil.parser.isoparse(label.get_text()).strftime("%m-%d-%y %H:%M"))
+                plt.xticks(locs,new_labels,rotation=-45,ha="left")
+                plt.yticks(rotation=0,va="center")
+            else:
+                sns.heatmap(df.T,vmin=np.nanmin(df),vmax=np.nanmax(df),ax=ax)
+
+    def compare_time_series(self,ref_data,beacon_data):
         """
         Plots reference and beacon data as a time series
 
@@ -205,38 +249,110 @@ class Calibration():
         - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
         """
         
-        fig, ax = plt.subplots(figsize=(12,6))
+        fig, ax = plt.subplots(figsize=(16,6))
         ax.plot(ref_data.index,ref_data.iloc[:,0].values,linewidth=3,color="black",zorder=100)
-        for bb in beacon_data["Beacon"].unique():
-            if bb < 10:
-                m = "s"
-            elif bb < 20:
-                m = "^"
-            elif bb < 30:
-                m = "P"
-            elif bb <40:
-                m = "*"
-            else:
-                m = "o"
-                
+        for bb in beacon_data["Beacon"].unique():    
             data_by_bb = beacon_data[beacon_data["Beacon"] == bb]
             data_by_bb.drop("Beacon",axis=1,inplace=True)
             data_by_bb.dropna(inplace=True)
             
             if len(data_by_bb) > 0:
-                ax.plot(data_by_bb.index,data_by_bb.iloc[:,0].values,marker=m,label=bb)
+                ax.plot(data_by_bb.index,data_by_bb.iloc[:,0].values,marker=self.get_marker(int(bb)),label=bb)
             
-        ax.legend(bbox_to_anchor=(1,1))
+        ax.legend(bbox_to_anchor=(1,1),frameon=False,ncol=2)
             
         plt.show()
         plt.close()
 
+    def get_marker(self,number):
+        """
+        Gets a marker style based on the beacon number
+        """
+        if number < 10:
+            m = "s"
+        elif number < 20:
+            m = "^"
+        elif number < 30:
+            m = "P"
+        elif number <40:
+            m = "*"
+        else:
+            m = "o"
+
+        return m
+
 class Linear_Model(Calibration):
 
-    def __init__(self):
+    def __init__(self,start_time,end_time,data_dir):
+        """
+        Initializes Linear Model pulling from the Calibration Class
+        """
+        super().__init__(start_time,end_time,data_dir)
+        self.model_type="Linear"
+
+    def regression(self,ref_data,beacon_data,test_size=1,show_plot=True):
+        """
+        Runs a regression model
+        
+        Inputs:
+        - ref_data: dataframe of reference data with single column corresponding to data indexed by time
+        - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
+        - test_size: float specifying the proportion of data to use for the training set
+        - show_plot: boolean to show the plot or not
+
+        Returns coefficient(s) of the linear fit
         """
 
-        """
+        if len(ref_data) == len(beacon_data):
+            index = int(test_size*len(ref_data))
+        else:
+            # resizing arrays to included data from both modalities
+            max_start_date = max(ref_data.index[0],beacon_data.index[0])
+            min_end_date = min(ref_data.index[-1],beacon_data.index[-1])
+            ref_data = ref_data[max_start_date:min_end_date]
+            beacon_data = beacon_data[max_start_date:min_end_date]
+            warnings.warn("Reference and Beacon data are not the same length")
+        # splitting beacon data
+        if test_size == 1:
+            y_train = beacon_data.iloc[:,0].values
+            y_test = beacon_data.iloc[:,0].values
+        else:
+            y_train = beacon_data.iloc[:,0].values[:index]
+            y_test = beacon_data.iloc[:,0].values[index:]
+
+        # splitting ref data
+        if test_size == 1:
+            x_train = ref_data.iloc[:,0].values
+            x_test = ref_data.iloc[:,0].values
+        else:
+            x_train = ref_data.iloc[:,0].values[:index]
+            x_test = ref_data.iloc[:,0].values[index:]
+
+        # linear regression model
+        regr = linear_model.LinearRegression()
+        regr.fit(x_train.reshape(-1, 1), y_train)
+
+        # Make predictions using the testing set
+        y_pred = regr.predict(x_test.reshape(-1, 1))
+
+        # plotting
+        if show_plot == True:
+            fig, ax = plt.subplots(figsize=(6,6))
+            ax.scatter(x_train,y_train,color="orange",alpha=0.7,label="Training")
+            ax.scatter(x_test,y_test,color='seagreen',label="Test")
+            ax.plot(x_test,y_pred,color='cornflowerblue',linewidth=3,label="Prediction")
+            ax.legend(bbox_to_anchor=(1,1),frameon=False)
+
+            plt_min = min(min(x_train),min(y_train))
+            plt_max = max(max(x_train),max(y_train))
+            ax.text(0.975*plt_min,0.975*plt_min,f"Coefficient: {round(regr.coef_[0],3)}")
+            ax.set_xlim([0.95*plt_min,1.05*plt_max])
+            ax.set_ylim([0.95*plt_min,1.05*plt_max])
+
+            plt.show()
+            plt.close()
+            
+        return regr.coef_
 
 def main():
     pass
