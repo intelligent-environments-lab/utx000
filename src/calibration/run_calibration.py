@@ -1,9 +1,18 @@
-import os
 
+# General
+import os
+import math
+from datetime import datetime, timedelta
+# Data Science
 import pandas as pd
 import numpy as np
-
-from datetime import datetime, timedelta
+from sklearn import linear_model
+from sklearn.metrics import mean_squared_error, r2_score
+# Plotting
+import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 class Calibration():
 
@@ -187,9 +196,13 @@ class Calibration():
 
         return beacon_data
 
-    def plot_time_series(ref_data,beacon_data):
+    def plot_time_series(self,ref_data,beacon_data):
         """
         Plots reference and beacon data as a time series
+
+        Inputs:
+        - ref_data: dataframe of reference data with single column corresponding to data indexed by time
+        - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
         """
         
         fig, ax = plt.subplots(figsize=(12,6))
