@@ -7,14 +7,18 @@ from datetime import datetime, timedelta
 
 class Calibration():
 
-    def __init__(self, start_time, end_time):
+    def __init__(self, start_time, end_time, data_dir="../../data/"):
         """
         Initiates the calibration object with:
         - start_time: datetime object with precision to the minute specifying the event START time
         - end_time: datetime object with precision to the minute specifying the event END time
+        - data_dir: path to data directory
         """
         self.start_time = start_time
         self.end_time = end_time
+        self.date = start_time.date().strftime("%m%d%Y")
+
+        self.data_dir = data_dir
 
     def get_pm_ref(self,file,resample_rate=2):
         """
@@ -26,7 +30,7 @@ class Calibration():
 
         Returns a dataframe with columns PM1, PM2.5, and PM10 indexed by timestamp
         """
-        raw_data = pd.read_csv('../../data/calibration/'+file,skiprows=6)
+        raw_data = pd.read_csv(f"{self.data_dir}calibration/"+file,skiprows=6)
         df = raw_data.drop(['Sample #','Aerodynamic Diameter'],axis=1)
         date = df['Date']
         sample_time = df['Start Time']
@@ -59,7 +63,7 @@ class Calibration():
 
         Returns a dataframe with co2 concentration data indexed by time
         """
-        raw_data = pd.read_csv(f"../../data/calibration/{file}",usecols=[0,1],names=["Timestamp","Concentration"])
+        raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",usecols=[0,1],names=["Timestamp","Concentration"])
         raw_data["Timestamp"] = pd.to_datetime(raw_data["Timestamp"],yearfirst=True)
         raw_data.set_index("Timestamp",inplace=True)
         df = raw_data.resample(f"{resample_rate}T").mean()
@@ -75,7 +79,7 @@ class Calibration():
 
         Returns a dataframe with no2 concentration data indexed by time
         """
-        raw_data = pd.read_csv(f"../../data/calibration/{file}",usecols=["IgorTime","Concentration"])
+        raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",usecols=["IgorTime","Concentration"])
         # Using igor time (time since Jan 1st, 1904) to get timestamp
         ts = []
         for seconds in raw_data["IgorTime"]:
@@ -97,7 +101,7 @@ class Calibration():
 
         Returns a dataframe with no concentration data indexed by time
         """
-        raw_data = pd.read_csv(f"../../data/calibration/{file}",names=["TimeStamp","Concentration"],skiprows=1,index_col=0,parse_dates=True,infer_datetime_format=True)
+        raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",names=["TimeStamp","Concentration"],skiprows=1,index_col=0,parse_dates=True,infer_datetime_format=True)
         df = raw_data.resample(f"{resample_rate}T").mean()
         return df[self.start_time:self.end_time]
 
@@ -113,7 +117,7 @@ class Calibration():
         Returns a dataframe with beacon measurements data indexed by time and a column specifying the beacon number
         """
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
-        beacons_folder='../data/raw/bpeace2/beacon'
+        beacons_folder=f"{self.data_dir}raw/bpeace2/beacon"
         # list of all beacons used in the study
         if verbose:
             print('Processing beacon data...\n\tReading for beacon:')
@@ -182,6 +186,37 @@ class Calibration():
                 beacon_data = pd.concat([beacon_data,beacon_df])
 
         return beacon_data
+
+    def plot_time_series(ref_data,beacon_data):
+        """
+        Plots reference and beacon data as a time series
+        """
+        
+        fig, ax = plt.subplots(figsize=(12,6))
+        ax.plot(ref_data.index,ref_data.iloc[:,0].values,linewidth=3,color="black",zorder=100)
+        for bb in beacon_data["Beacon"].unique():
+            if bb < 10:
+                m = "s"
+            elif bb < 20:
+                m = "^"
+            elif bb < 30:
+                m = "P"
+            elif bb <40:
+                m = "*"
+            else:
+                m = "o"
+                
+            data_by_bb = beacon_data[beacon_data["Beacon"] == bb]
+            data_by_bb.drop("Beacon",axis=1,inplace=True)
+            data_by_bb.dropna(inplace=True)
+            
+            if len(data_by_bb) > 0:
+                ax.plot(data_by_bb.index,data_by_bb.iloc[:,0].values,marker=m,label=bb)
+            
+        ax.legend(bbox_to_anchor=(1,1))
+            
+        plt.show()
+        plt.close()
 
 class Linear_Model(Calibration):
 
