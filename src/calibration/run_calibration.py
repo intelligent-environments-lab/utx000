@@ -174,7 +174,7 @@ class Calibration():
                 beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
 
                 # getting relevant data only
-                beacon_df = beacon_df[start_time:end_time]
+                beacon_df = beacon_df[self.start_time:self.end_time]
                 beacon_df.drop(['TVOC', 'eCO2', 'Lux', 'Visible', 'Infrared', "CO","T_CO","RH_CO","T_NO2","RH_NO2",'Temperature [C]','Relative Humidity','PM_N_4','PM_C_4'],axis=1,inplace=True)
 
                 # concatenating the data to the overall dataframe
@@ -189,3 +189,9 @@ class Linear_Model(Calibration):
         """
 
         """
+
+def main():
+    pass
+
+if __name__ == '__main__':
+    main()
