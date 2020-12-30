@@ -22,7 +22,7 @@ class Diagnostics():
                 self.beacon = [int(self.beacon)] # single beacon number - 0 will be added in run()
             except ValueError:
                 print("You must enter a valid number")
-                self.terminate()
+                self.terminated()
         else:
             self.beacon = range(0,51) # setting to list of all beacons
 
@@ -30,40 +30,37 @@ class Diagnostics():
 
         # Commands
         # ------------
+        # List of options 
+        print("Please choose an option from the list below")
+        print("\t1. Update Software")
+        print("\t2. Download Data")
+        print("\t3. Download and Remove Data")
+        print("\t4. Remove Data")
+        print("\t5. Run Full Diagnostics")
+        op = int(input("\nOption: "))
         # Run diagnostics
-        op1 = input(f"Run Diagnostics on Beacon {self.beacon} (y/n)? ")
-        if op1.lower() in ["y","yes"]:
-            print(f"WARNING: Running diagnostics will remove all data from the selected Beacons and save the data to this directory:\n\t{self.save_dir}")
-            proceed = input("Do you still wish to proceed (y/n)? ")
-            if proceed.lower() in ["y","yes"]:
-                shutdown = input("Do you wish to power the device(s) down after (y/n)? ")
-                if shutdown.lower() in ["y","yes"]:
-                    fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData,self.shutdown]
-                else:
-                    fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData,self.reboot]
-                
-                self.run(fxns)
-            else:
-                self.terminated()
+        if op == 1:
+            fxns = [self.update]
+        elif op == 2:
+            fxns = [self.downloadData]
+        elif op == 3:
+            fxns = [self.downloadData, self.removeData]
+        elif op == 4:
+            fxns = [self.removeData]
+        elif op == 5:
+            fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData]
         else:
-            # Download data
-            op2 = input(f"Download data from Beacon {self.beacon} only (y/n)? ")
-            if op2.lower() in ["y","yes"]:
-                fxns = [self.downloadData]
-                self.run(fxns)
-            else:
-                # Download AND remove data
-                op3 = input(f"Download data from Beacon {self.beacon} and DELETE after receiving (y/n)? ")
-                if op3.lower() in ["y","yes"]:
-                    print(f"WARNING: Running this option will remove all data from the selected Beacons and save the data to the following directory:\n\n\t{self.save_dir}")
-                    proceed = input("\nDo you still wish to proceed (y/n)? ")
-                    if proceed.lower() in ["y","yes"]:
-                        fxns = [self.downloadData, self.removeData]
-                        self.run(fxns)
-                    else:
-                        self.terminated()
-                else:
-                    self.terminated()
+            os.system("clear")
+            print("Not a valid choice")
+            self.terminated()
+
+        power_op = input("Do you wish to power the device(s) down after (y/n)? ")
+        if power_op.lower() in ["y","yes"]:
+            fxns.append(self.shutdown)
+        else:
+            fxns.append(self.reboot)
+
+        self.run(fxns)
 
     def getUpdates(self, beacon_no):
         """
