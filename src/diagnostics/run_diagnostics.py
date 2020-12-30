@@ -54,11 +54,17 @@ class Diagnostics():
             print("Not a valid choice")
             self.terminated()
 
-        power_op = input("Do you wish to power the device(s) down after (y/n)? ")
-        if power_op.lower() in ["y","yes"]:
+        print("What do you wish to do with the devices after?")
+        print("\t1. Power Down")
+        print("\t2. Reboot")
+        print("\t3. Nothing")
+        power_op = int(input("\nOption: "))
+        if power_op == 1:
             fxns.append(self.shutdown)
-        else:
+        elif power_op == 2:
             fxns.append(self.reboot)
+        else:
+            pass
 
         self.run(fxns)
 
