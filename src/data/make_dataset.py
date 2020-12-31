@@ -714,19 +714,28 @@ class bpeace2():
             # dropping NaN values that get in
             beacon_df.dropna(subset=important_vars,how='all',inplace=True)
 
+            # combing T/RH readings and dropping the bad ones
+            beacon_df['temperature_c'] = beacon_df[['T_CO','T_NO2']].mean(axis=1)
+            beacon_df['rh'] = beacon_df[['RH_CO','RH_NO2']].mean(axis=1)
+            beacon_df.drop(["T_NO2","T_CO","RH_NO2","RH_CO","Temperature [C]","Relative Humidity"],axis=1,inplace=True)
+
+            # dropping useless columns
+            beacon_df.drop(["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4"],axis=1,inplace=True)
+
+            # renaming columns
+            beacon_df.columns = ["tvoc","lux","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]
+
             # adding columns for the pt details
-            beacon_df['Beacon'] = beacon
-            beacon_df['Beiwe'] = beiwe
-            beacon_df['Fitbit'] = fitbit
-            beacon_df['REDCap'] = redcap
-
-
+            beacon_df['beacon'] = beacon
+            beacon_df['beiwe'] = beiwe
+            beacon_df['fitbit'] = fitbit
+            beacon_df['redcap'] = redcap
             
             beacon_data = pd.concat([beacon_data,beacon_df])
 
         # saving
         try:
-            beacon_data.to_csv(f'../../data/processed/bpeace2-beacon.csv')
+            beacon_data.to_csv(f'../../data/processed/ux-beacon.csv')
         except:
             return False
 
