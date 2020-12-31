@@ -27,7 +27,7 @@ class Calibration():
         """
         self.start_time = start_time
         self.end_time = end_time
-        self.date = start_time.date().strftime("%m%d%Y")
+        self.date = end_time.date().strftime("%m%d%Y")
 
         self.data_dir = data_dir
 
@@ -57,7 +57,7 @@ class Calibration():
         for column in df.columns:
             df[column] = pd.to_numeric(df[column])
 
-        if file[3:] == "concentration":
+        if file[3:16] == "concentration":
             factor = 1000
         else:
             factor = 1
@@ -267,14 +267,14 @@ class Calibration():
         """
         
         fig, ax = plt.subplots(figsize=(16,6))
-        ax.plot(ref_data.index,ref_data.iloc[:,0].values,linewidth=3,color="black",zorder=100)
+        ax.plot(ref_data.index,ref_data.iloc[:,0].values,linewidth=3,color="black",zorder=100,label="Reference")
         for bb in beacon_data["Beacon"].unique():    
             data_by_bb = beacon_data[beacon_data["Beacon"] == bb]
             data_by_bb.drop("Beacon",axis=1,inplace=True)
             data_by_bb.dropna(inplace=True)
             
             if len(data_by_bb) > 0:
-                ax.plot(data_by_bb.index,data_by_bb.iloc[:,0].values,marker=self.get_marker(int(bb)),label=bb)
+                ax.plot(data_by_bb.index,data_by_bb.iloc[:,0].values,marker=self.get_marker(int(bb)),zorder=int(bb),label=bb)
             
         ax.legend(bbox_to_anchor=(1,1),frameon=False,ncol=2)
             
