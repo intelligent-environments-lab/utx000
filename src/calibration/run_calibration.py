@@ -47,7 +47,7 @@ class Calibration():
         sample_time = df['Start Time']
         datetimes = []
         for i in range(len(date)):
-            datetimes.append(datetime.strptime(date[i] + ' ' + sample_time[i],'%m/%d/%y %H:%M:%S'))
+            datetimes.append(datetime.strptime(date[i] + ' ' + sample_time[i],'%m/%d/%y %H:%M:%S') + timedelta(minutes=4))
 
         df['Timestamp'] = datetimes
         df = df.set_index(['Timestamp'])
@@ -57,9 +57,12 @@ class Calibration():
         for column in df.columns:
             df[column] = pd.to_numeric(df[column])
 
-        df['PM_1'] = df.iloc[:,:10].sum(axis=1)*1000
-        df['PM_2p5'] = df.iloc[:,:23].sum(axis=1)*1000
-        df['PM_10'] = df.iloc[:,:42].sum(axis=1)*1000
+        if file[3:] == "concentration":
+            factor = 1000
+
+        df['PM_1'] = df.iloc[:,:10].sum(axis=1)*factor
+        df['PM_2p5'] = df.iloc[:,:23].sum(axis=1)*factor
+        df['PM_10'] = df.iloc[:,:42].sum(axis=1)*factor
 
         df_resampled = df.resample(f"{resample_rate}T").mean()
         return df_resampled[self.start_time:self.end_time]
@@ -74,11 +77,15 @@ class Calibration():
 
         Returns a dataframe with co2 concentration data indexed by time
         """
-        raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",usecols=[0,1],names=["Timestamp","Concentration"])
-        raw_data["Timestamp"] = pd.to_datetime(raw_data["Timestamp"],yearfirst=True)
-        raw_data.set_index("Timestamp",inplace=True)
-        df = raw_data.resample(f"{resample_rate}T").mean()
-        return df[self.start_time:self.end_time]
+        try:
+            raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",usecols=[0,1],names=["Timestamp","Concentration"])
+            raw_data["Timestamp"] = pd.to_datetime(raw_data["Timestamp"],yearfirst=True)
+            raw_data.set_index("Timestamp",inplace=True)
+            df = raw_data.resample(f"{resample_rate}T").mean()
+            return df[self.start_time:self.end_time]
+        except FileNotFoundError:
+            print("No file found for this event - returning empty dataframe")
+            return pd.DataFrame()
 
     def get_no2_ref(self,file,resample_rate=2):
         """
@@ -90,17 +97,21 @@ class Calibration():
 
         Returns a dataframe with no2 concentration data indexed by time
         """
-        raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",usecols=["IgorTime","Concentration"])
-        # Using igor time (time since Jan 1st, 1904) to get timestamp
-        ts = []
-        for seconds in raw_data["IgorTime"]:
-            ts.append(datetime(1904,1,1) + timedelta(seconds=int(seconds)))
-        raw_data["Timestamp"] = ts
-        raw_data.set_index("Timestamp",inplace=True)
-        raw_data.drop("IgorTime",axis=1,inplace=True)
+        try:
+            raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",usecols=["IgorTime","Concentration"])
+            # Using igor time (time since Jan 1st, 1904) to get timestamp
+            ts = []
+            for seconds in raw_data["IgorTime"]:
+                ts.append(datetime(1904,1,1) + timedelta(seconds=int(seconds)))
+            raw_data["Timestamp"] = ts
+            raw_data.set_index("Timestamp",inplace=True)
+            raw_data.drop("IgorTime",axis=1,inplace=True)
 
-        df = raw_data.resample(f"{resample_rate}T").mean()
-        return df[self.start_time:self.end_time]
+            df = raw_data.resample(f"{resample_rate}T").mean()
+            return df[self.start_time:self.end_time]
+        except FileNotFoundError:
+            print("No file found for this event - returning empty dataframe")
+            return pd.DataFrame()
 
     def get_no_ref(self,file,resample_rate=2):
         """
@@ -112,9 +123,13 @@ class Calibration():
 
         Returns a dataframe with no concentration data indexed by time
         """
-        raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",names=["TimeStamp","Concentration"],skiprows=1,index_col=0,parse_dates=True,infer_datetime_format=True)
-        df = raw_data.resample(f"{resample_rate}T").mean()
-        return df[self.start_time:self.end_time]
+        try:
+            raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",names=["TimeStamp","Concentration"],skiprows=1,index_col=0,parse_dates=True,infer_datetime_format=True)
+            df = raw_data.resample(f"{resample_rate}T").mean()
+            return df[self.start_time:self.end_time]
+        except FileNotFoundError:
+            print("No file found for this event - returning empty dataframe")
+            return pd.DataFrame()
 
     def get_beacon_data(self,beacon_list=np.arange(0,51,1),resample_rate=2,verbose=False):
         """
@@ -214,7 +229,7 @@ class Calibration():
                     df_by_bb = df[df["Beacon"] == bb]
                     ax.plot(df_by_bb.index,df_by_bb.iloc[:,0].values,marker=self.get_marker(int(bb)),label=bb)
             else:
-                ax.plot(df.index.df.iloc[:,0].values)
+                ax.plot(df.index,df.iloc[:,0].values,linewidth=3,color="black",label="Ref")
 
             ax.legend(bbox_to_anchor=(1,1),frameon=False,ncol=2)
             plt.show()
