@@ -59,6 +59,8 @@ class Calibration():
 
         if file[3:] == "concentration":
             factor = 1000
+        else:
+            factor = 1
 
         df['PM_1'] = df.iloc[:,:10].sum(axis=1)*factor
         df['PM_2p5'] = df.iloc[:,:23].sum(axis=1)*factor
@@ -329,9 +331,16 @@ class Linear_Model(Calibration):
             warnings.warn("Reference and Beacon data are not the same length")
         # splitting beacon data
         if test_size == 1:
+            times = []
+            for t in beacon_data.index:
+                times.append((t - beacon_data.index[0]).total_seconds()/60)
+
             y_train = beacon_data.iloc[:,0].values
             y_test = beacon_data.iloc[:,0].values
         else:
+            times = []
+            for t in beacon_data.index[:index]:
+                times.append((t - beacon_data.index[0]).total_seconds()/60)
             y_train = beacon_data.iloc[:,0].values[:index]
             y_test = beacon_data.iloc[:,0].values[index:]
 
@@ -353,16 +362,21 @@ class Linear_Model(Calibration):
         # plotting
         if show_plot == True:
             fig, ax = plt.subplots(figsize=(6,6))
-            ax.scatter(x_train,y_train,color="orange",alpha=0.7,label="Training")
-            ax.scatter(x_test,y_test,color='seagreen',label="Test")
-            ax.plot(x_test,y_pred,color='cornflowerblue',linewidth=3,label="Prediction")
+            im = ax.scatter(x_train,y_train,c=times,cmap="Blues",edgecolor="black",s=75,label="Training",zorder=2)
+            fig.colorbar(im,ax=ax,label="Minutes since Start")
+            ax.scatter(x_test,y_test,color='seagreen',label="Test",zorder=1)
+            ax.plot(x_test,y_pred,color='firebrick',linewidth=3,label="Prediction",zorder=3)
             ax.legend(bbox_to_anchor=(1,1),frameon=False)
 
             plt_min = min(min(x_train),min(y_train))
             plt_max = max(max(x_train),max(y_train))
-            ax.text(0.975*plt_min,0.975*plt_min,f"Coefficient: {round(regr.coef_[0],3)}")
+            ax.text(0.975*plt_min,0.975*plt_min,f"Coefficient: {round(regr.coef_[0],3)}",backgroundcolor="white",ma="center")
             ax.set_xlim([0.95*plt_min,1.05*plt_max])
+            ax.set_xlabel("Reference Measurement")
             ax.set_ylim([0.95*plt_min,1.05*plt_max])
+            ax.set_ylabel("Beacon Measurement")
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
 
             plt.show()
             plt.close()
