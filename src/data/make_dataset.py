@@ -578,7 +578,7 @@ class bpeace2():
     '''
 
     def __init__(self):
-        self.study = 'bpeace2'
+        self.study = "bpeace2"
         self.suffix = "ux_s20"
         self.id_crossover = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='id')
         self.beacon_id = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='beacon')
