@@ -579,9 +579,12 @@ class bpeace2():
 
     def __init__(self):
         self.study = 'bpeace2'
+        self.suffix = "ux_s20"
         self.id_crossover = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='id')
         self.beacon_id = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='beacon')
-        self.co2_offset = pd.read_csv('../../data/interim/bpeace2-co2-offset.csv',index_col=0)
+        self.co2_offset = pd.read_csv(f'../../data/interim/co2-offset-{self.suffix}.csv',index_col=0)
+        self.no2_offset = pd.read_csv(f'../../data/interim/no2-offset-{self.suffix}.csv',index_col=0)
+        self.pm2p5_mass_offset = pd.read_csv(f'../../data/interim/pm_c_2p5-offset-{self.suffix}.csv',index_col=0)
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
@@ -672,8 +675,10 @@ class bpeace2():
             end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
             beacon_df = beacon_df[start_date:end_date]
             
-            # offsetting CO2 measurements
-            beacon_df['CO2'] -= self.co2_offset.loc[beacon,'Offset']
+            # offsetting measurements
+            beacon_df['CO2'] -= self.co2_offset.loc[beacon,'mean']
+            beacon_df['NO2'] -= self.no2_offset.loc[beacon,'mean']
+            beacon_df['PM_C_2p5'] -= self.pm2p5_mass_offset.loc[beacon,'mean']
             
             # removing bad values from important variables
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
@@ -735,7 +740,7 @@ class bpeace2():
 
         # saving
         try:
-            beacon_data.to_csv(f'../../data/processed/ux-beacon.csv')
+            beacon_data.to_csv(f'../../data/processed/beacon-{self.suffix}.csv')
         except:
             return False
 
