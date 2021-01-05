@@ -18,7 +18,7 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 class Calibration():
 
-    def __init__(self, start_time, end_time, data_dir="../../data/"):
+    def __init__(self, start_time, end_time, data_dir="../../data/", study_suffix="ux_s20"):
         """
         Initiates the calibration object with:
         - start_time: datetime object with precision to the minute specifying the event START time
@@ -30,6 +30,7 @@ class Calibration():
         self.date = end_time.date().strftime("%m%d%Y")
 
         self.data_dir = data_dir
+        self.suffix = study_suffix
 
     def get_pm_ref(self,file,resample_rate=2):
         """
@@ -281,6 +282,35 @@ class Calibration():
         plt.show()
         plt.close()
 
+    def compare_histogram(self,ref_data,beacon_data,bins):
+        """
+        Plots reference and beacon data as histograms
+
+        Inputs:
+        - ref_data: dataframe of reference data with single column corresponding to data indexed by time
+        - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
+        """
+        fig, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
+        for i, axes in enumerate(ax.flat):
+            # getting relevant data
+            beacon_df = beacon_data[beacon_data["Beacon"] == i]
+            beacon_df.dropna(inplace=True)
+            if len(beacon_df) > 1:
+                # reference data
+                axes.hist(ref_data.iloc[:,0].values,bins=bins,color="black",zorder=1,alpha=0.7)
+                # beacon data
+                axes.hist(beacon_df.iloc[:,0].values,bins=bins,color="seagreen",zorder=9) 
+                axes.set_title(f"Beacon {i}")          
+            else:
+                # making it easier to read by removing the unused figures
+                axes.set_xticks([])
+                axes.set_yticks([])
+                for spine in ["top","right","bottom","left"]:
+                    axes.spines[spine].set_visible(False)  
+            
+        plt.show()
+        plt.close()
+
     def get_marker(self,number):
         """
         Gets a marker style based on the beacon number
@@ -298,16 +328,97 @@ class Calibration():
 
         return m
 
-class Linear_Model(Calibration):
-
-    def __init__(self,start_time,end_time,data_dir):
+    def offset(self, ref_data, beacon_data, ref_var, beacon_var, groups=[],save_to_file=False):
         """
-        Initializes Linear Model pulling from the Calibration Class
-        """
-        super().__init__(start_time,end_time,data_dir)
-        self.model_type="Linear"
+        Gets the average offset value and standard deviation between the beacon and reference measurement
 
-    def regression(self,ref_data,beacon_data,test_size=1,show_plot=True):
+        Inputs:
+        - ref_data: dataframe holding the reference data
+        - beacon_data: dataframe holding the beacon data with column corresponding to the beacon number
+        - ref_var: string of the reference variable in the ref dataframe
+        - beacon_var: string of the beacon variable in the beacond dataframe
+        - groups: list of list for any groups that should be highlighted in the figure
+
+        Returns dataframe holding the average difference and standard deviation between the differences
+        """
+        offsets = {"beacon":[],"mean":[],"std":[]}
+        ref_df = ref_data[ref_var]
+
+        colors = ["seagreen","cornflowerblue","firebrick","goldenrod"]
+        fig, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
+        for i, axes in enumerate(ax.flat):
+            offsets["beacon"].append(i)
+            # getting relevant data
+            beacon_df = beacon_data[beacon_data["Beacon"] == i]
+            beacon_df.dropna(subset=[beacon_var],inplace=True)
+            if len(beacon_df) > 1:
+                # merging beacon and reference data to get difference
+                df = pd.merge(left=beacon_df,left_index=True,right=ref_df,right_index=True,how="inner")
+                df["delta"] = df[beacon_var] - df["Concentration"]
+                # adding data
+                offsets["mean"].append(np.nanmean(df["delta"]))
+                offsets["std"].append(np.nanstd(df["delta"]))
+                axes.scatter(df.index,df["delta"],s=9,color="black") # everything is plotted in black
+                for j, group in enumerate(groups):
+                    if i in group:
+                        axes.scatter(df.index,df["delta"],s=10,color=colors[j]) # this will plot over the initial black scatter
+
+                axes.set_title(f"Beacon {i}")  
+                for spine in ["top","right","bottom"]:
+                    axes.spines[spine].set_visible(False)        
+            else:
+                # adding zeros
+                offsets["mean"].append(np.nanmean(0))
+                offsets["std"].append(np.nanstd(0))
+                # making it easier to read by removing the unused figures
+                axes.set_xticks([])
+                axes.set_yticks([])
+                for spine in ["top","right","bottom","left"]:
+                    axes.spines[spine].set_visible(False)    
+
+        for ax in fig.axes:
+            plt.sca(ax)
+            plt.xticks(rotation=-30,ha="left")
+
+        plt.subplots_adjust(hspace=0.5)
+        plt.show()
+        plt.close()
+
+        offset_df = pd.DataFrame(data=offsets)
+        offset_df.set_index("beacon",inplace=True)
+        if save_to_file:
+            s = beacon_var.lower() #string of variable
+            offset_df.to_csv(f"{self.data_dir}interim/{s}-offset-{self.suffix}.csv")
+
+        # Plotting Corrected Timeseries
+        # -----------------------------
+        fig, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
+        for i, axes in enumerate(ax.flat):
+            # getting relevant data
+            beacon_df = beacon_data[beacon_data["Beacon"] == i]
+            beacon_df.dropna(subset=[beacon_var],inplace=True)
+            if len(beacon_df) > 1:
+                axes.plot(ref_df.index,ref_df["Concentration"],color="black")
+
+                beacon_df[beacon_var] -= offset_df.loc[i,"mean"]
+                axes.plot(beacon_df.index,beacon_df[beacon_var],color="seagreen")
+                axes.set_title(f"Beacon {i}")  
+                for spine in ["top","right","bottom"]:
+                    axes.spines[spine].set_visible(False)         
+            else:
+                # making it easier to read by removing the unused figures
+                axes.set_xticks([])
+                axes.set_yticks([])
+                for spine in ["top","right","bottom","left"]:
+                    axes.spines[spine].set_visible(False)    
+
+        plt.subplots_adjust(hspace=0.5)
+        plt.show()
+        plt.close()
+
+        return offset_df
+
+    def linear_regression(self,ref_data,beacon_data,test_size=1,show_plot=True):
         """
         Runs a regression model
         
@@ -366,14 +477,14 @@ class Linear_Model(Calibration):
             fig.colorbar(im,ax=ax,label="Minutes since Start")
             ax.scatter(x_test,y_test,color='seagreen',label="Test",zorder=1)
             ax.plot(x_test,y_pred,color='firebrick',linewidth=3,label="Prediction",zorder=3)
-            ax.legend(bbox_to_anchor=(1,1),frameon=False)
+            ax.legend(bbox_to_anchor=(1.65,1),frameon=False)
 
             plt_min = min(min(x_train),min(y_train))
             plt_max = max(max(x_train),max(y_train))
-            ax.text(0.975*plt_min,0.975*plt_min,f"Coefficient: {round(regr.coef_[0],3)}",backgroundcolor="white",ma="center")
-            ax.set_xlim([0.95*plt_min,1.05*plt_max])
+            #ax.text(0.975*plt_min,0.975*plt_min,f"Coefficient: {round(regr.coef_[0],3)}",backgroundcolor="white",ma="center")
+            #ax.set_xlim([0.95*plt_min,1.05*plt_max])
             ax.set_xlabel("Reference Measurement")
-            ax.set_ylim([0.95*plt_min,1.05*plt_max])
+            #ax.set_ylim([0.95*plt_min,1.05*plt_max])
             ax.set_ylabel("Beacon Measurement")
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
