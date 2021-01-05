@@ -266,12 +266,17 @@ class Calibration():
         - ref_data: dataframe of reference data with single column corresponding to data indexed by time
         - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
         """
-        
+        ref_data = ref_data[self.start_time:self.end_time]
         fig, ax = plt.subplots(figsize=(16,6))
         ax.plot(ref_data.index,ref_data.iloc[:,0].values,linewidth=3,color="black",zorder=100,label="Reference")
-        for bb in beacon_data["Beacon"].unique():    
-            data_by_bb = beacon_data[beacon_data["Beacon"] == bb]
-            data_by_bb.drop("Beacon",axis=1,inplace=True)
+        for bb in beacon_data.iloc[:,1].unique():    
+            data_by_bb = beacon_data[beacon_data.iloc[:,1] == bb]
+            data_by_bb = data_by_bb[self.start_time:self.end_time]
+            try:
+                data_by_bb.drop("Beacon",axis=1,inplace=True)
+            except KeyError:
+                data_by_bb.drop("beacon",axis=1,inplace=True)
+
             data_by_bb.dropna(inplace=True)
             
             if len(data_by_bb) > 0:
