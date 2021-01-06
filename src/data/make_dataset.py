@@ -580,8 +580,8 @@ class bpeace2():
     def __init__(self):
         self.study = "bpeace2"
         self.suffix = "ux_s20"
-        self.id_crossover = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='id')
-        self.beacon_id = pd.read_excel('../../data/raw/bpeace2/admin/id_crossover.xlsx',sheet_name='beacon')
+        self.id_crossover = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='id')
+        self.beacon_id = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
         self.co2_offset = pd.read_csv(f'../../data/interim/co2-offset-{self.suffix}.csv',index_col=0)
         self.no2_offset = pd.read_csv(f'../../data/interim/no2-offset-{self.suffix}.csv',index_col=0)
         self.pm2p5_mass_offset = pd.read_csv(f'../../data/interim/pm_c_2p5-offset-{self.suffix}.csv',index_col=0)
@@ -603,7 +603,7 @@ class bpeace2():
         '''
 
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
-        beacons_folder='../../data/raw/bpeace2/beacon'
+        beacons_folder='../../data/raw/utx000/beacon'
         # list of all beacons used in the study
         beacon_list = self.beacon_list = [1,5,6,7,10,11,15,16,17,19,21,22,24,25,26,28,29,30,32,34,36,38,40,41,44,46] #13,23,48
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
@@ -617,10 +617,10 @@ class bpeace2():
             beacon_df = pd.DataFrame() # dataframe specific to the beacon
 
             # getting other ids
-            beacon_crossover_info = self.id_crossover.loc[self.id_crossover['Beacon']==beacon].reset_index(drop=True)
-            beiwe = beacon_crossover_info['Beiwe'][0]
-            fitbit = beacon_crossover_info['Fitbit'][0]
-            redcap = beacon_crossover_info['REDCap'][0]
+            beacon_crossover_info = self.id_crossover.loc[self.id_crossover['beacon']==beacon].reset_index(drop=True)
+            beiwe = beacon_crossover_info['beiwe'][0]
+            fitbit = beacon_crossover_info['fitbit'][0]
+            redcap = beacon_crossover_info['redcap'][0]
             del beacon_crossover_info
 
             def import_and_merge(csv_dir,number):
@@ -637,7 +637,7 @@ class bpeace2():
                         # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
                         #print(f'{inst}; filename: {file}')
                         print(f'Issue encountered while importing {csv_dir}/{file}, skipping...')
-                        self.move_to_purgatory(f'{csv_dir}/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
+                        self.move_to_purgatory(f'{csv_dir}/{file}',f'../../data/purgatory/B{number}-py3-{file}-{self.suffix}')
             
                 df = pd.concat(df_list).resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
                 return df
@@ -671,8 +671,8 @@ class bpeace2():
                 beacon_df.index = beacon_df.index + timedelta(days=1827)
 
             # getting relevant data only
-            start_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['start_date'].values[0]
-            end_date = self.beacon_id[self.beacon_id['Beiwe'] == beiwe]['end_date'].values[0]
+            start_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['start_date'].values[0]
+            end_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['end_date'].values[0]
             beacon_df = beacon_df[start_date:end_date]
             
             # offsetting measurements
@@ -724,11 +724,12 @@ class bpeace2():
             beacon_df['rh'] = beacon_df[['RH_CO','RH_NO2']].mean(axis=1)
             beacon_df.drop(["T_NO2","T_CO","RH_NO2","RH_CO","Temperature [C]","Relative Humidity"],axis=1,inplace=True)
 
-            # dropping useless columns
+            # dropping unecessary columns
             beacon_df.drop(["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4"],axis=1,inplace=True)
 
             # renaming columns
             beacon_df.columns = ["tvoc","lux","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]
+            beacon_df.index.rename("timestamp",inplace=True)
 
             # adding columns for the pt details
             beacon_df['beacon'] = beacon
@@ -746,7 +747,7 @@ class bpeace2():
 
         return True
 
-    def process_gps(self, data_dir = '/Volumes/HEF_Dissertation_Research/utx000/extension/data/beiwe/gps/', home=False):
+    def process_gps(self, data_dir='/Volumes/HEF_Dissertation_Research/utx000/data/raw/utx000/beiwe/gps/', home=False):
         '''
         Processes the raw gps data into one csv file for each participant and saves into /data/processed/
         
@@ -771,50 +772,50 @@ class bpeace2():
                             hourly_df = pd.read_csv(f'{data_dir}{pid}/gps/{file}',usecols=[1,2,3,4,5]) # all columns but UTC
                         except KeyError:
                             print(f'Problem with gps data for {file} for Participant {pid}')
-                            self.move_to_purgatory(f'{data_dir}{pid}/gps/{file}',f'../../data/purgatory/{self.study}-{pid}-gps-{file}')
+                            self.move_to_purgatory(f'{data_dir}{pid}/gps/{file}',f'../../data/purgatory/{pid}-gps-{file}-{self.suffix}')
                     
                         if len(hourly_df) > 0: # append to participant df if there were data for that hour
                             participant_df = participant_df.append(hourly_df,ignore_index=True)
                     
                 # converting utc to cdt
-                participant_df['Time'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
-                participant_df.set_index('Time',inplace=True)
+                participant_df['timestamp'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
+                participant_df.set_index('timestamp',inplace=True)
                 # rounding gps and taking the mode for every 5-minutes
                 participant_df = round(participant_df,5)
                 participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
                 # converting values to numeric and removing NaN datapoints
-                participant_df.columns = ['UTC Time','Lat','Long','Alt','Accuracy']
-                for col in ['Lat','Long','Alt','Accuracy']:
+                participant_df.columns = ['utc','lat','long','altitude','accuracy']
+                for col in ['lat','long','altitude','accuracy']:
                     participant_df[col] = pd.to_numeric(participant_df[col],errors='coerce')
 
                 participant_df.dropna(inplace=True)
                 if home == True:
                     # getting participant's home coordinates
-                    home_coords = self.beacon_id.set_index('Beiwe')
-                    home_lat = home_coords.loc[pid,'Lat']
-                    home_long = home_coords.loc[pid,'Long']
+                    home_coords = self.beacon_id.set_index('beiwe')
+                    home_lat = home_coords.loc[pid,'lat']
+                    home_long = home_coords.loc[pid,'long']
                     # getting distance
                     R = 6.371*10**6 # radius of the earth in meters
-                    participant_df['X_Distance'] = abs( R * (participant_df['Lat'] - home_lat) * math.pi * math.cos(home_long) / 180) 
-                    participant_df['Y_Distance'] = abs( R * (participant_df['Long'] - home_long) * math.pi / 180) 
+                    participant_df['x_distance'] = abs( R * (participant_df['lat'] - home_lat) * math.pi * math.cos(home_long) / 180) 
+                    participant_df['y_distance'] = abs( R * (participant_df['long'] - home_long) * math.pi / 180) 
                     dist = []
                     for i in range(len(participant_df)):
                         dist.append(math.sqrt(math.pow(participant_df.iloc[i,-2],2) + math.pow(participant_df.iloc[i,-1],2)))
                         
-                    participant_df['Distance_Home'] = dist
+                    participant_df['home_distance'] = dist
 
-                participant_df['Beiwe'] = pid
+                participant_df['beiwe'] = pid
                 
                 gps_df = gps_df.append(participant_df)
 
         try:
-            gps_df.to_csv(f'../../data/processed/bpeace2-gps.csv')
+            gps_df.to_csv(f'../../data/processed/gps-{self.suffix}.csv')
         except:
             return False
 
         return True
 
-    def process_weekly_surveys(self):
+    def process_weekly_surveys(self, data_dir='../../data/raw/utx000/beiwe/survey_answers/'):
         '''
         Processes raw weekly survey answers. The survey IDs are:
         - eQ2L3J08ChlsdSXXKOoOjyLJ: morning
@@ -823,7 +824,6 @@ class bpeace2():
         Returns True if able to save two dataframes for morning/evening survey data in /data/processed directory
         '''
         # defining some variables for ease of understanding
-        parent_dir = '../../data/raw/bpeace2/beiwe/survey_answers/'
         morning_survey_id = 'eQ2L3J08ChlsdSXXKOoOjyLJ'
         evening_survey_id = '7TaT8zapOWO0xdtONnsY8CE0'
         weekly_survey_id = 'lh9veS0aSw2KfrfwSytYjxVr'
@@ -837,22 +837,22 @@ class bpeace2():
         # -------------------
         print('\tProcessing morning survey data...')
         # looping through the participants and then all their data
-        for participant in os.listdir(parent_dir):
+        for participant in os.listdir(data_dir):
             # making sure we don't read from any hidden directories/files
             if len(participant) == 8:
                 pid = participant
                 participant_df = pd.DataFrame(columns=['ID','Content','Stress','Lonely','Sad','Energy','TST','SOL','NAW','Restful'])
             
-                for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/'):
+                for file in os.listdir(f'{data_dir}{participant}/survey_answers/{morning_survey_id}/'):
                     # reading raw data
-                    df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/{file}')
+                    df = pd.read_csv(f'{data_dir}{participant}/survey_answers/{morning_survey_id}/{file}')
                     # adding new row
                     try:
                         participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=5)] = [pid,df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],
                                                                                                df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer']]
                     except KeyError:
                         print(f'\t\tProblem with morning survey {file} for Participant {pid} - Participant most likely did not answer a question')
-                        self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-morning-{file}')
+                        self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{morning_survey_id}/{file}',f'../../data/purgatory/{pid}-survey-morning-{file}-{self.suffix}')
             
                 # appending participant df to overall df
                 morning_survey_df = morning_survey_df.append(participant_df)
@@ -866,23 +866,24 @@ class bpeace2():
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
         # fixing any string inputs outside the above range
         morning_survey_df['NAW'] = pd.to_numeric(morning_survey_df['NAW'],errors='coerce')
+        morning_survey.columns = ['beiwe','content','stress','lonely','sad','energy','tst','sol','naw','restful']
         
         # Evening Survey Data
         # -------------------
         print('\tProcessing evening survey data...')
-        for participant in os.listdir(parent_dir):
+        for participant in os.listdir(data_dir):
             if len(participant) == 8:
                 pid = participant
                 # less columns
                 participant_df = pd.DataFrame(columns=['ID','Content','Stress','Lonely','Sad','Energy'])
             
-                for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/'):
-                    df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/{file}')
+                for file in os.listdir(f'{data_dir}{participant}/survey_answers/{evening_survey_id}/'):
+                    df = pd.read_csv(f'{data_dir}{participant}/survey_answers/{evening_survey_id}/{file}')
                     try:
                         participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=5)] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer']]
                     except KeyError:
                         print(f'\t\tProblem with evening survey {file} for Participant {pid} - Participant most likely did not answer a question')
-                        self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-evening-{file}')
+                        self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{evening_survey_id}/{file}',f'../../data/purgatory/{pid}-survey-evening-{file}-{self.suffix}')
             
                 evening_survey_df = evening_survey_df.append(participant_df)
             else:
@@ -892,19 +893,20 @@ class bpeace2():
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
+        evening_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy']
 
         # Weekly Survey Data
         # -------------------
         print('\tProcessing weekly survey data...')
-        for participant in os.listdir(parent_dir):
+        for participant in os.listdir(data_dir):
             if len(participant) == 8:
                 pid = participant
                 # less columns
                 participant_df = pd.DataFrame(columns=['ID','Upset','Unable','Stressed','Confident','Your_Way','Cope','Able','Top','Angered','Overcome'])
             
                 try:
-                    for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/'):
-                        df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/{file}')
+                    for file in os.listdir(f'{data_dir}{participant}/survey_answers/{weekly_survey_id}/'):
+                        df = pd.read_csv(f'{data_dir}{participant}/survey_answers/{weekly_survey_id}/{file}')
                         try:
                             participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=6)] = [pid,df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],df.loc[9,'answer'],df.loc[10,'answer']]
                         except KeyError:
@@ -912,7 +914,7 @@ class bpeace2():
                                 participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=6)] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],df.loc[9,'answer']]
                             except:
                                 print(f'\t\tProblem with weekly survey {file} for Participant {pid} - Participant most likely did not answer a question')
-                                self.move_to_purgatory(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/{file}',f'../../data/purgatory/{self.study}-{pid}-survey-weekly-{file}')
+                                self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{weekly_survey_id}/{file}',f'../../data/purgatory/{pid}-survey-weekly-{file}-{self.suffix}')
                 
                     weekly_survey_df = weekly_survey_df.append(participant_df)
                 except FileNotFoundError:
@@ -925,18 +927,19 @@ class bpeace2():
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
+        weekly_sruvey_df.columns = ['beiwe','upset','unable','stressed','confident','your_way','cope','able','top','angered','overcome']
 
         # saving
         try:
-            morning_survey_df.to_csv(f'../../data/processed/bpeace2-morning-survey.csv')
-            evening_survey_df.to_csv(f'../../data/processed/bpeace2-evening-survey.csv')
-            weekly_survey_df.to_csv(f'../../data/processed/bpeace2-weekly-survey.csv')
+            morning_survey_df.to_csv(f'../../data/processed/morning-survey-{self.suffix}.csv')
+            evening_survey_df.to_csv(f'../../data/processed/evening-survey-{self.suffix}.csv')
+            weekly_survey_df.to_csv(f'../../data/processed/weekly-survey-{self.suffix}.csv')
         except:
             return False
 
         return True
 
-    def process_environment_survey(self, data_file='../../data/raw/bpeace2/surveys/EESurvey_E1_raw.csv'):
+    def process_environment_survey(self, data_file='../../data/raw/utx000/surveys/EESurvey_E1_raw.csv'):
         '''
         Processes raw environment survey (first instance) and combines relevant data into processed directory
 
@@ -945,13 +948,13 @@ class bpeace2():
         print('\tProcessing first environment survey...')
 
         ee = pd.read_csv(data_file,usecols=[0,2,4,5,6,7,8,9],parse_dates=[1])
-        ee.columns = ['REDCap','Timestamp','Apartment','Duplex','House','Dorm','Hotel','Other']
-        ee.dropna(subset=['Timestamp'],inplace=True)
-        ee.set_index('Timestamp',inplace=True)
+        ee.columns = ['redcap','timestamp','apartment','duplex','house','dorm','hotel','other_living']
+        ee.dropna(subset=['timestamp'],inplace=True)
+        ee.set_index('timestamp',inplace=True)
 
         # saving
         try:
-            ee.to_csv(f'../../data/processed/bpeace2-ee-survey.csv')
+            ee.to_csv(f'../../data/processed/ee-survey-{self.suffix}.csv')
         except:
             return False
 
@@ -965,7 +968,7 @@ class bpeace2():
         '''
         print('\tProcessing Fitbit data...')
 
-        def import_fitbit(filename, pt_dir=f"../../data/raw/bpeace2/fitbit/"):
+        def import_fitbit(filename, data_dir=f"../../data/raw/utx000/fitbit/"):
             '''
             Imports the specified file for each participant in the directory
 
@@ -976,11 +979,11 @@ class bpeace2():
             '''
             print(f"\tReading from file {filename}")
             df = pd.DataFrame()
-            for pt in os.listdir(pt_dir):
+            for pt in os.listdir(data_dir):
                 if pt[0] != ".":
                     print(f"\t\tReading for participant {pt}")
                     try:
-                        temp = pd.read_csv(f"{pt_dir}{pt}/fitbit_{filename}.csv", index_col=0, parse_dates=True)
+                        temp = pd.read_csv(f"{data_dir}{pt}/fitbit_{filename}.csv", index_col=0, parse_dates=True)
                         if filename[:4] == "intr":
                             temp = process_fitbit_intraday(temp)
 
