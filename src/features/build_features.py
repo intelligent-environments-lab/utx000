@@ -162,7 +162,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True, data_dir='.
 
     # Importing necessary processed data files
     # beacon data
-    beacon = pd.read_csv(f'{data_dir}data/processed/bpeace2-beacon.csv',
+    beacon = pd.read_csv(f'{data_dir}data/processed/beacon-ux_s20.csv',
                         index_col=0,parse_dates=True,infer_datetime_format=True)
     # fitbit sleep data
     sleep = pd.read_csv(f'{data_dir}data/processed/bpeace2-fitbit-sleep-daily.csv',
