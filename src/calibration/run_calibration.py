@@ -145,6 +145,7 @@ class Calibration():
 
         Returns a dataframe with beacon measurements data indexed by time and a column specifying the beacon number
         """
+        self.beacons = beacon_list
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         beacons_folder=f"{self.data_dir}raw/bpeace2/beacon"
         # list of all beacons used in the study
@@ -315,6 +316,30 @@ class Calibration():
             
         plt.show()
         plt.close()
+
+    def get_reporting_beacons(self,beacon_data,beacon_var,beacon_col="Beacon"):
+        """
+        Gets the list of beacons that report measurements from the specified sensor
+        """
+        var_only = beacon_data[[beacon_var,beacon_col]]
+        reporting_beacons = []
+        for bb in var_only[beacon_col].unique():
+            df = var_only.dropna(subset=[beacon_var])
+            if len(df) > 2:
+                reporting_beacons.append(bb)
+        try:
+            if beacon_var.lower() == "no2":
+                possible_beacons = [x for x in self.beacons if x <= 28] # getting no2 sensing beacons only
+                missing_beacons = [x for x in possible_beacons if x not in reporting_beacons]
+            else:
+                missing_beacons = [x for x in self.beacons if x not in reporting_beacons]
+
+            print(f"Missing data from: {missing_beacons}")
+        except AttributeError:
+            print("Calibration object has no attribute beacons - need to run get_beacon_data")
+            return [], reporting_beacons
+
+        return missing_beacons, reporting_beacons
 
     def get_marker(self,number):
         """
