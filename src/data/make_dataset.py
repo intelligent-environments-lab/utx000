@@ -1071,6 +1071,7 @@ class utx000():
             # dropping/renaming columns
             df.drop(["dateOfSleep","infoCode","logId","type"],axis=1,inplace=True)
             df.columns = ["duration_ms","efficiency","end_time","main_sleep","levels","minutes_after_wakeup","minutes_asleep","minutes_awake","minutes_to_sleep","start_time","time_in_bed","date","beiwe"]
+            df.set_index("date",inplace=True)
             return df
 
         def get_sleep_stages(daily_sleep):
