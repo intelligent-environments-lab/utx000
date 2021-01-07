@@ -207,15 +207,15 @@ class ut3000():
 
         return True
 
-class bpeace1():
+class bpeace():
     '''
-    Class used to process bpeace1 data (Spring 2020)
+    Class used to process bpeace data (Spring 2020)
     '''
 
     def __init__(self):
-        self.study = 'bpeace1'
-        self.id_crossover = pd.read_excel('../../data/raw/bpeace1/admin/id_crossover.xlsx',sheet_name='id')
-        self.beacon_id = pd.read_excel('../../data/raw/bpeace1/admin/id_crossover.xlsx',sheet_name='beacon')
+        self.study = 'bpeace'
+        self.id_crossover = pd.read_excel('../../data/raw/bpeace/admin/id_crossover.xlsx',sheet_name='id')
+        self.beacon_id = pd.read_excel('../../data/raw/bpeace/admin/id_crossover.xlsx',sheet_name='beacon')
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
@@ -255,16 +255,16 @@ class bpeace1():
             # Python3 Sensors
             # ---------------
             py3_df = pd.DataFrame() # dataframe for sensors using python3
-            for file in os.listdir(f'../../data/raw/bpeace1/beacon/B{number}/adafruit/'):
+            for file in os.listdir(f'../../data/raw/bpeace/beacon/B{number}/adafruit/'):
                 try:
                     # reading in raw data (csv for one day at a time) and appending it to the overal dataframe
-                    day_df = pd.read_csv(f'../../data/raw/bpeace1/beacon/B{number}/adafruit/{file}',
+                    day_df = pd.read_csv(f'../../data/raw/bpeace/beacon/B{number}/adafruit/{file}',
                                         index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
                     py3_df = pd.concat([py3_df,day_df])
                 except Exception as inst:
                     # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
                     print(f'{inst}; filename: {file}')
-                    self.move_to_purgatory(f'../../data/raw/bpeace1/beacon/B{number}/adafruit/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
+                    self.move_to_purgatory(f'../../data/raw/bpeace/beacon/B{number}/adafruit/{file}',f'../../data/purgatory/{self.study}-B{number}-py3-{file}')
 
             py3_df = py3_df.resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
             # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
@@ -281,14 +281,14 @@ class bpeace1():
             # Python2 Sensors
             # ---------------
             py2_df = pd.DataFrame()
-            for file in os.listdir(f'../../data/raw/bpeace1/beacon/B{number}/sensirion/'):
+            for file in os.listdir(f'../../data/raw/bpeace/beacon/B{number}/sensirion/'):
                 try:
-                    day_df = pd.read_csv(f'../../data/raw/bpeace1/beacon/B{number}/sensirion/{file}',
+                    day_df = pd.read_csv(f'../../data/raw/bpeace/beacon/B{number}/sensirion/{file}',
                                     index_col='Timestamp',parse_dates=True,infer_datetime_format=True)
                     py2_df = pd.concat([py2_df,day_df])
                 except Exception as inst:
                     print(f'{inst}; filename: {file}')
-                    self.move_to_purgatory(f'../../data/raw/bpeace1/beacon/B{number}/sensirion/{file}',f'../../data/purgatory/{self.study}-B{number}-py2-{file}')
+                    self.move_to_purgatory(f'../../data/raw/bpeace/beacon/B{number}/sensirion/{file}',f'../../data/purgatory/{self.study}-B{number}-py2-{file}')
                 
             for col in py2_df.columns:
                 py2_df[col] = pd.to_numeric(py2_df[col],errors='coerce')
@@ -323,7 +323,7 @@ class bpeace1():
 
         # saving
         try:
-            beacon_data.to_csv(f'../../data/processed/bpeace1-beacon.csv')
+            beacon_data.to_csv(f'../../data/processed/bpeace-beacon.csv')
         except:
             return False
 
@@ -338,7 +338,7 @@ class bpeace1():
         Returns True if able to save two dataframes for morning/evening survey data in /data/processed directory
         '''
         # defining some variables for ease of understanding
-        parent_dir = '../../data/raw/bpeace1/beiwe/survey_answers/'
+        parent_dir = '../../data/raw/bpeace/beiwe/survey_answers/'
         morning_survey_id = 'vBewaVfZ6oWcsiAoPvF6CZi7'
         evening_survey_id = 'OymqfwTdyaHFIsJoUNIfPWyG'
         weekly_survey_id = 'aMIwBMFUgO8Rtw2ZFjyMTzDn'
@@ -438,15 +438,15 @@ class bpeace1():
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
         # saving
         try:
-            morning_survey_df.to_csv(f'../../data/processed/bpeace1-morning-survey.csv')
-            evening_survey_df.to_csv(f'../../data/processed/bpeace1-evening-survey.csv')
-            weekly_survey_df.to_csv(f'../../data/processed/bpeace1-weekly-survey.csv')
+            morning_survey_df.to_csv(f'../../data/processed/bpeace-morning-survey.csv')
+            evening_survey_df.to_csv(f'../../data/processed/bpeace-evening-survey.csv')
+            weekly_survey_df.to_csv(f'../../data/processed/bpeace-weekly-survey.csv')
         except:
             return False
  
         return True
 
-    def process_gps(self,resample_rate=1,data_dir='/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/gps/'):
+    def process_gps(self,resample_rate=1,data_dir='/Volumes/HEF_Dissertation_Research/utx000/bpeace/beiwe/gps/'):
         '''
         Processes the raw gps data into one csv file for each participant and saves into /data/processed/
         
@@ -493,14 +493,14 @@ class bpeace1():
                 gps_df = gps_df.append(participant_df)
 
         try:
-            gps_df.to_csv(f'../../data/processed/bpeace1-gps.csv')
+            gps_df.to_csv(f'../../data/processed/bpeace-gps.csv')
         except Exception as inst:
             print(inst)
             return False
 
         return True
 
-    def process_accelerometer(self,resample_rate=100,data_dir='/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/accelerometer/'):
+    def process_accelerometer(self,resample_rate=100,data_dir='/Volumes/HEF_Dissertation_Research/utx000/bpeace/beiwe/accelerometer/'):
         '''
         Processes the raw accelerometer data from each participant into a single csv.
 
@@ -529,7 +529,7 @@ class bpeace1():
                 accel_df = accel_df.append(pt_df)
 
         try:
-            accel_df.to_csv(f'../../data/processed/bpeace1-accelerometer.csv')
+            accel_df.to_csv(f'../../data/processed/bpeace-accelerometer.csv')
         except:
             return False
 
@@ -544,7 +544,7 @@ class bpeace1():
 
         Returns True is able to process the data, false otherwise.
         '''
-        data_dir = f'/Volumes/HEF_Dissertation_Research/utx000/bpeace1/beiwe/{variable}/'
+        data_dir = f'/Volumes/HEF_Dissertation_Research/utx000/bpeace/beiwe/{variable}/'
         print(f'\tProcessing {variable} data...')
 
         var_df = pd.DataFrame()
@@ -565,20 +565,20 @@ class bpeace1():
                 var_df = var_df.append(pt_df)
 
         try:
-            var_df.to_csv(f'../../data/processed/bpeace1-{variable}.csv')
+            var_df.to_csv(f'../../data/processed/bpeace-{variable}.csv')
         except Exception as inst:
             print(inst)
             return False
 
         return True
 
-class bpeace2():
+class utx000():
     '''
-    Class used to process bpeace2 data (Spring 2020 into Summer 2020)
+    Class used to process utx000 data (Spring 2020 into Summer 2020)
     '''
 
     def __init__(self):
-        self.study = "bpeace2"
+        self.study = "utx000"
         self.suffix = "ux_s20"
         self.id_crossover = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='id')
         self.beacon_id = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
@@ -809,7 +809,7 @@ class bpeace2():
                 gps_df = gps_df.append(participant_df)
 
         try:
-            gps_df.to_csv(f'../../data/processed/gps-{self.suffix}.csv')
+            gps_df.to_csv(f'../../data/processed/beiwe-gps-{self.suffix}.csv')
         except:
             return False
 
@@ -866,7 +866,8 @@ class bpeace2():
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
         # fixing any string inputs outside the above range
         morning_survey_df['NAW'] = pd.to_numeric(morning_survey_df['NAW'],errors='coerce')
-        morning_survey.columns = ['beiwe','content','stress','lonely','sad','energy','tst','sol','naw','restful']
+        morning_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy','tst','sol','naw','restful']
+        morning_survey_df.index.rename("timestamp",inplace=True)
         
         # Evening Survey Data
         # -------------------
@@ -894,6 +895,7 @@ class bpeace2():
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
         evening_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy']
+        evening_survey_df.index.rename("timestamp",inplace=True)
 
         # Weekly Survey Data
         # -------------------
@@ -927,14 +929,16 @@ class bpeace2():
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
-        weekly_sruvey_df.columns = ['beiwe','upset','unable','stressed','confident','your_way','cope','able','top','angered','overcome']
+        weekly_survey_df.columns = ['beiwe','upset','unable','stressed','confident','your_way','cope','able','top','angered','overcome']
+        weekly_survey_df.index.rename("timestamp",inplace=True)
 
         # saving
         try:
-            morning_survey_df.to_csv(f'../../data/processed/morning-survey-{self.suffix}.csv')
-            evening_survey_df.to_csv(f'../../data/processed/evening-survey-{self.suffix}.csv')
-            weekly_survey_df.to_csv(f'../../data/processed/weekly-survey-{self.suffix}.csv')
+            morning_survey_df.to_csv(f'../../data/processed/beiwe-morning_ema-{self.suffix}.csv')
+            evening_survey_df.to_csv(f'../../data/processed/beiwe-evening_ema-{self.suffix}.csv')
+            weekly_survey_df.to_csv(f'../../data/processed/beiwe-weekly_ema-{self.suffix}.csv')
         except:
+            print("Problem saving Data")
             return False
 
         return True
@@ -991,7 +995,7 @@ class bpeace2():
                         df = df.append(temp)
                     except FileNotFoundError:
                         print(f"\t\tFile {filename} not found for participant {pt}")
-                        
+            df.index.rename("timestamp",inplace=True)       
             return df
 
         def get_device_df(info_df):
@@ -1022,8 +1026,9 @@ class bpeace2():
                 overall_dict['date'].append(info_df.index[row])
                 
             df = pd.DataFrame(overall_dict)
-            df['date'] = pd.to_datetime(df['date'],errors='coerce')
-            return df.set_index('date')
+            df['timestamp'] = pd.to_datetime(df['date'],errors='coerce')
+            df.drop("date",axis=1,inplace=True)
+            return df.set_index('timestamp')
 
         def get_daily_sleep(daily_df):
             '''
@@ -1063,7 +1068,10 @@ class bpeace2():
             df['date'] = pd.to_datetime(df['date'],errors='coerce')
             # removing classic sleep stage data
             df = df[df['type'] != 'classic']
-            return df.set_index('date')
+            # dropping/renaming columns
+            df.drop(["dateOfSleep","infoCode","logId","type"],axis=1,inplace=True)
+            df.columns = ["duration_ms","efficiency","end_time","main_sleep","levels","minutes_after_wakeup","minutes_asleep","minutes_awake","minutes_to_sleep","start_time","time_in_bed","date","beiwe"]
+            return df
 
         def get_sleep_stages(daily_sleep):
             '''
@@ -1078,12 +1086,12 @@ class bpeace2():
             '''
             
             data_dict = {'startDate':[],'endDate':[],'dateTime':[],'level':[],'seconds':[],'beiwe':[]}
-            summary_dict = {'startDate':[],'endDate':[],'deep_count':[],'deep_minutes':[],'light_count':[],'light_minutes':[],
+            summary_dict = {'start_date':[],'end_date':[],'deep_count':[],'deep_minutes':[],'light_count':[],'light_minutes':[],
                             'rem_count':[],'rem_minutes':[],'wake_count':[],'wake_minutes':[],'beiwe':[]}
-            for row in range(len(daily_sleep)):
-                d0 = pd.to_datetime(daily_sleep['startTime'][row])
-                d1 = pd.to_datetime(daily_sleep['dateOfSleep'][row])
-                sleep_dict = daily_sleep['levels'][row]
+            for i in range(len(daily_sleep)):
+                d0 = pd.to_datetime(daily_sleep.iloc[i,:]["start_time"])
+                d1 = pd.to_datetime(daily_sleep.iloc[i,:]["date"])
+                sleep_dict = daily_sleep.iloc[i,:]["levels"]
                 for key in sleep_dict.keys():
                     if key == 'data': # data without short wake periods
                         temp_data = sleep_dict['data']
@@ -1092,16 +1100,16 @@ class bpeace2():
                                 data_dict[data_key].append(temp_data_dict[data_key])
                             data_dict['startDate'].append(d0.date())
                             data_dict['endDate'].append(d1.date())
-                            data_dict['beiwe'].append(daily_sleep['beiwe'][row])
+                            data_dict['beiwe'].append(daily_sleep.iloc[i,:]['beiwe'])
                     elif key == 'summary': # nightly summary data - already in dictionary form
                         for summary_key in sleep_dict['summary'].keys():
                             stage_dict = sleep_dict['summary'][summary_key]
                             for stage_key in ['count','minutes']:
                                 summary_dict[f'{summary_key}_{stage_key}'].append(stage_dict[stage_key])
                             
-                        summary_dict['startDate'].append(d0.date())
-                        summary_dict['endDate'].append(d1.date())
-                        summary_dict['beiwe'].append(daily_sleep['beiwe'][row])
+                        summary_dict['start_date'].append(d0.date())
+                        summary_dict['end_date'].append(d1.date())
+                        summary_dict['beiwe'].append(daily_sleep.iloc[i,:]['beiwe'])
                     else: # shortData or data with short wake periods - don't need
                         pass
                     
@@ -1127,7 +1135,13 @@ class bpeace2():
 
         def process_fitbit_intraday(raw_df,resample_rate=1):
             '''
-            
+            Creates dataframe from the intraday measurments
+
+            Inputs:
+            - raw_df: dataframe of the raw data from Fitbit
+            - resample_rate: integer specifying the minutes to downsample to
+
+            Returns a dataframe indexed by the first column
             '''
             try:
                 df = raw_df.resample(f'{resample_rate}T').mean()
@@ -1137,29 +1151,30 @@ class bpeace2():
             return df
 
         daily = import_fitbit("daily_records")
+        daily = daily[daily['activities_steps'] > 0 ]
+        
         info = import_fitbit("info")
+
         intra = import_fitbit("intraday_records")
+        intra.columns = ["calories","steps","distance","heartrate","beiwe"]
 
         #device = get_device_df(info)
         print("\t\tProcessing sleep data")
         sleep_daily = get_daily_sleep(daily)
-        sleep_stages, sleep_stages_summary = get_sleep_stages(sleep_daily)
-
-        # some cleaning
         daily.drop(['activities_heart','sleep'],axis=1,inplace=True)
-        daily = daily[daily['activities_steps'] > 0 ]
-        sleep_daily.drop(['levels','type'],axis=1,inplace=True)
+        daily.columns = ["calories","bmr","steps","distance","sedentary_minutes","lightly_active_minutes","fairly_active_minutes","very_active_minutes","calories_from_activities","bmi","fat","weight","food_calories_logged","water_logged","beiwe"]
+        sleep_stages, sleep_stages_summary = get_sleep_stages(sleep_daily)
 
         # saving
         try:
-            daily.to_csv(f'../../data/processed/bpeace2-fitbit-daily.csv')
-            info.to_csv(f'../../data/processed/bpeace2-fitbit-info.csv')
-            intra.to_csv(f'../../data/processed/bpeace2-fitbit-intraday.csv')
+            daily.to_csv(f'../../data/processed/fitbit-daily-{self.suffix}.csv')
+            info.to_csv(f'../../data/processed/fitbit-info-{self.suffix}.csv')
+            intra.to_csv(f'../../data/processed/fitbit-intraday-{self.suffix}.csv')
 
             #device.to_csv(f'../../data/processed/bpeace2-fitbit-device.csv')
-            sleep_daily.to_csv(f'../../data/processed/bpeace2-fitbit-sleep-daily.csv')
-            sleep_stages.to_csv(f'../../data/processed/bpeace2-fitbit-sleep-stages.csv')
-            sleep_stages_summary.to_csv(f'../../data/processed/bpeace2-fitbit-sleep-stages-summary.csv')
+            sleep_daily.to_csv(f'../../data/processed/fitbit-sleep_daily-{self.suffix}.csv',index=False)
+            sleep_stages.to_csv(f'../../data/processed/fitbit-sleep_stages-{self.suffix}.csv',index=False)
+            sleep_stages_summary.to_csv(f'../../data/processed/fitbit-sleep_stages_summary-{self.suffix}.csv',index=False)
         except:
             return False
 
@@ -1175,33 +1190,33 @@ def main():
     print('\t1. UT2000 Beacon')
     print('\t2. UT3000 Fitbit Sleep Stages')
     print('\t3. UT3000 HEH Survey')
-    print('\t4. All BPEACE1 Data')
-    print('\t5. BPEACE1 Beacon')
-    print('\t6. BPEACE1 Weekly EMAs')
-    print('\t7. BPEACE1 GPS')
-    print('\t8. BPEACE1 Accelerometer')
-    print('\t9. BPEACE1 Bluetooth')
-    print('\t10. BPEACE1 Power State')
-    print('\t11. BPEACE1 WiFi')
-    print('\t12. BPEACE1 Reachability')
-    print('\t13. All BPEACE2 Data')
-    print('\t14. BPEACE2 Beacon')
-    print('\t15. BPEACE2 Weekly EMAs')
-    print('\t16. BPEACE2 Fitbit')
-    print('\t17. BPEACE2 GPS')
-    print('\t18. BPEACE2 Accelerometer')
-    print('\t19. BPEACE1 Bluetooth')
-    print('\t20. BPEACE1 Power State')
-    print('\t21. BPEACE1 WiFi')
-    print('\t22. BPEACE1 Reachability')
-    print('\t23. BPEACE2 REDCap Environment and Experiences Survey')
+    print('\t4. All BPEACE Data')
+    print('\t5. BPEACE Beacon')
+    print('\t6. BPEACE Weekly EMAs')
+    print('\t7. BPEACE GPS')
+    print('\t8. BPEACE Accelerometer')
+    print('\t9. BPEACE Bluetooth')
+    print('\t10. BPEACE Power State')
+    print('\t11. BPEACE WiFi')
+    print('\t12. BPEACE Reachability')
+    print('\t13. All UTX000 Data')
+    print('\t14. UTX000 Beacon')
+    print('\t15. UTX000 Weekly EMAs')
+    print('\t16. UTX000 Fitbit')
+    print('\t17. UTX000 GPS')
+    print('\t18. UTX000 Accelerometer')
+    print('\t19. UTX000 Bluetooth')
+    print('\t20. UTX000 Power State')
+    print('\t21. UTX000 WiFi')
+    print('\t22. UTX000 Reachability')
+    print('\t23. UTX000 REDCap Environment and Experiences Survey')
 
     ans = int(input('Answer: '))
     ut1000_processor = ut1000()
     ut2000_processor = ut2000()
     ut3000_processor = ut3000()
-    bpeace1_processor = bpeace1()
-    bpeace2_processor = bpeace2()
+    bpeace_processor = bpeace()
+    utx000_processor = utx000()
 
     # UT2000 Beacon Data
     if ans == 1:
@@ -1225,96 +1240,96 @@ def main():
             logger.info(f'Data for UT3000 HEH survey processed')
         else:
             logger.error(f'Data for UT3000 HEH survey NOT processed')
-    # BPEACE1 Beacon Data
+    # BPEACE Beacon Data
     if ans == 4 or ans == 5:
-        if bpeace1_processor.process_beacon():
-            logger.info(f'Data for BPEACE1 beacons processed')
+        if bpeace_processor.process_beacon():
+            logger.info(f'Data for BPEACE beacons processed')
         else:
-            logger.error(f'Data for BPEACE1 beacons NOT processed')
+            logger.error(f'Data for BPEACE beacons NOT processed')
 
-    # BPEACE1 survey Data
+    # BPEACE survey Data
     if ans == 4 or ans == 6:
-        if bpeace1_processor.process_weekly_surveys():
-            logger.info(f'Data for BPEACE1 surveys processed')
+        if bpeace_processor.process_weekly_surveys():
+            logger.info(f'Data for BPEACE surveys processed')
         else:
-            logger.error(f'Data for BPEACE1 surveys NOT processed')
+            logger.error(f'Data for BPEACE surveys NOT processed')
 
-    # BPEACE1 GPS Data
+    # BPEACE GPS Data
     if ans == 4 or ans == 7:
-        if bpeace1_processor.process_gps():
-            logger.info(f'Data for BPEACE1 GPS processed')
+        if bpeace_processor.process_gps():
+            logger.info(f'Data for BPEACE GPS processed')
         else:
-            logger.error(f'Data for BPEACE1 GPS NOT processed')
+            logger.error(f'Data for BPEACE GPS NOT processed')
 
-    # BPEACE1 accelerometer Data
+    # BPEACE accelerometer Data
     if ans == 4 or ans == 8:
-        if bpeace1_processor.process_accelerometer():
-            logger.info(f'Data for BPEACE1 accelerometer processed')
+        if bpeace_processor.process_accelerometer():
+            logger.info(f'Data for BPEACE accelerometer processed')
         else:
-            logger.error(f'Data for BPEACE1 accelerometer NOT processed')
+            logger.error(f'Data for BPEACE accelerometer NOT processed')
 
-    # BPEACE1 bluetooth Data
+    # BPEACE bluetooth Data
     if ans == 4 or ans == 9:
-        if bpeace1_processor.process_noavg_beiwe():
-            logger.info(f'Data for BPEACE1 bluetooth processed')
+        if bpeace_processor.process_noavg_beiwe():
+            logger.info(f'Data for BPEACE bluetooth processed')
         else:
-            logger.error(f'Data for BPEACE1 bluetooth NOT processed')
+            logger.error(f'Data for BPEACE bluetooth NOT processed')
 
-    # BPEACE1 power state Data
+    # BPEACE power state Data
     if ans == 4 or ans == 10:
-        if bpeace1_processor.process_noavg_beiwe(variable='power_state'):
-            logger.info(f'Data for BPEACE1 power state processed')
+        if bpeace_processor.process_noavg_beiwe(variable='power_state'):
+            logger.info(f'Data for BPEACE power state processed')
         else:
-            logger.error(f'Data for BPEACE1 power state NOT processed')
+            logger.error(f'Data for BPEACE power state NOT processed')
 
-    # BPEACE1 Wifi Data
+    # BPEACE Wifi Data
     if ans == 4 or ans == 11:
-        if bpeace1_processor.process_noavg_beiwe(variable='wifi'):
-            logger.info(f'Data for BPEACE1 WiFi processed')
+        if bpeace_processor.process_noavg_beiwe(variable='wifi'):
+            logger.info(f'Data for BPEACE WiFi processed')
         else:
-            logger.error(f'Data for BPEACE1 WiFi NOT processed')
+            logger.error(f'Data for BPEACE WiFi NOT processed')
 
-    # BPEACE1 reachability Data
+    # BPEACE reachability Data
     if ans == 4 or ans == 12:
-        if bpeace1_processor.process_noavg_beiwe(variable='reachability'):
-            logger.info(f'Data for BPEACE1 reachability processed')
+        if bpeace_processor.process_noavg_beiwe(variable='reachability'):
+            logger.info(f'Data for BPEACE reachability processed')
         else:
-            logger.error(f'Data for BPEACE1 reachability NOT processed')
+            logger.error(f'Data for BPEACE reachability NOT processed')
 
-    # BPEACE2 Beacon Data
+    # UTX000 Beacon Data
     if ans == 13 or ans == 14:
-        if bpeace2_processor.process_beacon():
-            logger.info(f'Data for BPEACE2 beacons processed')
+        if utx000_processor.process_beacon():
+            logger.info(f'Data for UTX000 beacons processed')
         else:
-            logger.error(f'Data for BPEACE2 beacons NOT processed')
+            logger.error(f'Data for UTX000 beacons NOT processed')
 
-    # BPEACE2 survey Data
+    # UTX000 survey Data
     if ans == 13 or ans == 15:
-        if bpeace2_processor.process_weekly_surveys():
-            logger.info(f'Data for BPEACE2 morning and evening surveys processed')
+        if utx000_processor.process_weekly_surveys():
+            logger.info(f'Data for UTX000 morning and evening surveys processed')
         else:
-            logger.error(f'Data for BPEACE2 morning and evening surveys NOT processed')
+            logger.error(f'Data for UTX000 morning and evening surveys NOT processed')
 
-    # BPEACE2 fitbit
+    # UTX000 fitbit
     if ans == 13 or ans == 16:
-        if bpeace2_processor.process_fitbit():
-            logger.info(f'Data for BPEACE2 fitbit processed')
+        if utx000_processor.process_fitbit():
+            logger.info(f'Data for UTX000 fitbit processed')
         else:
-            logger.error(f'Data for BPEACE2 fitbit NOT processed')
+            logger.error(f'Data for UTX000 fitbit NOT processed')
 
-    # BPEACE2 gps Data
+    # UTX000 gps Data
     if ans == 13 or ans == 17:
-        if bpeace2_processor.process_gps():
-            logger.info(f'Data for BPEACE2 GPS processed')
+        if utx000_processor.process_gps():
+            logger.info(f'Data for UTX000 GPS processed')
         else:
-            logger.error(f'Data for BPEACE2 GPS NOT processed')
+            logger.error(f'Data for UTX000 GPS NOT processed')
 
-    # BPEACE2 EE Survey
+    # UTX000 EE Survey
     if ans == 13 or ans == 18:
-        if bpeace2_processor.process_environment_survey():
-            logger.info(f'Data for BPEACE2 environment and experiences survey processed')
+        if utx000_processor.process_environment_survey():
+            logger.info(f'Data for UTX000 environment and experiences survey processed')
         else:
-            logger.error(f'Data for BPEACE2 environment and experiences survey NOT processed')
+            logger.error(f'Data for UTX000 environment and experiences survey NOT processed')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
