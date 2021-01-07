@@ -70,12 +70,22 @@ class Diagnostics():
 
     def getUpdates(self, beacon_no):
         """
-        Pulls in updates from git
+        Pulls in updates from git, adds any necessary packages, and then updates/upgrades
         """
+
         print("\n\tUpdating from Git:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio && cd bevo_iaq/Setup/Code && rm *.pyc && git reset --hard && git pull"')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd bevo_iaq/Setup/Code && rm *.pyc && git reset --hard && git pull"')
         os.system(f'scp -o ConnectTimeout=1 ~/Projects/utx000/src/diagnostics/test.sh pi@iaq{beacon_no}:/home/pi/test.sh')
         os.system(f'ssh -o ConnectTimeout=1 pi@iaq{beacon_no} "sh /home/pi/test.sh {beacon_no}"')
+
+        print("\n\tAdding Python3 PiGPIO:")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio"')
+
+        print("\n\tUpdating Packages:")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get update"')
+
+        print("\n\tUpgrading Packages:")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
 
     def downloadData(self, beacon_no, save_dir="~/Projects/utx000/data/raw/bpeace2/beacon/"):
         """
