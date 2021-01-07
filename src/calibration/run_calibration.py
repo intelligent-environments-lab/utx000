@@ -18,7 +18,7 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 class Calibration():
 
-    def __init__(self, start_time, end_time, data_dir="../../data/", study_suffix="ux_s20"):
+    def __init__(self, start_time, end_time, data_dir="../../data/", study_suffix="ux_s20", calibration_start=datetime(2020,12,30,12,40,0)):
         """
         Initiates the calibration object with:
         - start_time: datetime object with precision to the minute specifying the event START time
@@ -28,6 +28,7 @@ class Calibration():
         self.start_time = start_time
         self.end_time = end_time
         self.date = end_time.date().strftime("%m%d%Y")
+        self.calibration_start = calibration_start # start datetime for the beginning of ALL calibration events
 
         self.data_dir = data_dir
         self.suffix = study_suffix
@@ -134,7 +135,7 @@ class Calibration():
             print("No file found for this event - returning empty dataframe")
             return pd.DataFrame()
 
-    def get_beacon_data(self,beacon_list=np.arange(0,51,1),resample_rate=2,verbose=False):
+    def get_beacon_data(self,beacon_list=np.arange(0,51,1),resample_rate=2,verbose=False,**kwargs):
         """
         Gets beacon data to calibrate
 
@@ -208,7 +209,11 @@ class Calibration():
                 beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
 
                 # getting relevant data only
-                beacon_df = beacon_df[self.start_time:self.end_time]
+                if "start_time" in kwargs.keys():
+                    beacon_df = beacon_df[kwargs["start_time"]:]
+                else:
+                    beacon_df = beacon_df[self.start_time:self.end_time]
+
                 beacon_df.drop(['TVOC', 'eCO2', 'Lux', 'Visible', 'Infrared', "CO","T_CO","RH_CO","T_NO2","RH_NO2",'Temperature [C]','Relative Humidity','PM_N_4','PM_C_4'],axis=1,inplace=True)
 
                 # concatenating the data to the overall dataframe
@@ -358,7 +363,7 @@ class Calibration():
 
         return m
 
-    def offset(self, ref_data, beacon_data, ref_var, beacon_var, groups=[],save_to_file=False):
+    def offset(self,ref_data,beacon_data,ref_var,beacon_var,groups=[],save_to_file=False,show_corrected=False):
         """
         Gets the average offset value and standard deviation between the beacon and reference measurement
 
@@ -420,31 +425,50 @@ class Calibration():
             s = beacon_var.lower() #string of variable
             offset_df.to_csv(f"{self.data_dir}interim/{s}-offset-{self.suffix}.csv")
 
-        # Plotting Corrected Timeseries
-        # -----------------------------
-        fig, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
-        for i, axes in enumerate(ax.flat):
-            # getting relevant data
-            beacon_df = beacon_data[beacon_data["Beacon"] == i]
-            beacon_df.dropna(subset=[beacon_var],inplace=True)
-            if len(beacon_df) > 1:
-                axes.plot(ref_df.index,ref_df["Concentration"],color="black")
+        if show_corrected:
+            # Plotting Corrected Timeseries by Beacon
+            # ---------------------------------------
+            fig, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
+            for i, axes in enumerate(ax.flat):
+                # getting relevant data
+                beacon_df = beacon_data[beacon_data["Beacon"] == i]
+                beacon_df.dropna(subset=[beacon_var],inplace=True)
+                if len(beacon_df) > 1:
+                    axes.plot(ref_df.index,ref_df["Concentration"],color="black")
 
-                beacon_df[beacon_var] -= offset_df.loc[i,"mean"]
-                axes.plot(beacon_df.index,beacon_df[beacon_var],color="seagreen")
-                axes.set_title(f"Beacon {i}")  
-                for spine in ["top","right","bottom"]:
-                    axes.spines[spine].set_visible(False)         
-            else:
-                # making it easier to read by removing the unused figures
-                axes.set_xticks([])
-                axes.set_yticks([])
-                for spine in ["top","right","bottom","left"]:
-                    axes.spines[spine].set_visible(False)    
+                    beacon_df[beacon_var] -= offset_df.loc[i,"mean"]
+                    axes.plot(beacon_df.index,beacon_df[beacon_var],color="seagreen")
+                    axes.set_title(f"Beacon {i}")  
+                    for spine in ["top","right","bottom"]:
+                        axes.spines[spine].set_visible(False)         
+                else:
+                    # making it easier to read by removing the unused figures
+                    axes.set_xticks([])
+                    axes.set_yticks([])
+                    for spine in ["top","right","bottom","left"]:
+                        axes.spines[spine].set_visible(False)    
 
-        plt.subplots_adjust(hspace=0.5)
-        plt.show()
-        plt.close()
+            plt.subplots_adjust(hspace=0.5)
+            plt.show()
+            plt.close()
+
+            # Plotting Corrected Timeseries over Entire Calibration
+            # -----------------------------------------------------
+            all_beacon = self.get_beacon_data(start_time=self.calibration_start)
+            fig, ax = plt.subplots(figsize=(16,6))
+            for bb in all_beacon["Beacon"].unique():
+                beacon_df = all_beacon[all_beacon["Beacon"] == bb]
+                beacon_df.dropna(subset=[beacon_var],inplace=True)
+                if len(beacon_df) > 1:
+                    beacon_df[beacon_var] -= offset_df.loc[bb,"mean"]
+                    ax.plot(beacon_df.index,beacon_df[beacon_var],marker=self.get_marker(int(bb)),zorder=int(bb),label=bb)
+            
+            for spine in ["top","right"]:
+                ax.spines[spine].set_visible(False) 
+
+            ax.legend(bbox_to_anchor=(1,1),frameon=False,ncol=2)
+            plt.show()
+            plt.close()
 
         return offset_df
 
