@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 class Diagnostics():
 
-    def __init__(self, single=False, save_dir="~/Projects/utx000/data/raw/bpeace2/beacon/"):
+    def __init__(self, single=False, save_dir="~/Projects/utx000/data/raw/utx000/beacon/"):
         """
         Checks if we want a single beacon, otherwise runs for all. User can
         download, remove, or run diagnostics.
@@ -84,10 +84,10 @@ class Diagnostics():
         print("\n\tUpdating Packages:")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get update"')
 
-        print("\n\tUpgrading Packages:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
+        #print("\n\tUpgrading Packages:")
+        #os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
 
-    def downloadData(self, beacon_no, save_dir="~/Projects/utx000/data/raw/bpeace2/beacon/"):
+    def downloadData(self, beacon_no, save_dir="~/Projects/utx000/data/raw/utx000/beacon/"):
         """
         Downloads data from specified beacon
         """
