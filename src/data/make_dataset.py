@@ -1164,6 +1164,7 @@ class utx000():
         daily.drop(['activities_heart','sleep'],axis=1,inplace=True)
         daily.columns = ["calories","bmr","steps","distance","sedentary_minutes","lightly_active_minutes","fairly_active_minutes","very_active_minutes","calories_from_activities","bmi","fat","weight","food_calories_logged","water_logged","beiwe"]
         sleep_stages, sleep_stages_summary = get_sleep_stages(sleep_daily)
+        sleep_daily.drop(["levels"],axis=1,inplace=True)
 
         # saving
         try:
