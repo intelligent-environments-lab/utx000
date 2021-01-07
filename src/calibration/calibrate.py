@@ -51,10 +51,10 @@ class Calibration():
         for i in range(len(date)):
             datetimes.append(datetime.strptime(date[i] + ' ' + sample_time[i],'%m/%d/%y %H:%M:%S') + timedelta(minutes=4))
 
-        df['Timestamp'] = datetimes
-        df = df.set_index(['Timestamp'])
+        df['timestamp'] = datetimes
+        df.set_index(['timestamp'],inplace=True)
         df = df.iloc[:,:54]
-        df = df.drop(['Date','Start Time'],axis=1)
+        df.drop(['Date','Start Time'],axis=1,inplace=True)
 
         for column in df.columns:
             df[column] = pd.to_numeric(df[column])
@@ -64,12 +64,13 @@ class Calibration():
         else:
             factor = 1
 
-        df['PM_1'] = df.iloc[:,:10].sum(axis=1)*factor
-        df['PM_2p5'] = df.iloc[:,:23].sum(axis=1)*factor
-        df['PM_10'] = df.iloc[:,:42].sum(axis=1)*factor
+        df['pm1'] = df.iloc[:,:10].sum(axis=1)*factor
+        df['pm2p5'] = df.iloc[:,:23].sum(axis=1)*factor
+        df['pm10'] = df.iloc[:,:42].sum(axis=1)*factor
 
         df_resampled = df.resample(f"{resample_rate}T").mean()
-        return df_resampled[self.start_time:self.end_time]
+        df_resampled = df_resampled[self.start_time:self.end_time]
+        return df_resampled
 
     def get_co2_ref(self,file,resample_rate=2):
         """
@@ -82,9 +83,9 @@ class Calibration():
         Returns a dataframe with co2 concentration data indexed by time
         """
         try:
-            raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",usecols=[0,1],names=["Timestamp","Concentration"])
-            raw_data["Timestamp"] = pd.to_datetime(raw_data["Timestamp"],yearfirst=True)
-            raw_data.set_index("Timestamp",inplace=True)
+            raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",usecols=[0,1],names=["timestamp","concentration"])
+            raw_data["timestamp"] = pd.to_datetime(raw_data["timestamp"],yearfirst=True)
+            raw_data.set_index("timestamp",inplace=True)
             df = raw_data.resample(f"{resample_rate}T").mean()
             return df[self.start_time:self.end_time]
         except FileNotFoundError:
@@ -107,11 +108,12 @@ class Calibration():
             ts = []
             for seconds in raw_data["IgorTime"]:
                 ts.append(datetime(1904,1,1) + timedelta(seconds=int(seconds)))
-            raw_data["Timestamp"] = ts
-            raw_data.set_index("Timestamp",inplace=True)
+            raw_data["timestamp"] = ts
+            raw_data.set_index("timestamp",inplace=True)
             raw_data.drop("IgorTime",axis=1,inplace=True)
 
             df = raw_data.resample(f"{resample_rate}T").mean()
+            df.columns = ["concentration"]
             return df[self.start_time:self.end_time]
         except FileNotFoundError:
             print("No file found for this event - returning empty dataframe")
@@ -128,7 +130,7 @@ class Calibration():
         Returns a dataframe with no concentration data indexed by time
         """
         try:
-            raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",names=["TimeStamp","Concentration"],skiprows=1,index_col=0,parse_dates=True,infer_datetime_format=True)
+            raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",names=["timestamp","concentration"],skiprows=1,index_col=0,parse_dates=True,infer_datetime_format=True)
             df = raw_data.resample(f"{resample_rate}T").mean()
             return df[self.start_time:self.end_time]
         except FileNotFoundError:
@@ -217,9 +219,10 @@ class Calibration():
                 beacon_df.drop(['TVOC', 'eCO2', 'Lux', 'Visible', 'Infrared', "CO","T_CO","RH_CO","T_NO2","RH_NO2",'Temperature [C]','Relative Humidity','PM_N_4','PM_C_4'],axis=1,inplace=True)
 
                 # concatenating the data to the overall dataframe
-                beacon_df['Beacon'] = beacon
+                beacon_df['beacon'] = beacon
                 beacon_data = pd.concat([beacon_data,beacon_df])
 
+        beacon_data.columns = ["no2","co2","pm0p5_number","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","beacon"]
         return beacon_data
 
     def inspect(self,df,timeseries=True):
@@ -227,15 +230,15 @@ class Calibration():
         Visually inspect data in dataframe
 
         Inputs:
-        - df: dataframe with one column with values or column named "Beacons" that includes the beacon number
+        - df: dataframe with one column with values or column named "beacons" that includes the beacon number
         - timeseries: boolean specifying whether or not to plot the timeseries or not (therefore heatmap)
         """
 
         if timeseries:
             fig, ax = plt.subplots(figsize=(16,6))
-            if "Beacon" in df.columns:
-                for bb in df["Beacon"].unique():
-                    df_by_bb = df[df["Beacon"] == bb]
+            if "beacon" in df.columns:
+                for bb in df["beacon"].unique():
+                    df_by_bb = df[df["beacon"] == bb]
                     ax.plot(df_by_bb.index,df_by_bb.iloc[:,0].values,marker=self.get_marker(int(bb)),label=bb)
             else:
                 ax.plot(df.index,df.iloc[:,0].values,linewidth=3,color="black",label="Ref")
@@ -245,14 +248,14 @@ class Calibration():
             plt.close()
         else: #heatmap
             fig,ax = plt.subplots(figsize=(14,7))
-            if "Beacon" in df.columns:
-                df.columns=["Concentration","Beacon"]
+            if "beacon" in df.columns:
+                df.columns=["concentration","beacon"]
                 df_to_plot = pd.DataFrame()
-                for bb in df["Beacon"].unique():
-                    df_by_bb = df[df["Beacon"] == bb]
-                    df_by_bb.drop("Beacon",axis=1,inplace=True)
+                for bb in df["beacon"].unique():
+                    df_by_bb = df[df["beacon"] == bb]
+                    df_by_bb.drop("beacon",axis=1,inplace=True)
                     df_to_plot = pd.concat([df_to_plot,df_by_bb],axis=1)
-                    df_to_plot.rename(columns={"Concentration":bb}, inplace=True)
+                    df_to_plot.rename(columns={"concentration":bb}, inplace=True)
 
                 sns.heatmap(df_to_plot.T,vmin=np.nanmin(df_to_plot),vmax=np.nanmax(df_to_plot),ax=ax)
                 locs, labels = plt.xticks()
@@ -279,7 +282,7 @@ class Calibration():
             data_by_bb = beacon_data[beacon_data.iloc[:,1] == bb]
             data_by_bb = data_by_bb[self.start_time:self.end_time]
             try:
-                data_by_bb.drop("Beacon",axis=1,inplace=True)
+                data_by_bb.drop("beacon",axis=1,inplace=True)
             except KeyError:
                 data_by_bb.drop("beacon",axis=1,inplace=True)
 
@@ -304,14 +307,14 @@ class Calibration():
         fig, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
         for i, axes in enumerate(ax.flat):
             # getting relevant data
-            beacon_df = beacon_data[beacon_data["Beacon"] == i]
+            beacon_df = beacon_data[beacon_data["beacon"] == i]
             beacon_df.dropna(inplace=True)
             if len(beacon_df) > 1:
                 # reference data
                 axes.hist(ref_data.iloc[:,0].values,bins=bins,color="black",zorder=1,alpha=0.7)
                 # beacon data
                 axes.hist(beacon_df.iloc[:,0].values,bins=bins,color="seagreen",zorder=9) 
-                axes.set_title(f"Beacon {i}")          
+                axes.set_title(f"beacon {i}")          
             else:
                 # making it easier to read by removing the unused figures
                 axes.set_xticks([])
@@ -322,7 +325,7 @@ class Calibration():
         plt.show()
         plt.close()
 
-    def get_reporting_beacons(self,beacon_data,beacon_var,beacon_col="Beacon"):
+    def get_reporting_beacons(self,beacon_data,beacon_var,beacon_col="beacon"):
         """
         Gets the list of beacons that report measurements from the specified sensor
         """
@@ -384,12 +387,12 @@ class Calibration():
         for i, axes in enumerate(ax.flat):
             offsets["beacon"].append(i)
             # getting relevant data
-            beacon_df = beacon_data[beacon_data["Beacon"] == i]
+            beacon_df = beacon_data[beacon_data["beacon"] == i]
             beacon_df.dropna(subset=[beacon_var],inplace=True)
             if len(beacon_df) > 1:
                 # merging beacon and reference data to get difference
                 df = pd.merge(left=beacon_df,left_index=True,right=ref_df,right_index=True,how="inner")
-                df["delta"] = df[beacon_var] - df["Concentration"]
+                df["delta"] = df[beacon_var] - df["concentration"]
                 # adding data
                 offsets["mean"].append(np.nanmean(df["delta"]))
                 offsets["std"].append(np.nanstd(df["delta"]))
@@ -398,7 +401,7 @@ class Calibration():
                     if i in group:
                         axes.scatter(df.index,df["delta"],s=10,color=colors[j]) # this will plot over the initial black scatter
 
-                axes.set_title(f"Beacon {i}")  
+                axes.set_title(f"beacon {i}")  
                 for spine in ["top","right","bottom"]:
                     axes.spines[spine].set_visible(False)        
             else:
@@ -426,19 +429,19 @@ class Calibration():
             offset_df.to_csv(f"{self.data_dir}interim/{s}-offset-{self.suffix}.csv")
 
         if show_corrected:
-            # Plotting Corrected Timeseries by Beacon
+            # Plotting Corrected Timeseries by beacon
             # ---------------------------------------
             fig, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
             for i, axes in enumerate(ax.flat):
                 # getting relevant data
-                beacon_df = beacon_data[beacon_data["Beacon"] == i]
+                beacon_df = beacon_data[beacon_data["beacon"] == i]
                 beacon_df.dropna(subset=[beacon_var],inplace=True)
                 if len(beacon_df) > 1:
-                    axes.plot(ref_df.index,ref_df["Concentration"],color="black")
+                    axes.plot(ref_df.index,ref_df["concentration"],color="black")
 
                     beacon_df[beacon_var] -= offset_df.loc[i,"mean"]
                     axes.plot(beacon_df.index,beacon_df[beacon_var],color="seagreen")
-                    axes.set_title(f"Beacon {i}")  
+                    axes.set_title(f"beacon {i}")  
                     for spine in ["top","right","bottom"]:
                         axes.spines[spine].set_visible(False)         
                 else:
@@ -456,8 +459,8 @@ class Calibration():
             # -----------------------------------------------------
             all_beacon = self.get_beacon_data(start_time=self.calibration_start)
             fig, ax = plt.subplots(figsize=(16,6))
-            for bb in all_beacon["Beacon"].unique():
-                beacon_df = all_beacon[all_beacon["Beacon"] == bb]
+            for bb in all_beacon["beacon"].unique():
+                beacon_df = all_beacon[all_beacon["beacon"] == bb]
                 beacon_df.dropna(subset=[beacon_var],inplace=True)
                 if len(beacon_df) > 1:
                     beacon_df[beacon_var] -= offset_df.loc[bb,"mean"]
@@ -493,7 +496,7 @@ class Calibration():
             min_end_date = min(ref_data.index[-1],beacon_data.index[-1])
             ref_data = ref_data[max_start_date:min_end_date]
             beacon_data = beacon_data[max_start_date:min_end_date]
-            warnings.warn("Reference and Beacon data are not the same length")
+            warnings.warn("Reference and beacon data are not the same length")
         # splitting beacon data
         if test_size == 1:
             times = []
@@ -539,7 +542,7 @@ class Calibration():
             #ax.set_xlim([0.95*plt_min,1.05*plt_max])
             ax.set_xlabel("Reference Measurement")
             #ax.set_ylim([0.95*plt_min,1.05*plt_max])
-            ax.set_ylabel("Beacon Measurement")
+            ax.set_ylabel("beacon Measurement")
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
