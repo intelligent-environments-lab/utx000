@@ -17,11 +17,11 @@ class single_var:
     - study: string specifying the study name
     '''
 
-    def __init__(self, study):
+    def __init__(self, study_suffix):
         # figure type - for naming when saving
         self.fig_type = ''
         # study - for naming when saving
-        self.study = study
+        self.study_suffix = study_suffix
 
     def timeseries(self, t, y, save=False, **kwargs):
         '''
@@ -120,7 +120,7 @@ class single_var:
         if save:
             # default location for Hagen's projects
             y_var = input('Shorthand for y-variable: ') ## user input for variable to identify figure
-            plt.savefig(f'../../reports/figures/{self.study}-{yvar}-{self.fig_type}.pdf')
+            plt.savefig(f'../../reports/figures/{yvar}-{self.fig_type}-{self.study_suffix}.png')
         
         # return the fig and axis so user can do more unique modifications
         return fig, ax
@@ -192,7 +192,7 @@ class single_var:
         if save:
             # default location for Hagen's projects
             y_var = input('Shorthand for y-variable: ') ## user input for variable to identify figure
-            plt.savefig(f'../../reports/figures/{self.study}-{yvar}-{self.fig_type}.pdf')
+            plt.savefig(f'../../reports/figures/{yvar}-{self.fig_type}-{self.study_suffix}.png')
         
         # return the fig and axis so user can do more unique modifications
         return fig, ax
