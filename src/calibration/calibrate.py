@@ -32,6 +32,7 @@ class Calibration():
 
         self.data_dir = data_dir
         self.suffix = study_suffix
+        self.beacons = []
 
     def get_pm_ref(self,file,resample_rate=2):
         """
@@ -150,7 +151,7 @@ class Calibration():
         """
         self.beacons = beacon_list
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
-        beacons_folder=f"{self.data_dir}raw/bpeace2/beacon"
+        beacons_folder=f"{self.data_dir}raw/utx000/beacon"
         # list of all beacons used in the study
         if verbose:
             print('Processing beacon data...\n\tReading for beacon:')
