@@ -584,7 +584,8 @@ class utx000():
         self.beacon_id = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
         self.co2_offset = pd.read_csv(f'../../data/interim/co2-offset-{self.suffix}.csv',index_col=0)
         self.no2_offset = pd.read_csv(f'../../data/interim/no2-offset-{self.suffix}.csv',index_col=0)
-        self.pm2p5_mass_offset = pd.read_csv(f'../../data/interim/pm_c_2p5-offset-{self.suffix}.csv',index_col=0)
+        self.pm2p5_mass_offset = pd.read_csv(f'../../data/interim/pm2p5_mass-offset-{self.suffix}.csv',index_col=0)
+        self.pm2p5_number_offset = pd.read_csv(f'../../data/interim/pm2p5_number-offset-{self.suffix}.csv',index_col=0)
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
@@ -605,7 +606,7 @@ class utx000():
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         beacons_folder='../../data/raw/utx000/beacon'
         # list of all beacons used in the study
-        beacon_list = self.beacon_list = [1,5,6,7,10,11,15,16,17,19,21,22,24,25,26,28,29,30,32,34,36,38,40,41,44,46] #13,23,48
+        beacon_list = self.beacon_list = [1,5,6,10,11,15,16,17,19,21,22,24,25,26,28,29,30,32,34,36,38,40,41,44,46] #13,23,48
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
         for beacon in beacon_list:
 
@@ -647,11 +648,14 @@ class utx000():
             py3_df = import_and_merge(f'{beacon_folder}/adafruit', number)
             
             # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
-            if number in ['28','29','32','34','36','38','40','46','30','44','48']:
+            if int(number) >= 28:
                 print('\t\t\tNo NO2 sensor - removing values')
 
                 py3_df[['CO','T_CO','RH_CO']] = py3_df[['NO2','T_NO2','RH_NO2']]
                 py3_df[['NO2','T_NO2','RH_NO2']] = np.nan
+            # Removing data from bad sensors
+            elif int(number) in [21,24,26]:
+                py3_df[['NO2']] = np.nan
 
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
 
