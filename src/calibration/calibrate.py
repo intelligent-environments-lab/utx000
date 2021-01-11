@@ -217,13 +217,13 @@ class Calibration():
                 else:
                     beacon_df = beacon_df[self.start_time:self.end_time]
 
-                beacon_df.drop(['TVOC', 'eCO2', 'Lux', 'Visible', 'Infrared', "CO","T_CO","RH_CO","T_NO2","RH_NO2",'Temperature [C]','Relative Humidity','PM_N_4','PM_C_4'],axis=1,inplace=True)
+                beacon_df.drop(['TVOC','eCO2','Visible','Infrared',"T_CO","RH_CO","T_NO2","RH_NO2",'Temperature [C]','Relative Humidity','PM_N_0p5','PM_N_4','PM_C_4'],axis=1,inplace=True)
 
                 # concatenating the data to the overall dataframe
                 beacon_df['beacon'] = beacon
                 beacon_data = pd.concat([beacon_data,beacon_df])
 
-        beacon_data.columns = ["no2","co2","pm0p5_number","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","beacon"]
+        beacon_data.columns = ["light","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","beacon"]
         return beacon_data
 
     def inspect(self,df,timeseries=True):

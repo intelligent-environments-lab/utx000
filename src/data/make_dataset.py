@@ -653,8 +653,9 @@ class utx000():
 
                 py3_df[['CO','T_CO','RH_CO']] = py3_df[['NO2','T_NO2','RH_NO2']]
                 py3_df[['NO2','T_NO2','RH_NO2']] = np.nan
+
             # Removing data from bad sensors
-            elif int(number) in [21,24,26]:
+            if int(number) in [21,24,26]:
                 py3_df[['NO2']] = np.nan
 
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
@@ -662,6 +663,11 @@ class utx000():
             # Python2 Sensors
             # ---------------
             py2_df = import_and_merge(f'{beacon_folder}/sensirion', number)
+
+            # removing data from bad sensors
+            if int(number) in [32]:
+                for variable in ['PM_C_1','PM_C_2p5','PM_C_10','PM_N_1','PM_N_2p5','PM_N_10']:
+                    py2_df[[var]] = np.nan
                 
             # merging python2 and 3 sensor dataframes
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
