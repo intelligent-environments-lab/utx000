@@ -34,6 +34,18 @@ class Calibration():
         self.suffix = study_suffix
         self.beacons = []
 
+    def get_zero_baseline(self,resample_rate=2):
+        """
+        Returns a dataframe with all zero values for an arbitrary baseline of zero
+        
+        Inputs:
+        - resample_rate: integer specifying the resample rate in minutes
+        """
+        dts = pd.date_range(self.start_time,self.end_time,freq='2T')
+        df = pd.DataFrame(data=np.zeros(len(dts)),index=dts,columns=["concentration"])
+        df.index.rename("timestamp",inplace=True)
+        return df
+
     def get_pm_ref(self,file,resample_rate=2):
         """
         Gets the reference PM data
@@ -219,6 +231,12 @@ class Calibration():
 
                 beacon_df.drop(['TVOC','eCO2','Visible','Infrared',"T_CO","RH_CO","T_NO2","RH_NO2",'Temperature [C]','Relative Humidity','PM_N_0p5','PM_N_4','PM_C_4'],axis=1,inplace=True)
 
+                # removing extreme values
+                for var in beacon_df.columns:
+                    beacon_df['z'] = abs(beacon_df[var] - beacon_df[var].mean()) / beacon_df[var].std(ddof=0)
+                    beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+
+                beacon_df.drop(['z'],axis=1,inplace=True)
                 # concatenating the data to the overall dataframe
                 beacon_df['beacon'] = beacon
                 beacon_data = pd.concat([beacon_data,beacon_df])
