@@ -582,10 +582,18 @@ class utx000():
         self.suffix = "ux_s20"
         self.id_crossover = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='id')
         self.beacon_id = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
+
         self.co2_offset = pd.read_csv(f'../../data/interim/co2-offset-{self.suffix}.csv',index_col=0)
+
+        self.co_offset = pd.read_csv(f'../../data/interim/co-offset-{self.suffix}.csv',index_col=0)
         self.no2_offset = pd.read_csv(f'../../data/interim/no2-offset-{self.suffix}.csv',index_col=0)
+
+        self.pm1_mass_offset = pd.read_csv(f'../../data/interim/pm1_mass-offset-{self.suffix}.csv',index_col=0)
         self.pm2p5_mass_offset = pd.read_csv(f'../../data/interim/pm2p5_mass-offset-{self.suffix}.csv',index_col=0)
+        self.pm10_mass_offset = pd.read_csv(f'../../data/interim/pm10_mass-offset-{self.suffix}.csv',index_col=0)
+        self.pm1_number_offset = pd.read_csv(f'../../data/interim/pm1_number-offset-{self.suffix}.csv',index_col=0)
         self.pm2p5_number_offset = pd.read_csv(f'../../data/interim/pm2p5_number-offset-{self.suffix}.csv',index_col=0)
+        self.pm10_number_offset = pd.read_csv(f'../../data/interim/pm10_number-offset-{self.suffix}.csv',index_col=0)
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
@@ -687,9 +695,14 @@ class utx000():
             
             # offsetting measurements
             beacon_df['CO2'] -= self.co2_offset.loc[beacon,'mean']
+            beacon_df['CO'] -= self.co_offset.loc[beacon,'mean']
             beacon_df['NO2'] -= self.no2_offset.loc[beacon,'mean']
+            beacon_df['PM_C_1'] -= self.pm1_mass_offset.loc[beacon,'mean']
             beacon_df['PM_C_2p5'] -= self.pm2p5_mass_offset.loc[beacon,'mean']
+            beacon_df['PM_C_10'] -= self.pm10_mass_offset.loc[beacon,'mean']
+            beacon_df['PM_N_1'] -= self.pm1_number_offset.loc[beacon,'mean']
             beacon_df['PM_N_2p5'] -= self.pm2p5_number_offset.loc[beacon,'mean']
+            beacon_df['PM_N_10'] -= self.pm10_number_offset.loc[beacon,'mean']
             
             # removing bad values from important variables
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
