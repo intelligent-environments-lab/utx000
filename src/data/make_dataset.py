@@ -655,7 +655,7 @@ class utx000():
                 py3_df[['NO2','T_NO2','RH_NO2']] = np.nan
 
             # Removing data from bad sensors
-            if int(number) in [21,24,26]:
+            if int(number) in [11,21,24,26]:
                 py3_df[['NO2']] = np.nan
 
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
