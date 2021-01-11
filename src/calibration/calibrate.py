@@ -458,21 +458,24 @@ class Calibration():
 
             # Plotting Corrected Timeseries over Entire Calibration
             # -----------------------------------------------------
-            all_beacon = self.get_beacon_data(start_time=self.calibration_start)
-            fig, ax = plt.subplots(figsize=(16,6))
-            for bb in all_beacon["beacon"].unique():
-                beacon_df = all_beacon[all_beacon["beacon"] == bb]
-                beacon_df.dropna(subset=[beacon_var],inplace=True)
-                if len(beacon_df) > 1:
-                    beacon_df[beacon_var] -= offset_df.loc[bb,"mean"]
-                    ax.plot(beacon_df.index,beacon_df[beacon_var],marker=self.get_marker(int(bb)),zorder=int(bb),label=bb)
-            
-            for spine in ["top","right"]:
-                ax.spines[spine].set_visible(False) 
+            try:
+                all_beacon = self.get_beacon_data(beacon_list=self.beacons,start_time=self.calibration_start)
+                fig, ax = plt.subplots(figsize=(16,6))
+                for bb in all_beacon["beacon"].unique():
+                    beacon_df = all_beacon[all_beacon["beacon"] == bb]
+                    beacon_df.dropna(subset=[beacon_var],inplace=True)
+                    if len(beacon_df) > 1:
+                        beacon_df[beacon_var] -= offset_df.loc[bb,"mean"]
+                        ax.plot(beacon_df.index,beacon_df[beacon_var],marker=self.get_marker(int(bb)),zorder=int(bb),label=bb)
+                
+                for spine in ["top","right"]:
+                    ax.spines[spine].set_visible(False) 
 
-            ax.legend(bbox_to_anchor=(1,1),frameon=False,ncol=2)
-            plt.show()
-            plt.close()
+                ax.legend(bbox_to_anchor=(1,1),frameon=False,ncol=2)
+                plt.show()
+                plt.close()
+            except AttributeError:
+                print("No beacon list - need to first fun get_beacon_data")
 
         return offset_df
 
