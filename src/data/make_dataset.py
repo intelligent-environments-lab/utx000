@@ -664,6 +664,7 @@ class utx000():
 
             # Removing data from bad sensors
             if int(number) in [11,21,24,26]:
+                print("\t\t\tRemoving NO2 data")
                 py3_df[['NO2']] = np.nan
 
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
@@ -674,8 +675,9 @@ class utx000():
 
             # removing data from bad sensors
             if int(number) in [32]:
+                print("\t\t\tRemoving PM data")
                 for variable in ['PM_C_1','PM_C_2p5','PM_C_10','PM_N_1','PM_N_2p5','PM_N_10']:
-                    py2_df[[var]] = np.nan
+                    py2_df[[variable]] = np.nan
                 
             # merging python2 and 3 sensor dataframes
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
@@ -708,12 +710,12 @@ class utx000():
             important_vars = ['TVOC','CO2','NO2','CO','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
             
             # variables that should never have anything less than zero
-            for var in ['NO2','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
+            for var in ['PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
                 beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
             
             # variables that should be corrected to zero if negative
-            for var in ['CO',]:
-                beacon_df[var].mask(beacon_df[var] < 0, 0, inplace=True)
+            #for var in ['CO','NO2']:
+            #    beacon_df[var].mask(beacon_df[var] < 0, 0, inplace=True)
             
             # variables that should never be less than a certain limit
             for var, threshold in zip(['CO2','Lux'],[100,0]):
