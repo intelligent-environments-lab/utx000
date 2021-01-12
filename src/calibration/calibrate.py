@@ -385,7 +385,7 @@ class Calibration():
 
         return m
 
-    def offset(self,ref_data,beacon_data,ref_var,beacon_var,groups=[],save_to_file=False,show_corrected=False):
+    def offset(self,ref_data,beacon_data,ref_var,beacon_var,groups=[],baseline=0,save_to_file=False,show_corrected=False):
         """
         Gets the average offset value and standard deviation between the beacon and reference measurement
 
@@ -398,7 +398,7 @@ class Calibration():
 
         Returns dataframe holding the average difference and standard deviation between the differences
         """
-        offsets = {"beacon":[],"mean":[],"std":[]}
+        offsets = {"beacon":[],"mean":[],"std":[],"value_to_baseline":[],"correction":[]}
         ref_df = ref_data[ref_var]
 
         colors = ["seagreen","cornflowerblue","firebrick","goldenrod"]
@@ -413,8 +413,15 @@ class Calibration():
                 df = pd.merge(left=beacon_df,left_index=True,right=ref_df,right_index=True,how="inner")
                 df["delta"] = df[beacon_var] - df["concentration"]
                 # adding data
-                offsets["mean"].append(np.nanmean(df["delta"]))
+                mean_delta = np.nanmean(df["delta"])
+                val_to_base = np.nanmin(df[beacon_var]) - baseline
+                offsets["mean"].append(mean_delta)
                 offsets["std"].append(np.nanstd(df["delta"]))
+                offsets["value_to_baseline"].append(val_to_base)
+                if np.nanmin(df[beacon_var]) - mean_delta < baseline:
+                    offsets["correction"].append(np.nanmin(df[beacon_var]) - baseline)
+                else:
+                    offsets["correction"].append(mean_delta )
                 axes.scatter(df.index,df["delta"],s=9,color="black") # everything is plotted in black
                 for j, group in enumerate(groups):
                     if i in group:
@@ -427,6 +434,8 @@ class Calibration():
                 # adding zeros
                 offsets["mean"].append(np.nanmean(0))
                 offsets["std"].append(np.nanstd(0))
+                offsets["value_to_baseline"].append(0)
+                offsets["correction"].append(0)
                 # making it easier to read by removing the unused figures
                 axes.set_xticks([])
                 axes.set_yticks([])
@@ -458,7 +467,7 @@ class Calibration():
                 if len(beacon_df) > 1:
                     axes.plot(ref_df.index,ref_df["concentration"],color="black")
 
-                    beacon_df[beacon_var] -= offset_df.loc[i,"mean"]
+                    beacon_df[beacon_var] -= offset_df.loc[i,"correction"]
                     axes.plot(beacon_df.index,beacon_df[beacon_var],color="seagreen")
                     axes.set_title(f"beacon {i}")  
                     for spine in ["top","right","bottom"]:
@@ -483,7 +492,7 @@ class Calibration():
                     beacon_df = all_beacon[all_beacon["beacon"] == bb]
                     beacon_df.dropna(subset=[beacon_var],inplace=True)
                     if len(beacon_df) > 1:
-                        beacon_df[beacon_var] -= offset_df.loc[bb,"mean"]
+                        beacon_df[beacon_var] -= offset_df.loc[bb,"correction"]
                         ax.plot(beacon_df.index,beacon_df[beacon_var],marker=self.get_marker(int(bb)),zorder=int(bb),label=bb)
                 
                 for spine in ["top","right"]:
