@@ -398,7 +398,7 @@ class Calibration():
 
         Returns dataframe holding the average difference and standard deviation between the differences
         """
-        offsets = {"beacon":[],"mean":[],"std":[],"value_to_baseline":[],"correction":[]}
+        offsets = {"beacon":[],"mean_difference":[],"value_to_baseline":[],"correction":[]}
         ref_df = ref_data[ref_var]
 
         colors = ["seagreen","cornflowerblue","firebrick","goldenrod"]
@@ -415,8 +415,7 @@ class Calibration():
                 # adding data
                 mean_delta = np.nanmean(df["delta"])
                 val_to_base = np.nanmin(df[beacon_var]) - baseline
-                offsets["mean"].append(mean_delta)
-                offsets["std"].append(np.nanstd(df["delta"]))
+                offsets["mean_difference"].append(mean_delta)
                 offsets["value_to_baseline"].append(val_to_base)
                 if np.nanmin(df[beacon_var]) - mean_delta < baseline:
                     offsets["correction"].append(np.nanmin(df[beacon_var]) - baseline)
@@ -432,8 +431,7 @@ class Calibration():
                     axes.spines[spine].set_visible(False)        
             else:
                 # adding zeros
-                offsets["mean"].append(np.nanmean(0))
-                offsets["std"].append(np.nanstd(0))
+                offsets["mean_difference"].append(0)
                 offsets["value_to_baseline"].append(0)
                 offsets["correction"].append(0)
                 # making it easier to read by removing the unused figures
