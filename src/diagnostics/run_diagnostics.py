@@ -81,6 +81,9 @@ class Diagnostics():
         print("\n\tAdding Python3 PiGPIO:")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio"')
 
+        print("\n\tAdding OLED Packages")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio"')
+
         print("\n\tUpdating Packages:")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get update"')
 

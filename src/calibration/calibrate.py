@@ -34,25 +34,28 @@ class Calibration():
         self.suffix = study_suffix
         self.beacons = []
 
-    def get_zero_baseline(self,resample_rate=2):
+    def get_zero_baseline(self,**kwargs):
         """
         Returns a dataframe with all zero values for an arbitrary baseline of zero
-        
-        Inputs:
-        - resample_rate: integer specifying the resample rate in minutes
         """
-        dts = pd.date_range(self.start_time,self.end_time,freq='2T')
+        if "resample_rate" in kwargs.keys():
+            rr = kwargs["resample_rate"]
+            dts = pd.date_range(self.start_time,self.end_time,freq=f'{rr}T')
+        else:
+            dts = pd.date_range(self.start_time,self.end_time,freq=f'{rr}T')
+
         df = pd.DataFrame(data=np.zeros(len(dts)),index=dts,columns=["concentration"])
         df.index.rename("timestamp",inplace=True)
         return df
 
-    def get_pm_ref(self,file,resample_rate=2):
+    def get_pm_ref(self,file,resample_rate=2,minute_offset=5):
         """
         Gets the reference PM data
 
         Inputs:
         - file: string holding the reference data location name
         - resample_rate: integer specifying the resample rate in minutes
+        - minute_offset: integer/float of minutes to add to monitor's time stamp
 
         Returns a dataframe with columns PM1, PM2.5, and PM10 indexed by timestamp
         """
@@ -62,7 +65,7 @@ class Calibration():
         sample_time = df['Start Time']
         datetimes = []
         for i in range(len(date)):
-            datetimes.append(datetime.strptime(date[i] + ' ' + sample_time[i],'%m/%d/%y %H:%M:%S') + timedelta(minutes=4))
+            datetimes.append(datetime.strptime(date[i] + ' ' + sample_time[i],'%m/%d/%y %H:%M:%S') + timedelta(minutes=minute_offset))
 
         df['timestamp'] = datetimes
         df.set_index(['timestamp'],inplace=True)
@@ -85,13 +88,14 @@ class Calibration():
         df_resampled = df_resampled[self.start_time:self.end_time]
         return df_resampled
 
-    def get_co2_ref(self,file,resample_rate=2):
+    def get_co2_ref(self,file,resample_rate=2,minute_offset=5):
         """
         Gets the reference CO2 data
 
         Inputs:
         - file: string holding the reference data location name
         - resample_rate: integer specifying the resample rate in minutes
+        - minute_offset: integer/float of minutes to add to monitor's time stamp
 
         Returns a dataframe with co2 concentration data indexed by time
         """
@@ -100,7 +104,7 @@ class Calibration():
             raw_data["timestamp"] = pd.to_datetime(raw_data["timestamp"],yearfirst=True)
             raw_data.set_index("timestamp",inplace=True)
             df = raw_data.resample(f"{resample_rate}T").mean()
-            df = df.shift(periods=3) # Remove once the time difference is determined
+            df.index += timedelta(minutes=minute_offset)# = df.shift(periods=3) 
             return df[self.start_time:self.end_time]
         except FileNotFoundError:
             print("No file found for this event - returning empty dataframe")
@@ -521,9 +525,10 @@ class Calibration():
         ref_df = ref_data[ref_var]
         beacon_data = beacon_data[[beacon_var,"beacon"]]
         for bb in range(50):
+            beacon_by_bb = beacon_data[beacon_data["beacon"] == bb]
             if verbose:
                 print(f"Working for Beacon {bb}")
-            beacon_by_bb = beacon_data[beacon_data["beacon"] == bb]
+                print(beacon_by_bb.head())
             if len(beacon_by_bb) > 1:
                 beacon_by_bb.drop(["beacon"],axis=1,inplace=True)
                 if len(ref_data) == len(beacon_by_bb):
@@ -537,49 +542,54 @@ class Calibration():
                     warnings.warn("Reference and beacon data are not the same length")
 
                 df = pd.merge(left=ref_df,right=beacon_by_bb,left_index=True,right_index=True,how="inner")
-                df.dropna(inplace=True)
                 if verbose:
                     print(df.head())
 
-                times = []
-                for t in df.index:
-                    times.append((t - beacon_by_bb.index[0]).total_seconds()/60)
+                if len(df) > 2:
+                    df.dropna(inplace=True)
 
-                y = df.loc[:,"concentration"].values
-                x = df.loc[:,beacon_var].values
+                    times = []
+                    for t in df.index:
+                        times.append((t - beacon_by_bb.index[0]).total_seconds()/60)
 
-                # linear regression model
-                regr = linear_model.LinearRegression()
-                regr.fit(x.reshape(-1, 1), y)
+                    y = df.loc[:,"concentration"].values
+                    x = df.loc[:,beacon_var].values
 
-                # adding data
-                coeffs["beacon"].append(bb)
-                coeffs["constant"].append(regr.intercept_)
-                coeffs["coefficient"].append(regr.coef_[0])
+                    # linear regression model
+                    regr = linear_model.LinearRegression()
+                    regr.fit(x.reshape(-1, 1), y)
 
-                # plotting
-                if show_plot == True:
-                    fig, ax = plt.subplots(figsize=(6,6))
-                    im = ax.scatter(x,y,c=times,cmap="Blues",edgecolor="black",s=75,label="Measured",zorder=2)
-                    fig.colorbar(im,ax=ax,label="Minutes since Start")
-                    # Make draw the line of best-fit
-                    y_pred = regr.predict(x.reshape(-1, 1))
-                    ax.plot(x,y_pred,color='firebrick',linewidth=3,label="Prediction",zorder=3)
-                    ax.legend(bbox_to_anchor=(1.65,1),frameon=False)
+                    # adding data
+                    coeffs["beacon"].append(bb)
+                    coeffs["constant"].append(regr.intercept_)
+                    coeffs["coefficient"].append(regr.coef_[0])
 
-                    plt_min = min(min(x),min(y))
-                    plt_max = max(max(x),max(y))
-                    #ax.text(0.975*plt_min,0.975*plt_min,f"Coefficient: {round(regr.coef_[0],3)}",backgroundcolor="white",ma="center")
-                    #ax.set_xlim([0.95*plt_min,1.05*plt_max])
-                    ax.set_xlabel("Beacon Measurement")
-                    #ax.set_ylim([0.95*plt_min,1.05*plt_max])
-                    ax.set_ylabel("Reference Measurement")
-                    ax.set_title(bb)
-                    ax.spines['right'].set_visible(False)
-                    ax.spines['top'].set_visible(False)
+                    # plotting
+                    if show_plot == True:
+                        fig, ax = plt.subplots(figsize=(6,6))
+                        im = ax.scatter(x,y,c=times,cmap="Blues",edgecolor="black",s=75,label="Measured",zorder=2)
+                        fig.colorbar(im,ax=ax,label="Minutes since Start")
+                        # Make draw the line of best-fit
+                        y_pred = regr.predict(x.reshape(-1, 1))
+                        ax.plot(x,y_pred,color='firebrick',linewidth=3,label="Prediction",zorder=3)
+                        ax.legend(bbox_to_anchor=(1.65,1),frameon=False)
 
-                    plt.show()
-                    plt.close()
+                        plt_min = min(min(x),min(y))
+                        plt_max = max(max(x),max(y))
+                        #ax.text(0.975*plt_min,0.975*plt_min,f"Coefficient: {round(regr.coef_[0],3)}",backgroundcolor="white",ma="center")
+                        #ax.set_xlim([0.95*plt_min,1.05*plt_max])
+                        ax.set_xlabel("Beacon Measurement")
+                        #ax.set_ylim([0.95*plt_min,1.05*plt_max])
+                        ax.set_ylabel("Reference Measurement")
+                        ax.set_title(bb)
+                        ax.spines['right'].set_visible(False)
+                        ax.spines['top'].set_visible(False)
+
+                        plt.show()
+                        plt.close()
+
+                else:
+                    warnings.warn("Merged dataframe has no length - check data availability and timestamps")
             else:
                 # adding blank
                 coeffs["beacon"].append(bb)
@@ -594,6 +604,8 @@ class Calibration():
             for bb in beacon_data["beacon"].unique():
                 beacon_df = beacon_data[beacon_data["beacon"] == bb]
                 beacon_df.dropna(subset=[beacon_var],inplace=True)
+                if verbose:
+                    print(beacon_df.head())
                 if len(beacon_df) > 1:
                     beacon_df[beacon_var] = beacon_df[beacon_var] * coeff_df.loc[bb,"coefficient"] + coeff_df.loc[bb,"constant"]
                     ax.scatter(beacon_df.index,beacon_df[beacon_var],marker=self.get_marker(int(bb)),zorder=int(bb),label=bb)
