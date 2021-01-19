@@ -40,7 +40,7 @@ class Diagnostics():
         op = int(input("\nOption: "))
         # Run diagnostics
         if op == 1:
-            fxns = [self.update]
+            fxns = [self.getUpdates]
         elif op == 2:
             fxns = [self.downloadData]
         elif op == 3:
@@ -84,11 +84,11 @@ class Diagnostics():
         print("\n\tAdding OLED Packages")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio"')
 
-        print("\n\tUpdating Packages:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get update"')
+        #print("\n\tUpdating Packages:")
+        #os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get update"')
 
-        print("\n\tUpgrading Packages:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
+        #print("\n\tUpgrading Packages:")
+        #os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
 
     def downloadData(self, beacon_no, save_dir="~/Projects/utx000/data/raw/utx000/beacon/"):
         """
