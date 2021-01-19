@@ -524,7 +524,7 @@ class Calibration():
         coeffs = {"beacon":[],"constant":[],"coefficient":[]}
         ref_df = ref_data[ref_var]
         beacon_data = beacon_data[[beacon_var,"beacon"]]
-        for bb in range(50):
+        for bb in np.arange(1,51):
             beacon_by_bb = beacon_data[beacon_data["beacon"] == bb]
             if verbose:
                 print(f"Working for Beacon {bb}")
