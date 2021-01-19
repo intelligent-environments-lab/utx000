@@ -1,3 +1,6 @@
+# Basic packages
+import os
+
 # Visual packages
 import matplotlib.pyplot as plt 
 import matplotlib.dates as mdates
@@ -8,6 +11,7 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
+import re
 
 class single_var:
     '''
@@ -196,3 +200,74 @@ class single_var:
         
         # return the fig and axis so user can do more unique modifications
         return fig, ax
+
+class Beacon_Visual():
+
+    def __init__(self, beacon, start_datetime, end_datetime, data_dir="../../data/processed", study="ux_s20"):
+        self.beacon = beacon
+        self.start_datetime = start_datetime
+        self.end_datetime = end_datetime
+        self.data_dir = data_dir
+        self.study = study
+
+        self.data = pd.read_csv(f"{data_dir}/beacon-{self.study}.csv",index_col=0,parse_dates=True,infer_datetime_format=True)
+        self.data = self.data[self.start_datetime.strftime("%m-%d-%Y %H:%M"):self.end_datetime.strftime("%m-%d-%Y %H:%M")]
+
+    def timeseries(self, variable):
+        """
+        Plots a basic time series and saves it to the user's desktop
+        """
+        fig, ax = plt.subplots(figsize=(12,6))
+        ax.plot(self.data.index,self.data[variable])
+        ax.set_title(variable.upper())
+        plt.savefig(f"{self.data_dir}/../../reports/inspection/{variable.lower()}-timeseries-{self.start_datetime.date()}-{self.end_datetime.date()}-{self.study}.png")
+        plt.close()
+
+def main():
+    os.system("clear")
+
+    print("Please choose an option from the list below")
+    print("\t1. Beacon Visualization")
+    op = int(input("\nOption: "))
+
+    if op == 1:
+        print("Please enter the following information:")
+        bb = int(input("\tBeacon: "))
+        var = (input("\tVariable: "))
+        start_date = input("\tStarting date (defaults to today): ")
+        start_time = input("\tStarting time (hour and minute only - defaults to 00:00): ")
+        end_date = input("\tEnding date (defaults to today): ")
+        end_time = input("\tEnding time (hour and minute only - defaults to 23:59): ")
+
+        # defaults
+        if start_date == "":
+            start_date = datetime.now().date().strftime("%m/%d/%Y")
+
+        if start_time == "":
+            start_time = "0:0"
+
+        if end_date == "":
+            end_date = datetime.now().date().strftime("%m/%d/%Y")
+
+        if end_time == "":
+            end_time = "23:59"
+
+        d = re.split("/|,|-",start_date)
+        t = re.split("/|,|-|:",start_time)
+        start_datetime = datetime(int(d[2]),int(d[0]),int(d[1]),int(t[0]),int(t[1])) # assuming m/d/Y H:M format
+        d = re.split("/|,|-",end_date)
+        t = re.split("/|,|-|:",end_time)
+        end_datetime = datetime(int(d[2]),int(d[0]),int(d[1]),int(t[0]),int(t[1])) # assuming m/d/Y H:M format
+
+        bv = Beacon_Visual(bb, start_datetime, end_datetime)
+
+        print("\nPlease choose the visualization type from the list below")
+        print("\t1. Time Series")
+        op = int(input("\nOption: "))
+        if op == 1:
+            bv.timeseries(var)
+    else:
+        print("Not a valid choice - please run again")
+
+if __name__ == '__main__':
+    main()
