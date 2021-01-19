@@ -1231,7 +1231,7 @@ class wcwh_community():
                         self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
                     except FileNotFoundError:
                         print(f"Missing offset for {file_info[0]} - padding with zeros")
-                        self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(0,50),"constant":np.zeros(50),"coefficient":np.zeros(50)}).set_index("beacon")
+                        self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.zeros(51)}).set_index("beacon")
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
@@ -1242,7 +1242,7 @@ class wcwh_community():
         print('\t\tMoving to purgatory...')
         os.replace(path_to_file, path_to_destination)
 
-    def process_beacon(self,beacon_list=np.arange(0,51),extreme='zscore'):
+    def process_beacon(self,beacon_list=np.arange(1,51),extreme='zscore'):
         '''
         Combines data from all sensors on all beacons
 
@@ -1283,14 +1283,18 @@ class wcwh_community():
                         # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
                         print(f'Issue encountered while importing {csv_dir}/{file}, skipping...')
                         self.move_to_purgatory(f'{csv_dir}/{file}',f'{self.data_dir}/purgatory/B{number}-py3-{file}-{self.suffix}')
-            
-                df = pd.concat(df_list).resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
-                return df
+                try:
+                    df = pd.concat(df_list).resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+                    return df
+                except ValueError:
+                    return pd.DataFrame() # empty dataframe
 
             # Python3 Sensors
             # ---------------
             py3_df = import_and_merge(f'{beacon_folder}/adafruit', number)
-            
+            if len(py3_df) == 0:
+                continue
+
             # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
             if int(number) >= 28:
                 print('\t\t\tNo NO2 sensor - removing values')
@@ -1303,6 +1307,8 @@ class wcwh_community():
             # Python2 Sensors
             # ---------------
             py2_df = import_and_merge(f'{beacon_folder}/sensirion', number)
+            if len(py2_df) == 0:
+                continue
                 
             # Cleaning
             # --------
