@@ -8,12 +8,11 @@ from datetime import datetime, timedelta
 
 class Diagnostics():
 
-    def __init__(self, single=False, save_dir="~/Projects/utx000/data/raw/utx000/beacon/"):
+    def __init__(self, single=False, study="utx000"):
         """
         Checks if we want a single beacon, otherwise runs for all. User can
         download, remove, or run diagnostics.
         """
-
         # Getting Beacon Numbers
         # ----------------------
         if single:
@@ -26,7 +25,7 @@ class Diagnostics():
         else:
             self.beacon = range(0,51) # setting to list of all beacons
 
-        self.save_dir = save_dir # directory to save downloaded data to
+        self.save_dir = f"~/Projects/utx000/data/raw/{study}/beacon/" # directory to save downloaded data to
 
         # Commands
         # ------------
@@ -102,13 +101,13 @@ class Diagnostics():
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio"')
 
         
-    def downloadData(self, beacon_no, save_dir="~/Projects/utx000/data/raw/utx000/beacon/"):
+    def downloadData(self, beacon_no):
         """
         Downloads data from specified beacon
         """
         print("\n\tDownloading Data:")
-        os.system(f'scp -r -o ConnectTimeout=1 pi@iaq{beacon_no}:/home/pi/DATA/adafruit/ {save_dir}B{beacon_no}/')
-        os.system(f'scp -r -o ConnectTimeout=1 pi@iaq{beacon_no}:/home/pi/DATA/sensirion/ {save_dir}B{beacon_no}/')
+        os.system(f'scp -r -o ConnectTimeout=1 pi@iaq{beacon_no}:/home/pi/DATA/adafruit/ {self.save_dir}B{beacon_no}/')
+        os.system(f'scp -r -o ConnectTimeout=1 pi@iaq{beacon_no}:/home/pi/DATA/sensirion/ {self.save_dir}B{beacon_no}/')
 
     def checkSensors(self, beacon_no):
         """
@@ -159,11 +158,19 @@ def main():
     logger = logging.getLogger(__name__)
     os.system("clear")
 
+    print("Run diagnostics for which study:")
+    print("\t1. utx000 (default)\n\t2. wcwh_pilot")
+    study_op = input("Option: ")
+    if study_op.lower() in ["2","wcwh_pilot"]:
+        study = "wcwh_pilot"
+    else:
+        study = "utx000"
+
     single = input("Individual (y/n)? ")
     if single.lower() in ["y","yes"]:
-        d = Diagnostics(True)
+        d = Diagnostics(True,study=study)
     else:
-        d = Diagnostics(False)
+        d = Diagnostics(False,study=study)
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
