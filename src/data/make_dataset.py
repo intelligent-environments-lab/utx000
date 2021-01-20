@@ -577,23 +577,57 @@ class utx000():
     Class used to process utx000 data (Spring 2020 into Summer 2020)
     '''
 
-    def __init__(self,study="utx000",suffix="ux_s20"):
+    def __init__(self,study="wcwh_pilot",suffix="wcwh_0",data_dir="../../data"):
+        # study specifics
         self.study = study
         self.suffix = suffix
+        self.data_dir = data_dir
+
+        self.id_crossover = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='id')
+        self.beacon_id = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='beacon')
+
+    def __init__(self,study="utx000",suffix="ux_s20",data_dir="../../data"):
+        self.study = study
+        self.suffix = suffix
+        self.data_dir = data_dir
+
         self.id_crossover = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='id')
         self.beacon_id = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
 
-        self.co2_offset = pd.read_csv(f'../../data/interim/co2-offset-{self.suffix}.csv',index_col=0)
+        #self.co2_offset = pd.read_csv(f'../../data/interim/co2-offset-{self.suffix}.csv',index_col=0)
 
-        self.co_offset = pd.read_csv(f'../../data/interim/co-offset-{self.suffix}.csv',index_col=0)
-        self.no2_offset = pd.read_csv(f'../../data/interim/no2-offset-{self.suffix}.csv',index_col=0)
+        #self.co_offset = pd.read_csv(f'../../data/interim/co-offset-{self.suffix}.csv',index_col=0)
+        #self.no2_offset = pd.read_csv(f'../../data/interim/no2-offset-{self.suffix}.csv',index_col=0)
 
-        self.pm1_mass_offset = pd.read_csv(f'../../data/interim/pm1_mass-offset-{self.suffix}.csv',index_col=0)
-        self.pm2p5_mass_offset = pd.read_csv(f'../../data/interim/pm2p5_mass-offset-{self.suffix}.csv',index_col=0)
-        self.pm10_mass_offset = pd.read_csv(f'../../data/interim/pm10_mass-offset-{self.suffix}.csv',index_col=0)
-        self.pm1_number_offset = pd.read_csv(f'../../data/interim/pm1_number-offset-{self.suffix}.csv',index_col=0)
-        self.pm2p5_number_offset = pd.read_csv(f'../../data/interim/pm2p5_number-offset-{self.suffix}.csv',index_col=0)
-        self.pm10_number_offset = pd.read_csv(f'../../data/interim/pm10_number-offset-{self.suffix}.csv',index_col=0)
+        #self.pm1_mass_offset = pd.read_csv(f'../../data/interim/pm1_mass-offset-{self.suffix}.csv',index_col=0)
+        #self.pm2p5_mass_offset = pd.read_csv(f'../../data/interim/pm2p5_mass-offset-{self.suffix}.csv',index_col=0)
+        #self.pm10_mass_offset = pd.read_csv(f'../../data/interim/pm10_mass-offset-{self.suffix}.csv',index_col=0)
+        #self.pm1_number_offset = pd.read_csv(f'../../data/interim/pm1_number-offset-{self.suffix}.csv',index_col=0)
+        #self.pm2p5_number_offset = pd.read_csv(f'../../data/interim/pm2p5_number-offset-{self.suffix}.csv',index_col=0)
+        #self.pm10_number_offset = pd.read_csv(f'../../data/interim/pm10_number-offset-{self.suffix}.csv',index_col=0)
+
+        self.linear_model = {}
+        for file in os.listdir(f"{self.data_dir}/interim/"):
+            file_info = file.split("-")
+            if len(file_info) == 3:
+                if file_info[1] == "linear_model" and file_info[-1] == self.suffix:
+                    try:
+                        self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
+                    except FileNotFoundError:
+                        print(f"Missing offset for {file_info[0]}")
+                        self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
+
+        self.constant_model = {}
+        for file in os.listdir(f"{self.data_dir}/interim/"):
+            file_info = file.split("-")
+            if len(file_info) == 3:
+                if file_info[1] == "offset" and file_info[-1] == self.suffix:
+                    try:
+                        self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
+                    except FileNotFoundError:
+                        print(f"Missing offset for {file_info[0]}")
+                        self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"correction":np.zeros(51)}).set_index("beacon")
+
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
@@ -663,9 +697,9 @@ class utx000():
                 py3_df[['NO2','T_NO2','RH_NO2']] = np.nan
 
             # Removing data from bad sensors
-            if int(number) in [11,21,24,26]:
-                print("\t\t\tRemoving NO2 data")
-                py3_df[['NO2']] = np.nan
+            #if int(number) in [11,21,24,26]:
+            #    print("\t\t\tRemoving NO2 data")
+            #    py3_df[['NO2']] = np.nan
 
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
 
@@ -694,56 +728,6 @@ class utx000():
             start_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['start_date'].values[0]
             end_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['end_date'].values[0]
             beacon_df = beacon_df[start_date:end_date]
-            
-            # offsetting measurements
-            beacon_df['CO2'] -= self.co2_offset.loc[beacon,'correction']
-            beacon_df['CO'] -= self.co_offset.loc[beacon,'correction']
-            beacon_df['NO2'] -= self.no2_offset.loc[beacon,'correction']
-            beacon_df['PM_C_1'] -= self.pm1_mass_offset.loc[beacon,'correction']
-            beacon_df['PM_C_2p5'] -= self.pm2p5_mass_offset.loc[beacon,'correction']
-            beacon_df['PM_C_10'] -= self.pm10_mass_offset.loc[beacon,'correction']
-            beacon_df['PM_N_1'] -= self.pm1_number_offset.loc[beacon,'correction']
-            beacon_df['PM_N_2p5'] -= self.pm2p5_number_offset.loc[beacon,'correction']
-            beacon_df['PM_N_10'] -= self.pm10_number_offset.loc[beacon,'correction']
-            
-            # removing bad values from important variables
-            important_vars = ['TVOC','CO2','NO2','CO','PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','Lux','RH_NO2','RH_CO','Relative Humidity']
-            
-            # variables that should never have anything less than zero
-            for var in ['PM_C_1','PM_C_2p5','PM_C_10','T_NO2','T_CO','Temperature [C]','RH_NO2','RH_CO','Relative Humidity']:
-                beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
-            
-            # variables that should be corrected to zero if negative
-            #for var in ['CO','NO2']:
-            #    beacon_df[var].mask(beacon_df[var] < 0, 0, inplace=True)
-            
-            # variables that should never be less than a certain limit
-            for var, threshold in zip(['CO2','Lux'],[100,0]):
-                beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
-            
-            # removing extreme values 
-            if extreme == 'zscore':
-                # zscore greater than 2.5
-                for var in important_vars:
-                    beacon_df['z'] = abs(beacon_df[var] - beacon_df[var].mean()) / beacon_df[var].std(ddof=0)
-                    beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
-
-                beacon_df.drop(['z'],axis=1,inplace=True)
-            elif extreme == 'iqr':
-                for var in important_vars:
-                    # Computing IQR
-                    Q1 = beacon_df[var].quantile(0.25)
-                    Q3 = beacon_df[var].quantile(0.75)
-                    IQR = Q3 - Q1
-                    
-                    # Filtering Values between Q1-1.5IQR and Q3+1.5IQR
-                    beacon_df[var].mask(beacon_df[var]<Q1-1.5*IQR,np.nan,inplace=True)
-                    beacon_df[var].mask(beacon_df[var]>Q3+1.5*IQR,np.nan,inplace=True)
-            else:
-                print('\t\t\tExtreme values retained')
-
-            # dropping NaN values that get in
-            beacon_df.dropna(subset=important_vars,how='all',inplace=True)
 
             # combing T/RH readings and dropping the bad ones
             beacon_df['temperature_c'] = beacon_df[['T_CO','T_NO2']].mean(axis=1)
@@ -756,6 +740,45 @@ class utx000():
             # renaming columns
             beacon_df.columns = ["tvoc","lux","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]
             beacon_df.index.rename("timestamp",inplace=True)
+            
+            # offsetting measurements with linear model (except CO)
+            for var in self.linear_model.keys():
+                if var != "co":
+                    beacon_df[var] = beacon_df[var] * self.linear_model[key].loc[beacon,"coefficient"] + self.linear_model[key].loc[beacon,"constant"]
+                else:
+                    beacon_df[var] -= self.constant_model[key].loc[beacon,"correction"]
+            
+            # variables that should never have anything less than zero
+            for var in beacon_df.columns:
+                beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
+            
+            # variables that should never be less than a certain limit
+            for var, threshold in zip(['co2'],[100]):
+                beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
+            
+            # removing extreme values 
+            if extreme == 'zscore':
+                # zscore greater than 2.5
+                for var in beacon_df.columns:
+                    beacon_df['z'] = abs(beacon_df[var] - beacon_df[var].mean()) / beacon_df[var].std(ddof=0)
+                    beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+
+                beacon_df.drop(['z'],axis=1,inplace=True)
+            elif extreme == 'iqr':
+                for var in beacon_df.columns:
+                    # Computing IQR
+                    Q1 = beacon_df[var].quantile(0.25)
+                    Q3 = beacon_df[var].quantile(0.75)
+                    IQR = Q3 - Q1
+                    
+                    # Filtering Values between Q1-1.5IQR and Q3+1.5IQR
+                    beacon_df[var].mask(beacon_df[var]<Q1-1.5*IQR,np.nan,inplace=True)
+                    beacon_df[var].mask(beacon_df[var]>Q3+1.5*IQR,np.nan,inplace=True)
+            else:
+                print('\t\t\tExtreme values retained')
+
+            # dropping NaN values that get in
+            beacon_df.dropna(how='all',inplace=True)
 
             # adding columns for the pt details
             beacon_df['beacon'] = beacon
@@ -1231,7 +1254,7 @@ class wcwh_community():
                         self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
                     except FileNotFoundError:
                         print(f"Missing offset for {file_info[0]} - padding with zeros")
-                        self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.zeros(51)}).set_index("beacon")
+                        self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
