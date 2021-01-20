@@ -32,22 +32,28 @@ class Diagnostics():
         # ------------
         # List of options 
         print("Please choose an option from the list below")
-        print("\t1. Update Software")
-        print("\t2. Download Data")
-        print("\t3. Download and Remove Data")
-        print("\t4. Remove Data")
-        print("\t5. Run Full Diagnostics")
+        print("\t1. Update from Git")
+        print("\t2. Update Libraries")
+        print("\t3. Download Data")
+        print("\t4. Download and Remove Data")
+        print("\t5. Remove Data")
+        print("\t6. Check Sensor Connection")
+        print("\t7. Run Full Diagnostics")
         op = int(input("\nOption: "))
         # Run diagnostics
         if op == 1:
-            fxns = [self.getUpdates]
+            fxns = [self.pullFromGit]
         elif op == 2:
-            fxns = [self.downloadData]
+            fxns = [self.pullFromGit,self.getUpdates]
         elif op == 3:
-            fxns = [self.downloadData, self.removeData]
+            fxns = [self.downloadData]
         elif op == 4:
-            fxns = [self.removeData]
+            fxns = [self.downloadData, self.removeData]
         elif op == 5:
+            fxns = [self.removeData]
+        elif op == 6:
+            fxns = [self.pullFromGit,self.checkSensors]
+        elif op == 7:
             fxns = [self.getUpdates,self.downloadData,self.checkSensors,self.removeData]
         else:
             os.system("clear")
@@ -68,9 +74,9 @@ class Diagnostics():
 
         self.run(fxns)
 
-    def getUpdates(self, beacon_no):
+    def pullFromGit(self, beacon_no):
         """
-        Pulls in updates from git, adds any necessary packages, and then updates/upgrades
+        Pulls in updates from git,
         """
 
         print("\n\tUpdating from Git:")
@@ -78,18 +84,24 @@ class Diagnostics():
         os.system(f'scp -o ConnectTimeout=1 ~/Projects/utx000/src/diagnostics/test.sh pi@iaq{beacon_no}:/home/pi/test.sh')
         os.system(f'ssh -o ConnectTimeout=1 pi@iaq{beacon_no} "sh /home/pi/test.sh {beacon_no}"')
 
+    def getUpdates(self, beacon_no):
+        """
+        Updates/upgrades and then adds any necessary packages
+        """
+
+        print("\n\tUpdating Packages:")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get update"')
+
+        print("\n\tUpgrading Packages:")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
+
         print("\n\tAdding Python3 PiGPIO:")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio"')
 
         print("\n\tAdding OLED Packages")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio"')
 
-        #print("\n\tUpdating Packages:")
-        #os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get update"')
-
-        #print("\n\tUpgrading Packages:")
-        #os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
-
+        
     def downloadData(self, beacon_no, save_dir="~/Projects/utx000/data/raw/utx000/beacon/"):
         """
         Downloads data from specified beacon
@@ -147,7 +159,7 @@ def main():
     logger = logging.getLogger(__name__)
     os.system("clear")
 
-    single = input("Individual Download (y/n)? ")
+    single = input("Individual (y/n)? ")
     if single.lower() in ["y","yes"]:
         d = Diagnostics(True)
     else:
