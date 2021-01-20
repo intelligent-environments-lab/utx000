@@ -697,9 +697,9 @@ class utx000():
                 py3_df[['NO2','T_NO2','RH_NO2']] = np.nan
 
             # Removing data from bad sensors
-            #if int(number) in [11,21,24,26]:
-            #    print("\t\t\tRemoving NO2 data")
-            #    py3_df[['NO2']] = np.nan
+            if int(number) in [11,21,24,26]:
+                print("\t\t\tRemoving NO2 data")
+                py3_df[['NO2']] = np.nan
 
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
 
@@ -749,12 +749,16 @@ class utx000():
                     beacon_df[var] -= self.constant_model[key].loc[beacon,"correction"]
             
             # variables that should never have anything less than zero
-            for var in beacon_df.columns:
+            for var in ["tvoc","lux","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]:
                 beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
             
             # variables that should never be less than a certain limit
             for var, threshold in zip(['co2'],[100]):
                 beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
+
+            # hard-coded values that should be replaced
+            for var in beacon_df.columns:
+                beacon_df[var].replace(-100,np.nan,inplace=True)
             
             # removing extreme values 
             if extreme == 'zscore':
