@@ -42,7 +42,7 @@ class Calibration():
             rr = kwargs["resample_rate"]
             dts = pd.date_range(self.start_time,self.end_time,freq=f'{rr}T')
         else:
-            dts = pd.date_range(self.start_time,self.end_time,freq=f'{rr}T')
+            dts = pd.date_range(self.start_time,self.end_time,freq=f'{2}T')
 
         df = pd.DataFrame(data=np.zeros(len(dts)),index=dts,columns=["concentration"])
         df.index.rename("timestamp",inplace=True)
@@ -557,7 +557,11 @@ class Calibration():
 
                     # linear regression model
                     regr = linear_model.LinearRegression()
-                    regr.fit(x.reshape(-1, 1), y)
+                    try:
+                        regr.fit(x.reshape(-1, 1), y)
+                    except ValueError:
+                        print("Error with data.")
+                        continue
 
                     # adding data
                     coeffs["beacon"].append(bb)
