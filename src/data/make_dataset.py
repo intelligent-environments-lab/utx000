@@ -356,7 +356,7 @@ class bpeace():
             # making sure we don't read from any hidden directories/files
             if len(participant) == 8:
                 pid = participant
-                participant_df = pd.DataFrame(columns=['ID','Content','Stress','Lonely','Sad','Energy','TST','SOL','NAW','Restful'])
+                participant_df = pd.DataFrame(columns=['beiwe','content','stress','lonely','sad','energy','tst','sol','naw','restful'])
             
                 for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{morning_survey_id}/'):
                     # reading raw data
@@ -379,8 +379,11 @@ class bpeace():
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
+        morning_survey_df.replace({'6-7 hours':6.5,'9-10 hours':9.5,'5-6 hours':5.5,'8-9 hours':8.5,'7-8 hours':7.5,'2-3 hours':2.5,
+                                '0 hours; did not sleep':0,'4-5 hours':4.5,'3-4 hours':3.5,'more than 12 hours':12,
+                                '1-2 hours':1.5,'11-12 hours':11.5,'6':6,'5':5,'7':7,'8':8,'-1':np.nan,'10-11 hours':10.5,'4':4,'9':9,'3':3,'1':1,'2':2},inplace=True)
         # fixing any string inputs outside the above range
-        morning_survey_df['NAW'] = pd.to_numeric(morning_survey_df['NAW'],errors='coerce')
+        morning_survey_df['naw'] = pd.to_numeric(morning_survey_df['naw'],errors='coerce')
         
         # Evening Survey Data
         # -------------------
@@ -389,7 +392,7 @@ class bpeace():
             if len(participant) == 8:
                 pid = participant
                 # pre-allocating dataframe columns
-                participant_df = pd.DataFrame(columns=['ID','Content','Stress','Lonely','Sad','Energy'])
+                participant_df = pd.DataFrame(columns=['beiwe','content','stress','lonely','sad','energy'])
             
                 for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/'):
                     df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{evening_survey_id}/{file}')
@@ -414,7 +417,7 @@ class bpeace():
             if len(participant) == 8:
                 pid = participant
                 # less columns
-                participant_df = pd.DataFrame(columns=['ID','Upset','Unable','Stressed','Confident','Your_Way','Cope','Able','Top','Angered','Overcome'])
+                participant_df = pd.DataFrame(columns=['beiwe','Upset','Unable','Stressed','Confident','Your_Way','Cope','Able','Top','Angered','Overcome'])
             
                 for file in os.listdir(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/'):
                     df = pd.read_csv(f'{parent_dir}{participant}/survey_answers/{weekly_survey_id}/{file}')
