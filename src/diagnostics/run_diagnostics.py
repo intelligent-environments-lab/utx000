@@ -79,7 +79,7 @@ class Diagnostics():
         """
 
         print("\n\tUpdating from Git:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd bevo_iaq/Setup/Code && rm *.pyc && git reset --hard && git pull"')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd bevo_iaq/ && git reset --hard && git pull"')
         os.system(f'scp -o ConnectTimeout=1 ~/Projects/utx000/src/diagnostics/test.sh pi@iaq{beacon_no}:/home/pi/test.sh')
         os.system(f'ssh -o ConnectTimeout=1 pi@iaq{beacon_no} "sh /home/pi/test.sh {beacon_no}"')
 
@@ -88,18 +88,20 @@ class Diagnostics():
         Updates/upgrades and then adds any necessary packages
         """
 
-        print("\n\tUpdating Packages:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get update"')
+        #print("\n\tUpdating Packages:")
+        #os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get update"')
 
-        print("\n\tUpgrading Packages:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
+        #print("\n\tUpgrading Packages:")
+        #os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
 
         print("\n\tAdding Python3 PiGPIO:")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio"')
 
         print("\n\tAdding OLED Packages")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get install -y pigpio python-pigpio python3-pigpio"')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo pip3 install oled_text"')
 
+        print("\n\tAdding Python2 NumPy:")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo pip install numpy"')
         
     def downloadData(self, beacon_no):
         """
@@ -108,6 +110,9 @@ class Diagnostics():
         print("\n\tDownloading Data:")
         os.system(f'scp -r -o ConnectTimeout=1 pi@iaq{beacon_no}:/home/pi/DATA/adafruit/ {self.save_dir}B{beacon_no}/')
         os.system(f'scp -r -o ConnectTimeout=1 pi@iaq{beacon_no}:/home/pi/DATA/sensirion/ {self.save_dir}B{beacon_no}/')
+
+        print("\n\tRemoving Bad Data:")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo rm DATA/*/b00*')
 
     def checkSensors(self, beacon_no):
         """
