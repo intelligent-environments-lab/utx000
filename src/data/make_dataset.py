@@ -580,22 +580,13 @@ class utx000():
     Class used to process utx000 data (Spring 2020 into Summer 2020)
     '''
 
-    def __init__(self,study="wcwh_pilot",suffix="wcwh_0",data_dir="../../data"):
-        # study specifics
-        self.study = study
-        self.suffix = suffix
-        self.data_dir = data_dir
-
-        self.id_crossover = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='id')
-        self.beacon_id = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='beacon')
-
     def __init__(self,study="utx000",suffix="ux_s20",data_dir="../../data"):
         self.study = study
         self.suffix = suffix
         self.data_dir = data_dir
 
-        self.id_crossover = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='id')
-        self.beacon_id = pd.read_excel('../../data/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
+        self.id_crossover = pd.read_excel(f'{self.data_dir}/raw/utx000/admin/id_crossover.xlsx',sheet_name='id')
+        self.beacon_id = pd.read_excel(f'{self.data_dir}/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
 
         #self.co2_offset = pd.read_csv(f'../../data/interim/co2-offset-{self.suffix}.csv',index_col=0)
 
@@ -613,23 +604,23 @@ class utx000():
         for file in os.listdir(f"{self.data_dir}/interim/"):
             file_info = file.split("-")
             if len(file_info) == 3:
-                if file_info[1] == "linear_model" and file_info[-1] == self.suffix:
+                if file_info[1] == "linear_model" and file_info[-1] == self.suffix+".csv":
                     try:
-                        self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
+                        self.linear_model[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
                     except FileNotFoundError:
                         print(f"Missing offset for {file_info[0]}")
-                        self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
+                        self.linear_model[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
 
         self.constant_model = {}
         for file in os.listdir(f"{self.data_dir}/interim/"):
             file_info = file.split("-")
             if len(file_info) == 3:
-                if file_info[1] == "offset" and file_info[-1] == self.suffix:
+                if file_info[1] == "offset" and file_info[-1] == self.suffix+".csv":
                     try:
-                        self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
+                        self.constant_model[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
                     except FileNotFoundError:
                         print(f"Missing offset for {file_info[0]}")
-                        self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"correction":np.zeros(51)}).set_index("beacon")
+                        self.constant_model[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"correction":np.zeros(51)}).set_index("beacon")
 
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
@@ -649,7 +640,7 @@ class utx000():
         '''
 
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
-        beacons_folder='../../data/raw/utx000/beacon'
+        beacons_folder=f'{self.data_dir}/raw/utx000/beacon'
         # list of all beacons used in the study
         beacon_list = self.beacon_list = [1,5,6,10,11,15,16,17,19,21,22,24,25,26,28,29,30,32,34,36,38,40,41,44,46] #13,23,48
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
@@ -747,9 +738,9 @@ class utx000():
             # offsetting measurements with linear model (except CO)
             for var in self.linear_model.keys():
                 if var != "co":
-                    beacon_df[var] = beacon_df[var] * self.linear_model[key].loc[beacon,"coefficient"] + self.linear_model[key].loc[beacon,"constant"]
+                    beacon_df[var] = beacon_df[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]
                 else:
-                    beacon_df[var] -= self.constant_model[key].loc[beacon,"correction"]
+                    beacon_df[var] -= self.constant_model[var].loc[beacon,"correction"]
             
             # variables that should never have anything less than zero
             for var in ["tvoc","lux","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]:
@@ -797,7 +788,7 @@ class utx000():
 
         # saving
         try:
-            beacon_data.to_csv(f'../../data/processed/beacon-{self.suffix}.csv')
+            beacon_data.to_csv(f'{self.data_dir}/processed/beacon-{self.suffix}.csv')
         except:
             return False
 
@@ -1240,10 +1231,10 @@ class utx000():
 
 class wcwh_community():
     '''
-    Class used to process utx000 data (Spring 2020 into Summer 2020)
+    
     '''
 
-    def __init__(self,study="wcwh_pilot",suffix="wcwh_0",data_dir="../../data"):
+    def __init__(self,study="wcwh_pilot",suffix="wcwh_s20",data_dir="../../data"):
         # study specifics
         self.study = study
         self.suffix = suffix
@@ -1256,7 +1247,9 @@ class wcwh_community():
         for file in os.listdir(f"{self.data_dir}/interim/"):
             file_info = file.split("-")
             if len(file_info) == 3:
-                if file_info[1] == "linear_model" and file_info[-1] == self.suffix:
+                #print(file_info)
+                if file_info[1] == "linear_model" and file_info[-1] == self.suffix+".csv":
+                    print(file_info)
                     try:
                         self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
                     except FileNotFoundError:
@@ -1272,7 +1265,7 @@ class wcwh_community():
         print('\t\tMoving to purgatory...')
         os.replace(path_to_file, path_to_destination)
 
-    def process_beacon(self,beacon_list=np.arange(1,51),extreme='zscore'):
+    def process_beacon(self,beacon_list=np.arange(1,51),extreme=''):
         '''
         Combines data from all sensors on all beacons
 
@@ -1344,7 +1337,7 @@ class wcwh_community():
             # --------
             # merging python2 and 3 sensor dataframes
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
-
+            
             # getting relevant data only
             start_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['start_date'].values[0]
             end_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['end_date'].values[0]
@@ -1364,15 +1357,16 @@ class wcwh_community():
 
             # offsetting measurements with linear model
             for var in self.correction.keys():
-                beacon_df[var] = beacon_df[var] * self.correction[key].loc[beacon,"coefficient"] + self.correction[key].loc[beacon,"constant"]
+                print()
+                beacon_df[var] = beacon_df[var] * self.correction[var].loc[beacon,"coefficient"] + self.correction[var].loc[beacon,"constant"]
             
             # variables that should never have anything less than zero
             for var in ["lux",'temperature_c','rh']:
                 beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
             
             # variables that should never be less than a certain limit
-            for var, threshold in zip(['co2'],[100]):
-                beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
+            #for var, threshold in zip(['co2'],[100]):
+            #    beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
             
             # removing extreme values 
             if extreme == 'zscore':
