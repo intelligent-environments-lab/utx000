@@ -112,7 +112,7 @@ class Diagnostics():
         os.system(f'scp -r -o ConnectTimeout=1 pi@iaq{beacon_no}:/home/pi/DATA/sensirion/ {self.save_dir}B{beacon_no}/')
 
         print("\n\tRemoving Bad Data:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo rm DATA/*/b00*')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo rm DATA/*/b00*"')
 
     def checkSensors(self, beacon_no):
         """
