@@ -588,18 +588,6 @@ class utx000():
         self.id_crossover = pd.read_excel(f'{self.data_dir}/raw/utx000/admin/id_crossover.xlsx',sheet_name='id')
         self.beacon_id = pd.read_excel(f'{self.data_dir}/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
 
-        #self.co2_offset = pd.read_csv(f'../../data/interim/co2-offset-{self.suffix}.csv',index_col=0)
-
-        #self.co_offset = pd.read_csv(f'../../data/interim/co-offset-{self.suffix}.csv',index_col=0)
-        #self.no2_offset = pd.read_csv(f'../../data/interim/no2-offset-{self.suffix}.csv',index_col=0)
-
-        #self.pm1_mass_offset = pd.read_csv(f'../../data/interim/pm1_mass-offset-{self.suffix}.csv',index_col=0)
-        #self.pm2p5_mass_offset = pd.read_csv(f'../../data/interim/pm2p5_mass-offset-{self.suffix}.csv',index_col=0)
-        #self.pm10_mass_offset = pd.read_csv(f'../../data/interim/pm10_mass-offset-{self.suffix}.csv',index_col=0)
-        #self.pm1_number_offset = pd.read_csv(f'../../data/interim/pm1_number-offset-{self.suffix}.csv',index_col=0)
-        #self.pm2p5_number_offset = pd.read_csv(f'../../data/interim/pm2p5_number-offset-{self.suffix}.csv',index_col=0)
-        #self.pm10_number_offset = pd.read_csv(f'../../data/interim/pm10_number-offset-{self.suffix}.csv',index_col=0)
-
         self.linear_model = {}
         for file in os.listdir(f"{self.data_dir}/interim/"):
             file_info = file.split("-")
@@ -660,7 +648,7 @@ class utx000():
             redcap = beacon_crossover_info['redcap'][0]
             del beacon_crossover_info
 
-            def import_and_merge(csv_dir,number):
+            def import_and_merge(csv_dir,number,resample_rate=2):
                 df_list = []
                 for file in os.listdir(csv_dir+'/'):
                     try:
@@ -676,7 +664,7 @@ class utx000():
                         print(f'Issue encountered while importing {csv_dir}/{file}, skipping...')
                         self.move_to_purgatory(f'{csv_dir}/{file}',f'../../data/purgatory/B{number}-py3-{file}-{self.suffix}')
             
-                df = pd.concat(df_list).resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+                df = pd.concat(df_list).resample(f'{resample_rate}T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
                 return df
 
             # Python3 Sensors
@@ -1247,9 +1235,7 @@ class wcwh_community():
         for file in os.listdir(f"{self.data_dir}/interim/"):
             file_info = file.split("-")
             if len(file_info) == 3:
-                #print(file_info)
                 if file_info[1] == "linear_model" and file_info[-1] == self.suffix+".csv":
-                    print(file_info)
                     try:
                         self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
                     except FileNotFoundError:
@@ -1292,7 +1278,7 @@ class wcwh_community():
             redcap = beacon_crossover_info['redcap'][0]
             del beacon_crossover_info
 
-            def import_and_merge(csv_dir,number):
+            def import_and_merge(csv_dir,number,resample_rate=2):
                 df_list = []
                 for file in os.listdir(csv_dir+'/'):
                     try:
@@ -1307,7 +1293,7 @@ class wcwh_community():
                         print(f'Issue encountered while importing {csv_dir}/{file}, skipping...')
                         self.move_to_purgatory(f'{csv_dir}/{file}',f'{self.data_dir}/purgatory/B{number}-py3-{file}-{self.suffix}')
                 try:
-                    df = pd.concat(df_list).resample('5T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+                    df = pd.concat(df_list).resample(f'{resample_rate}T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
                     return df
                 except ValueError:
                     return pd.DataFrame() # empty dataframe
