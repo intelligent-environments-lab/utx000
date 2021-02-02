@@ -588,6 +588,7 @@ class utx000():
         self.id_crossover = pd.read_excel(f'{self.data_dir}/raw/utx000/admin/id_crossover.xlsx',sheet_name='id')
         self.beacon_id = pd.read_excel(f'{self.data_dir}/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
 
+        # Beacon Attributes
         self.linear_model = {}
         for file in os.listdir(f"{self.data_dir}/interim/"):
             file_info = file.split("-")
@@ -610,6 +611,9 @@ class utx000():
                         print(f"Missing offset for {file_info[0]}")
                         self.constant_model[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"correction":np.zeros(51)}).set_index("beacon")
 
+        # EMA Attributes
+        self.ema_start = datetime(2020,5,13)
+        self.ema_end = datetime(2020,9,2)
 
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
@@ -903,6 +907,7 @@ class utx000():
         morning_survey_df['NAW'] = pd.to_numeric(morning_survey_df['NAW'],errors='coerce')
         morning_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy','tst','sol','naw','restful']
         morning_survey_df.index.rename("timestamp",inplace=True)
+        morning_survey_df = morning_survey_df.sort_index()[self.ema_start:self.ema_end]
         
         # Evening Survey Data
         # -------------------
@@ -931,6 +936,7 @@ class utx000():
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
         evening_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy']
         evening_survey_df.index.rename("timestamp",inplace=True)
+        evening_survey_df = evening_survey_df.sort_index()[self.ema_start:self.ema_end]
 
         # Weekly Survey Data
         # -------------------
@@ -966,6 +972,7 @@ class utx000():
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
         weekly_survey_df.columns = ['beiwe','upset','unable','stressed','confident','your_way','cope','able','top','angered','overcome']
         weekly_survey_df.index.rename("timestamp",inplace=True)
+        weekly_survey_df = weekly_survey_df.sort_index()[self.ema_start:self.ema_end]
 
         # saving
         try:
