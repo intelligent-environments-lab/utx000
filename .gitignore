@@ -78,6 +78,9 @@ target/
 # exclude data from source control by default
 /data/
 
+# exclude virtual environments
+/virtual_environments/
+
 # exclude temp figures from source control
 /inspection/
 
