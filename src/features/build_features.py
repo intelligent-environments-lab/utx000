@@ -117,35 +117,44 @@ class nightly_summaries():
 
     def get_sleep_summaries(self):
         '''
-        Gets summary sleep data from EMAs and Fitbit
+        Gets summary sleep data from Fitbit, EMAs and Fitbit, and EMAs and Fitbit from Participants with beacons and when they are home
 
         Inputs:
         - data_dir: string corresponding to the location of the "data" dir
         - study_suffix: string used to find the file and save the new files
 
         Returns two dataframes pertaining to the sleep data for both datasets
+        - all fitbit: sleep summaries and stage summaries from Fitbit
         - complete: all nights with both EMA and Fitbit recordings
         - fully filtered: nights when participants are home and have beacon data too
         '''
+        # Fitbit Summary and Sleep Stages Summary
+        # ---------------------------------------
+        print("\tCombining Fitbit Sleep Measurements")
+        # sleep summary
+        fb_daily_sleep = pd.read_csv(f'{self.data_dir}data/processed/fitbit-sleep_daily-{self.study_suffix}.csv',index_col="date",parse_dates=True,infer_datetime_format=True)
+        # sleep stages
+        fb_daily_sleep_stages = pd.read_csv(f'{self.data_dir}data/processed/fitbit-sleep_stages_summary-{self.study_suffix}.csv',parse_dates=["start_date","end_date"],infer_datetime_format=True)
+        # combining and saving
+        fb_all = fb_daily_sleep_stages.merge(fb_daily_sleep,left_on=["end_date","beiwe"],right_on=["date","beiwe"],how="inner")
+        fb_all.to_csv(f"{self.data_dir}data/processed/fitbit-sleep_data_summary-{self.study_suffix}.csv",index=False)
 
-        # Complete
-        # --------
-        print('\tGetting Complete Sleep Summary')
+        # EMA and Fitbit
+        # --------------
+        print('\tGetting Combined Sleep Summary from Fitbit and EMAs')
         # Self-report/EMA sleep
         ema_sleep = pd.read_csv(f'{self.data_dir}data/processed/beiwe-morning_ema-{self.study_suffix}.csv',index_col=0,parse_dates=True,infer_datetime_format=True)
         for column in ['tst','sol','naw','restful']:
             ema_sleep = ema_sleep[ema_sleep[column].notna()]
         ema_sleep['date'] = pd.to_datetime(ema_sleep.index.date)
-        # Fitbit-recorded sleep
-        fb_sleep = pd.read_csv(f'{self.data_dir}data/processed/fitbit-sleep_daily-{self.study_suffix}.csv',index_col="date",parse_dates=True,infer_datetime_format=True)
 
         # Getting complete sleep dataframe
         complete_sleep = pd.DataFrame() # dataframe to append to
-        pt_list = np.intersect1d(fb_sleep['beiwe'].unique(),ema_sleep['beiwe'].unique())
+        pt_list = np.intersect1d(fb_daily_sleep['beiwe'].unique(),ema_sleep['beiwe'].unique())
         for pt in pt_list:
             ema_sleep_beiwe = ema_sleep[ema_sleep['beiwe'] == pt]
-            fb_sleep_beiwe = fb_sleep[fb_sleep['beiwe'] == pt]
-            complete_sleep = complete_sleep.append(fb_sleep_beiwe.merge(ema_sleep_beiwe,left_on='date',right_on='date',how='inner'))
+            fb_beiwe = fb_all[fb_all['beiwe'] == pt]
+            complete_sleep = complete_sleep.append(fb_beiwe.merge(ema_sleep_beiwe,left_on='end_date',right_on='date',how='inner'))
         # Saving
         complete_sleep.set_index('date',inplace=True)
         complete_sleep["beiwe"] = complete_sleep["beiwe_x"]
@@ -174,14 +183,84 @@ class nightly_summaries():
             axis=1,inplace=True)
         ff_sleep.to_csv(f'{self.data_dir}data/processed/fitbit_beiwe_beacon-sleep_summary-{self.study_suffix}.csv')
 
-        return complete_sleep, ff_sleep
+        return fb_all,complete_sleep, ff_sleep
 
-class summarized_datasets():
+    def get_beacon_summaries(self):
+        """
+        Gets various statistics for the beacon data when the participant is considered home and asleep
+        """
+
+        data = pd.read_csv(f"{self.data_dir}data/processed/beacon-fb_and_gps_filtered-{self.study_suffix}.csv",index_col="timestamp",parse_dates=["timestamp","start_time","end_time"],infer_datetime_format=True)
+        summarized_df = pd.DataFrame()
+        for s in ["mean","median","delta","delta_percent"]:
+            beacon_by_s = pd.DataFrame()
+            for pt in data["beiwe"].unique():
+                data_by_pt = data[data["beiwe"] == pt]
+                ids = data_by_pt[["end_time","beacon","beiwe","fitbit","redcap"]]
+                data_by_pt.drop(["end_time","beacon","beiwe","fitbit","redcap"],axis=1,inplace=True)
+                if s == "mean":
+                    data_s_by_pt = data_by_pt.groupby("start_time").mean()
+                elif s == "median":
+                    data_s_by_pt = data_by_pt.groupby("start_time").median()
+                elif s == "delta":
+                    little = data_by_pt.groupby("start_time").min()
+                    big = data_by_pt.groupby("start_time").max()
+                    data_s_by_pt = big - little
+                else:
+                    little = data_by_pt.groupby("start_time").min()
+                    big = data_by_pt.groupby("start_time").max()
+                    data_s_by_pt = (big - little) / little * 100
+
+                data_s_by_pt = data_s_by_pt.add_suffix(f"_{s}")
+                data_s_by_pt["end_time"] = ids["end_time"].unique()
+                for col in ids.columns[1:]:
+                    data_s_by_pt[col] = ids[col][0]
+
+                beacon_by_s = beacon_by_s.append(data_s_by_pt)
+
+            if len(summarized_df) == 0:
+                summarized_df = beacon_by_s
+            else:
+                summarized_df = summarized_df.merge(beacon_by_s,on=["start_time","end_time","beacon","beiwe","fitbit","redcap"])
+
+        summarized_df.to_csv(f"{self.data_dir}data/processed/beacon-fb_and_gps_filtered_summary-{self.study_suffix}.csv")
+        # combining fitbit data to the beacon summary
+        fb_all = pd.read_csv(f"{self.data_dir}data/processed/fitbit-sleep_data_summary-{self.study_suffix}.csv",parse_dates=["start_time","end_time"],infer_datetime_format=True)
+        beacon_fitbit_summary = fb_all.merge(summarized_df,left_on=["start_time","end_time","beiwe"],right_on=["start_time","end_time","beiwe"])
+        beacon_fitbit_summary.to_csv(f"{self.data_dir}data/processed/beacon_fitbit-sleep_data_summary-{self.study_suffix}.csv",index=False)
+        return summarized_df, beacon_fitbit_summary
+
+class daily_summaries():
     """
-    Class meant to summarize the various datasets
+    Class meant to summarize data prior to the participant sleeping
     """
 
-    def __init__(self):
+    def __init__(self,data_dir='../../',study_suffix="ux_s20"):
+        self.data_dir = data_dir
+        self.study_suffix = study_suffix
+
+    def get_ema_mood_summaries(self):
+        """
+        Summarizes the mood scores from EMAs submitted on the same day
+        """
+        # importing, combining, and saving "daily" EMA data
+        morning = pd.read_csv(f"{self.data_dir}data/processed/beiwe-morning_ema-ux_s20.csv",parse_dates=["timestamp"],infer_datetime_format=True)
+        morning["date"] = morning["timestamp"].dt.date
+        evening = pd.read_csv(f"{self.data_dir}data/processed/beiwe-evening_ema-ux_s20.csv",parse_dates=["timestamp"],infer_datetime_format=True)
+        evening["date"] = evening["timestamp"].dt.date
+        emas = morning.merge(evening,left_on=["date","beiwe"],right_on=["date","beiwe"],suffixes=('_morning', '_evening'))
+        emas["date"] = pd.to_datetime(emas["date"])
+        emas.to_csv(f"{self.data_dir}data/processed/beiwe-daily_ema-{self.study_suffix}")
+        # importing fitbit data and combining with ema data
+        fitbit = pd.read_csv(f"{self.data_dir}data/processed/fitbit-sleep_data_summary-{self.study_suffix}.csv")
+        fb_mood = fitbit.merge(emas,left_on=["end_date","beiwe"],right_on=["date","beiwe"])
+        fb_mood.drop(['tst', 'sol', 'naw', 'restful', 'date'],aaxis=1,inplace=True)
+        fb_mood.to_csv(f"{self.data_dir}data/processed/fitbit_beiwe-sleep_and_mood-{self.study_suffix}.csv",index=False)
+
+    def get_fitbit_daily_summaries(self):
+        """
+        Summarizes fitbit-related metrics and filters the data down to only include data with fitbit-measured sleep
+        """
         pass
 
 def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='../../',study_suffix="ux_s20"):
@@ -283,9 +362,16 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
     return partially_filtered_beacon, fully_filtered_beacon
 
 def main():
-    get_restricted_beacon_datasets(data_dir='../../')
+    #get_restricted_beacon_datasets(data_dir='../../')
+
     ns = nightly_summaries(data_dir='../../')
     ns.get_sleep_summaries()
+    ns.get_beacon_summaries()
+
+    ds = daily_summaries(data_dir='../../')
+    #ds.get_morning_ema_sleep_summaries()
+    #ds.get_fitbit_daily_summaries()
+
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
