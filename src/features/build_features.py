@@ -115,10 +115,13 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
 
     Inputs:
     - radius: the threshold to consider for the participants' GPS coordinates 
+    - restrict_by_ema: boolean to control whether or not we create a second dataset filtered by ema
+    - data_dir: string corresponding to the location of the "data" dir
+    - study_suffix: string used to find the file and save the new files
 
     Output:
-    - nightly_beacon: dataframe
-    - filtered_beacon: dataframe holding filtered beacon data
+    - partially_filtered_beacon: dataframe with beacon data filtered by fitbit and gps measurements
+    - fully_filtered_beacon: dataframe with beacon data filtered by fitbit, ema, and gps measurements
     '''
 
     # Importing necessary processed data files
@@ -143,7 +146,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
                     parse_dates=[3,4,5,6],infer_datetime_format=True)
 
 
-    nightly_beacon = pd.DataFrame() # df restricted by fitbit and gps
+    partially_filtered_beacon = pd.DataFrame() # df restricted by fitbit and gps
     for pt in sleep['beiwe'].unique():
         if pt in info['beiwe'].values: # only want beacon particiapnts
             # getting data per participant
@@ -176,7 +179,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
                         nightly_temp['end_time'] = end_time
                         nightly_temp['beiwe'] = pt
 
-                        nightly_beacon = nightly_beacon.append(nightly_temp)
+                        partially_filtered_beacon = partially_filtered_beacon.append(nightly_temp)
                         print(f'\tSUCCESS - added data for night {end_time.date()}')
                     else:
                         print(f'\tParticipant outside {radius} meters for night {end_time.date()}')
@@ -186,34 +189,35 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
             print(f'{pt} did not receive a beacon')
 
     # Data filtered by fitbit nights only
-    nightly_beacon.to_csv(f'{data_dir}data/processed/beacon-fb_and_gps_filtered-{study_suffix}.csv')
+    partially_filtered_beacon.to_csv(f'{data_dir}data/processed/beacon-fb_and_gps_filtered-{study_suffix}.csv')
 
     if restrict_by_ema == True:
         # removing nights without emas the following morning 
-        filtered_beacon = pd.DataFrame()
-        for pt in nightly_beacon['beiwe'].unique():
+        fully_filtered_beacon = pd.DataFrame()
+        for pt in partially_filtered_beacon['beiwe'].unique():
             # getting pt-specific dfs
-            evening_iaq_pt = nightly_beacon[nightly_beacon['beiwe'] == pt]
+            evening_iaq_pt = partially_filtered_beacon[partially_filtered_beacon['beiwe'] == pt]
             ema_pt = ema[ema['beiwe'] == pt]
             survey_dates = ema_pt.index.date
             survey_only_iaq = evening_iaq_pt[evening_iaq_pt['end_time'].dt.date.isin(survey_dates)]
             
-            filtered_beacon = filtered_beacon.append(survey_only_iaq)
+            fully_filtered_beacon = fully_filtered_beacon.append(survey_only_iaq)
             
-        filtered_beacon.to_csv(f'{data_dir}data/processed/beacon-fb_ema_and_gps_filtered-{study_suffix}.csv')
+        fully_filtered_beacon.to_csv(f'{data_dir}data/processed/beacon-fb_ema_and_gps_filtered-{study_suffix}.csv')
 
-    return nightly_beacon, filtered_beacon
+    return partially_filtered_beacon, fully_filtered_beacon
 
 def get_sleep_summaries(data_dir='../../',study_suffix="ux_s20"):
     '''
-    Gets summary sleep data from EMAs and Fitbit for three datasets:
-    - complete: all nights with both EMA and Fitbit recordings
-    - fully filtered: nights when participants are home and have beacon data too
+    Gets summary sleep data from EMAs and Fitbit
 
     Inputs:
-    -
+    - data_dir: string corresponding to the location of the "data" dir
+    - study_suffix: string used to find the file and save the new files
 
     Returns two dataframes pertaining to the sleep data for both datasets
+    - complete: all nights with both EMA and Fitbit recordings
+    - fully filtered: nights when participants are home and have beacon data too
     '''
 
     # Complete
@@ -266,7 +270,7 @@ def get_sleep_summaries(data_dir='../../',study_suffix="ux_s20"):
 
 def main():
     get_restricted_beacon_datasets(data_dir='../../')
-    get_sleep_summaries()
+    get_sleep_summaries(data_dir='../../')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
