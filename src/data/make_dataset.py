@@ -1,209 +1,199 @@
 # -*- coding: utf-8 -*-
+# Data Science Packages
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
 
+# Useful
 from datetime import datetime, timedelta
 import math
 
+# Operations
 import os
 import logging
 from pathlib import Path
 
+# Extra
 import ast
 
-class ut1000():
-    '''
-    Class dedicated to processing ut1000 data only
-    '''
+# Local
+from ut3000 import ut1000, ut2000, ut3000
 
-    def __init__(self):
-        self.study = 'ut1000'
+class wcwh():
+    """
+    Class dedicated to processing data from the wcwh studies
+    """
 
-class ut2000():
-    '''
-    Class dedicated to processing ut2000 data only
-    '''
+    def __init__(self,study,suffix,data_dir="../../data"):
+        # study specifics
+        self.study = study
+        self.suffix = suffix
+        self.data_dir = data_dir
 
-    def __init__(self):
-        self.study = 'ut2000'
+        # participant and device ids
+        self.id_crossover = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='id')
+        self.beacon_id = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='beacon')
 
-    def get_beacon_datetime_index(self,df,resample_rate='10T'):
+        # beacon correction factors 
+        self.correction = {}
+        for file in os.listdir(f"{self.data_dir}/interim/"):
+            file_info = file.split("-")
+            if len(file_info) == 3:
+                if file_info[1] == "linear_model" and file_info[-1] == self.suffix+".csv":
+                    try:
+                        self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
+                    except FileNotFoundError:
+                        print(f"Missing offset for {file_info[0]} - padding with zeros")
+                        self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
+
+    def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
-        Takes the utc timestamp index, converts it to datetime, sets the index, and resamples
+        Moves problematic file to the purgatory data directory
+
+        Returns void
         '''
-        dt = []
-        for i in range(len(df)):
-            if isinstance(df.index[i], str):
-                try:
-                    ts = int(df.index[i])
-                except ValueError:
-                    ts = int(df.index[i][:-2])
-                dt.append(datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'))
-            else:
-                dt.append(datetime.now())
+        print('\t\tMoving to purgatory...')
+        os.replace(path_to_file, path_to_destination)
 
-        df['datetime'] = dt
-        df['datetime'] = pd.to_datetime(df['datetime'])
-        df.set_index('datetime',inplace=True)
-        df = df.resample('10T').mean()
-        
-        return df
-
-    def process_beacon(self,data_dir='../../data/raw/ut2000/beacon/'):
+    def process_beacon(self,extreme=''):
         '''
         Combines data from all sensors on all beacons
+
+        Returns True if able to save one dataframe that contains all the data at regular intervals in /data/processed directory
         '''
 
-        beacons = pd.DataFrame()
-        trh = pd.DataFrame()
-        measurements = ['pm1.0','pm2.5','pm10','std1.0','std2.5','std10','pc0.3','pc0.5','pc1.0','pc2.5','pc5.0','pc10.0']
-        for folder in os.listdir(data_dir):
-            beacon_no = folder[-2:]
-            if beacon_no in ['07','12','09','03','08','02','01','06','05','10']:
-                
-                beaconPM = pd.DataFrame()
-                for file in os.listdir(f'{data_dir}{folder}/bevo/pms5003/'):
-                    if file[-1] == 'v':
-                        temp = pd.read_csv(f'{data_dir}{folder}/bevo/pms5003/{file}',names=measurements,
-                                          parse_dates=True,infer_datetime_format=True)
-                        if len(temp) > 1:
-                            beaconPM = pd.concat([beaconPM,temp])
-                            
-                beaconTVOC = pd.DataFrame()
-                for file in os.listdir(f'{data_dir}{folder}/bevo/sgp30/'):
-                    if file[-1] == 'v':
-                        temp = pd.read_csv(f'{data_dir}{folder}/bevo/sgp30/{file}',
-                                        names=['eco2','TVOC'],
-                                        parse_dates=True,infer_datetime_format=True)
-                        if len(temp) > 1:
-                            beaconTVOC = pd.concat([beaconTVOC,temp])
-                            
-                beaconTRH = pd.DataFrame()
-                for file in os.listdir(f'{data_dir}{folder}/bevo/sht31d/'):
-                    if file[-1] == 'v':
-                        temp = pd.read_csv(f'{data_dir}{folder}/bevo/sht31d/{file}',
-                                        names=['RH','TC'],
-                                        parse_dates=True,infer_datetime_format=True)
-                        if len(temp) > 1:
-                            beaconTRH = pd.concat([beaconTRH,temp])
-                
-                # converting timestamp to datetime, tagging, and combining to overall
-                beaconPM = self.get_beacon_datetime_index(beaconPM)
-                beaconTVOC = self.get_beacon_datetime_index(beaconTVOC)
-                beaconTRH = self.get_beacon_datetime_index(beaconTRH)
-                beaconDF = pd.concat([beaconPM,beaconTVOC,beaconTRH],axis=1,join='outer')
-                beaconDF['number'] = beacon_no
-                beacons = pd.concat([beacons,beaconDF])
+        beacon_data = pd.DataFrame() # dataframe to hold the final set of data
+        beacons_folder=f"{self.data_dir}/raw/{self.study}/beacon"
+        print('\tProcessing beacon data...\n\t\tReading for beacon:')
+        for beacon in self.beacon_id["beacon"].to_list():
 
+            # correcting the number since the values <10 have leading zero in directory
+            number = f'{beacon:02}'
+            print(f'\t\t{number}')
+
+            beacon_folder=f'{beacons_folder}/B{number}'
+            beacon_df = pd.DataFrame() # dataframe specific to the beacon
+
+            # getting other ids
+            beacon_crossover_info = self.id_crossover.loc[self.id_crossover['beacon'] == beacon].reset_index(drop=True)
+            beiwe = beacon_crossover_info['beiwe'][0]
+            fitbit = beacon_crossover_info['fitbit'][0]
+            redcap = beacon_crossover_info['redcap'][0]
+            del beacon_crossover_info
+
+            def import_and_merge(csv_dir,number,resample_rate=2):
+                df_list = []
+                for file in os.listdir(csv_dir+'/'):
+                    try:
+                        # reading in raw data (csv for one day at a time) and appending it to the overal dataframe
+                        day_df = pd.read_csv(f'{csv_dir}/{file}',
+                                            index_col='Timestamp',parse_dates=True,
+                                            infer_datetime_format=True)
+                        df_list.append(day_df)
+                        
+                    except Exception as inst:
+                        # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
+                        print(f'Issue encountered while importing {csv_dir}/{file}, skipping...')
+                        self.move_to_purgatory(f'{csv_dir}/{file}',f'{self.data_dir}/purgatory/B{number}-py3-{file}-{self.suffix}')
+                try:
+                    df = pd.concat(df_list).resample(f'{resample_rate}T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
+                    return df
+                except ValueError:
+                    return pd.DataFrame() # empty dataframe
+
+            # Python3 Sensors
+            # ---------------
+            py3_df = import_and_merge(f'{beacon_folder}/adafruit', number)
+            if len(py3_df) == 0:
+                continue
+
+            # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
+            if int(number) >= 28:
+                print('\t\t\tNo NO2 sensor - removing values')
+
+                py3_df[['CO','T_CO','RH_CO']] = py3_df[['NO2','T_NO2','RH_NO2']]
+                py3_df[['NO2','T_NO2','RH_NO2']] = np.nan
+
+            py3_df['CO'] /= 1000 # converting ppb measurements to ppm
+
+            # Python2 Sensors
+            # ---------------
+            py2_df = import_and_merge(f'{beacon_folder}/sensirion', number)
+            if len(py2_df) == 0:
+                continue
+                
+            # Cleaning
+            # --------
+            # merging python2 and 3 sensor dataframes
+            beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
+            
+            # getting relevant data only
+            start_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['start_date'].values[0]
+            end_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['end_date'].values[0]
+            beacon_df = beacon_df[start_date:end_date]
+
+            # combing T/RH readings and dropping the bad ones
+            beacon_df['temperature_c'] = beacon_df[['T_CO','T_NO2']].mean(axis=1)
+            beacon_df['rh'] = beacon_df[['RH_CO','RH_NO2']].mean(axis=1)
+            beacon_df.drop(["T_NO2","T_CO","RH_NO2","RH_CO","Temperature [C]","Relative Humidity"],axis=1,inplace=True)
+
+            # dropping unecessary columns
+            beacon_df.drop(["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4"],axis=1,inplace=True)
+
+            # renaming columns
+            beacon_df.columns = ["tvoc","lux","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]
+            beacon_df.index.rename("timestamp",inplace=True)
+
+            # offsetting measurements with linear model
+            for var in self.correction.keys():
+                print()
+                beacon_df[var] = beacon_df[var] * self.correction[var].loc[beacon,"coefficient"] + self.correction[var].loc[beacon,"constant"]
+            
+            # variables that should never have anything less than zero
+            for var in ["lux",'temperature_c','rh']:
+                beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
+            
+            # variables that should never be less than a certain limit
+            #for var, threshold in zip(['co2'],[100]):
+            #    beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
+            
+            # removing extreme values 
+            if extreme == 'zscore':
+                # zscore greater than 2.5
+                for var in beacon_df.columns:
+                    beacon_df['z'] = abs(beacon_df[var] - beacon_df[var].mean()) / beacon_df[var].std(ddof=0)
+                    beacon_df.loc[beacon_df['z'] > 2.5, var] = np.nan
+
+                beacon_df.drop(['z'],axis=1,inplace=True)
+            elif extreme == 'iqr':
+                for var in beacon_df.columns:
+                    # Computing IQR
+                    Q1 = beacon_df[var].quantile(0.25)
+                    Q3 = beacon_df[var].quantile(0.75)
+                    IQR = Q3 - Q1
+                    
+                    # Filtering Values between Q1-1.5IQR and Q3+1.5IQR
+                    beacon_df[var].mask(beacon_df[var]<Q1-1.5*IQR,np.nan,inplace=True)
+                    beacon_df[var].mask(beacon_df[var]>Q3+1.5*IQR,np.nan,inplace=True)
+            else:
+                print('\t\t\tExtreme values retained')
+
+            # dropping NaN values that get in
+            beacon_df.dropna(how='all',inplace=True)
+
+            # adding columns for the pt details
+            beacon_df['beacon'] = beacon
+            beacon_df['beiwe'] = beiwe
+            beacon_df['fitbit'] = fitbit
+            beacon_df['redcap'] = redcap
+            
+            beacon_data = pd.concat([beacon_data,beacon_df])
+
+        # saving
         try:
-            beacons.to_csv(f'../../data/processed/ut2000-beacon.csv')
+            beacon_data.to_csv(f'{self.data_dir}/processed/beacon-{self.suffix}.csv')
         except:
             return False
-
-        return True
-
-class ut3000():
-    '''
-    Class dedicated to processing ut1000 and ut2000 data together
-    '''
-
-    def __init__(self):
-        self.study = 'ut3000'
-
-    def process_beiwe_or_fitbit(self,dir_string='fitbit',file_string='dailySteps_merged'):
-        '''
-        Imports fitbit or beiwe mood data from ut1000 and ut2000, combines them into
-        one dataframe, then adds/adjusts columns before writing data to a csv in the
-        processed data directory.
-        '''
-        df = pd.DataFrame()
-        for i in range(2):
-            # import the file and attach a study tag
-            temp = pd.read_csv(f'../../data/raw/ut{i+1}000/{dir_string}/{file_string}.csv')
-            temp['study'] = f'ut{i+1}000'
-            
-            # import the id crossover file and attach so we have record, beiwe, and beacon id
-            crossover = pd.read_csv(f'../../data/raw/ut{i+1}000/admin/id_crossover.csv')
-            if 'Id' in temp.columns: # fitbit
-                temp = pd.merge(left=temp,right=crossover,left_on='Id',right_on='record',how='left')
-            elif 'pid' in temp.columns: # beiwe
-                temp = pd.merge(left=temp,right=crossover,left_on='pid',right_on='beiwe',how='left')
-            else: # neither
-                return False
-            
-            df = pd.concat([df,temp])
-
-        # further processessing based on dir and file strings
-        if dir_string == 'fitbit' and file_string == 'sleepStagesDay_merged':
-            # removing nights that have no measured sleep
-            df = df[df['TotalMinutesLight'] > 0]
-            # adding extra sleep metric columns
-            df['SleepEfficiency'] = df['TotalMinutesAsleep'] / df['TotalTimeInBed']
-            df['TotalMinutesNREM'] = df['TotalMinutesLight'] + df['TotalMinutesDeep'] 
-            df['REM2NREM'] = df['TotalMinutesREM'] / df['TotalMinutesNREM']
-
-        df.to_csv(f'../../data/processed/ut3000-{dir_string}-{file_string}.csv',index=False)
-            
-        return True
-
-    def process_heh(self):
-        '''
-        Imports and combines heh survey data, cleans up the data, and saves to processed file
-        '''
-
-        # Importing data
-        heh_1 = pd.read_csv('../../data/raw/ut1000/surveys/heh.csv')
-        heh_2 = pd.read_csv('../../data/raw/ut2000/surveys/heh.csv')
-        # Dropping all the NaN values from the ut2000 survey
-        heh_2.dropna(subset=['livingsit'],inplace=True)
-        # Re-mapping choices to numbers - 0 for no, 1 for yes
-        heh_1.columns = heh_2.columns
-        heh_1.dropna(subset=['livingsit'],inplace=True)
-        heh_1['smoke'] = heh_1['smoke'].map({'Yes':1,'No':0})
-        heh_1['vape'] = heh_1['vape'].map({'Yes':1,'No':0})
-        heh_1['cook_home'] = heh_1['cook_home'].map({'Yes':1,'No':0})
-        heh_1['kitchen_exhaust'] = heh_1['kitchen_exhaust'].map({'Yes':1,'No':0})
-        heh_1['flu_3w'] = heh_1['flu_3w'].map({'Yes':1,'No':0})
-        heh_1['allergies_3w'] = heh_1['allergies_3w'].map({'Yes':1,'No':0})
-        heh_1['cold_3w'] = heh_1['cold_3w'].map({'Yes':1,'No':0})
-        sameCols = heh_1.columns == heh_2.columns
-        for val in sameCols:
-            if val == False:
-                return False
-
-        # Tagging
-        heh_1['study'] = 'ut1000'
-        heh_2['study'] = 'ut2000'
-        # Adding beiwe and beacon IDs
-        idCross1 = pd.read_csv('../../data/raw/ut1000/admin/id_crossover.csv')
-        idCross2 = pd.read_csv('../../data/raw/ut2000/admin/id_crossover.csv')
-        heh_1 = pd.merge(left=heh_1,left_on='record_id',right=idCross1,right_on='record',how='left')
-        heh_2 = pd.merge(left=heh_2,left_on='record_id',right=idCross2,right_on='record',how='left')
-        # combining
-        heh = pd.concat([heh_1,heh_2], axis=0)
-        # Cleaning combined survey
-        ## Getting same answers for living situation
-        heh['livingsit'] = heh['livingsit'].map({'Apartment':'Apartment','Dormitory':'Dormitory','Stand-alone House':'Stand-alone House',
-                                                 3.0:'Apartment',2.0:'Stand-alone House'})
-        # Getting just number of roomates
-        mates = []
-        for i in range(len(heh)):
-            r = heh['amt_rmmates'].values[i]
-            h = heh['amt_housemates'].values[i]
-            if r > 0:
-                mates.append(r)
-            elif h > 0:
-                mates.append(h)
-            else:
-                mates.append(0)
-            
-        heh['roommates'] = mates
-        heh = heh.drop(['amt_rmmates','amt_housemates'],axis=1)
-        # Adding zero where NaN
-        heh.fillna(0, inplace=True)
-        # saving the file!
-        heh.to_csv(f'../../data/processed/ut3000-heh.csv',index=False) 
 
         return True
 
@@ -1423,7 +1413,7 @@ def main():
     elif ans == 5:
         processor = utx000()
     elif ans == 6:
-        processor = wcwh_community()
+        processor = wcwh(study="wcwh_pilot",suffix="wcwh_s20")
     else:
         print("Invalid Choice")
         exit(1)
