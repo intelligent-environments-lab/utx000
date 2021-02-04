@@ -9,8 +9,6 @@ import numpy as np
 
 import geopy.distance
 
-import matplotlib.pyplot as plt
-
 class beacon_statistics():
 
     def __init__(self):
@@ -108,6 +106,84 @@ class beacon_statistics():
 
         return time
 
+class nightly_summaries():
+    """
+    Class used to summarize data by night when the participant is assumed to be asleep
+    """
+    
+    def __init__(self,data_dir='../../',study_suffix="ux_s20"):
+        self.data_dir = data_dir
+        self.study_suffix = study_suffix
+
+    def get_sleep_summaries(self):
+        '''
+        Gets summary sleep data from EMAs and Fitbit
+
+        Inputs:
+        - data_dir: string corresponding to the location of the "data" dir
+        - study_suffix: string used to find the file and save the new files
+
+        Returns two dataframes pertaining to the sleep data for both datasets
+        - complete: all nights with both EMA and Fitbit recordings
+        - fully filtered: nights when participants are home and have beacon data too
+        '''
+
+        # Complete
+        # --------
+        print('\tGetting Complete Sleep Summary')
+        # Self-report/EMA sleep
+        ema_sleep = pd.read_csv(f'{self.data_dir}data/processed/beiwe-morning_ema-{self.study_suffix}.csv',index_col=0,parse_dates=True,infer_datetime_format=True)
+        for column in ['tst','sol','naw','restful']:
+            ema_sleep = ema_sleep[ema_sleep[column].notna()]
+        ema_sleep['date'] = pd.to_datetime(ema_sleep.index.date)
+        # Fitbit-recorded sleep
+        fb_sleep = pd.read_csv(f'{self.data_dir}data/processed/fitbit-sleep_daily-{self.study_suffix}.csv',index_col="date",parse_dates=True,infer_datetime_format=True)
+
+        # Getting complete sleep dataframe
+        complete_sleep = pd.DataFrame() # dataframe to append to
+        pt_list = np.intersect1d(fb_sleep['beiwe'].unique(),ema_sleep['beiwe'].unique())
+        for pt in pt_list:
+            ema_sleep_beiwe = ema_sleep[ema_sleep['beiwe'] == pt]
+            fb_sleep_beiwe = fb_sleep[fb_sleep['beiwe'] == pt]
+            complete_sleep = complete_sleep.append(fb_sleep_beiwe.merge(ema_sleep_beiwe,left_on='date',right_on='date',how='inner'))
+        # Saving
+        complete_sleep.set_index('date',inplace=True)
+        complete_sleep["beiwe"] = complete_sleep["beiwe_x"]
+        complete_sleep.drop(["beiwe_x","beiwe_y"],axis=1,inplace=True)
+        complete_sleep.to_csv(f'{self.data_dir}data/processed/fitbit_beiwe-sleep_summary-{self.study_suffix}.csv')
+
+        # Fully Filtered
+        # --------------
+        print('\tGetting Sleep Summary for Fully Filtered Beacon Dataset')
+        # Fully filtered beacon dataset to cross-reference
+        ff_beacon = pd.read_csv(f'{self.data_dir}data/processed/beacon-fb_ema_and_gps_filtered-{self.study_suffix}.csv',
+                                    index_col=0, parse_dates=[0,-2,-1], infer_datetime_format=True)
+        ff_beacon['date'] = ff_beacon['end_time'].dt.date
+
+        # Getting fully filtered sleep dataframe
+        ff_sleep = pd.DataFrame()
+        for pt in ff_beacon['beiwe'].unique():
+            ff_sleep_pt = complete_sleep[complete_sleep['beiwe'] == pt]
+            ff_pt = ff_beacon[ff_beacon['beiwe'] == pt]
+            ff_pt_summary = ff_pt.groupby('date').mean()
+
+            ff_sleep = ff_sleep.append(ff_sleep_pt.merge(ff_pt_summary,left_index=True,right_index=True,how='inner'))
+        # cleaning and saving
+        ff_sleep.drop(['lat','long','altitude','accuracy',
+            'tvoc','lux','no2','co','co2',"pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"],
+            axis=1,inplace=True)
+        ff_sleep.to_csv(f'{self.data_dir}data/processed/fitbit_beiwe_beacon-sleep_summary-{self.study_suffix}.csv')
+
+        return complete_sleep, ff_sleep
+
+class summarized_datasets():
+    """
+    Class meant to summarize the various datasets
+    """
+
+    def __init__(self):
+        pass
+
 def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='../../',study_suffix="ux_s20"):
     '''
     Gets restricted/filtered datasets for the beacon considering we have fitbit/GPS alone
@@ -144,7 +220,6 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
     # participant info data for beacon users
     info = pd.read_excel(f'{data_dir}data/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon',
                     parse_dates=[3,4,5,6],infer_datetime_format=True)
-
 
     partially_filtered_beacon = pd.DataFrame() # df restricted by fitbit and gps
     for pt in sleep['beiwe'].unique():
@@ -207,70 +282,10 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
 
     return partially_filtered_beacon, fully_filtered_beacon
 
-def get_sleep_summaries(data_dir='../../',study_suffix="ux_s20"):
-    '''
-    Gets summary sleep data from EMAs and Fitbit
-
-    Inputs:
-    - data_dir: string corresponding to the location of the "data" dir
-    - study_suffix: string used to find the file and save the new files
-
-    Returns two dataframes pertaining to the sleep data for both datasets
-    - complete: all nights with both EMA and Fitbit recordings
-    - fully filtered: nights when participants are home and have beacon data too
-    '''
-
-    # Complete
-    # --------
-    print('\tGetting Complete Sleep Summary')
-    # Self-report/EMA sleep
-    ema_sleep = pd.read_csv(f'{data_dir}data/processed/beiwe-morning_ema-{study_suffix}.csv',index_col=0,parse_dates=True,infer_datetime_format=True)
-    for column in ['tst','sol','naw','restful']:
-        ema_sleep = ema_sleep[ema_sleep[column].notna()]
-    ema_sleep['date'] = pd.to_datetime(ema_sleep.index.date)
-    # Fitbit-recorded sleep
-    fb_sleep = pd.read_csv(f'{data_dir}data/processed/fitbit-sleep_daily-{study_suffix}.csv',index_col="date",parse_dates=True,infer_datetime_format=True)
-
-    # Getting complete sleep dataframe
-    complete_sleep = pd.DataFrame() # dataframe to append to
-    pt_list = np.intersect1d(fb_sleep['beiwe'].unique(),ema_sleep['beiwe'].unique())
-    for pt in pt_list:
-        ema_sleep_beiwe = ema_sleep[ema_sleep['beiwe'] == pt]
-        fb_sleep_beiwe = fb_sleep[fb_sleep['beiwe'] == pt]
-        complete_sleep = complete_sleep.append(fb_sleep_beiwe.merge(ema_sleep_beiwe,left_on='date',right_on='date',how='inner'))
-    # Saving
-    complete_sleep.set_index('date',inplace=True)
-    complete_sleep["beiwe"] = complete_sleep["beiwe_x"]
-    complete_sleep.drop(["beiwe_x","beiwe_y"],axis=1,inplace=True)
-    complete_sleep.to_csv(f'{data_dir}data/processed/fitbit_beiwe-sleep_summary-{study_suffix}.csv')
-
-    # Fully Filtered
-    # --------------
-    print('\tGetting Sleep Summary for Fully Filtered Beacon Dataset')
-    # Fully filtered beacon dataset to cross-reference
-    ff_beacon = pd.read_csv(f'{data_dir}data/processed/beacon-fb_ema_and_gps_filtered-{study_suffix}.csv',
-                                 index_col=0, parse_dates=[0,-2,-1], infer_datetime_format=True)
-    ff_beacon['date'] = ff_beacon['end_time'].dt.date
-
-    # Getting fully filtered sleep dataframe
-    ff_sleep = pd.DataFrame()
-    for pt in ff_beacon['beiwe'].unique():
-        ff_sleep_pt = complete_sleep[complete_sleep['beiwe'] == pt]
-        ff_pt = ff_beacon[ff_beacon['beiwe'] == pt]
-        ff_pt_summary = ff_pt.groupby('date').mean()
-
-        ff_sleep = ff_sleep.append(ff_sleep_pt.merge(ff_pt_summary,left_index=True,right_index=True,how='inner'))
-    # cleaning and saving
-    ff_sleep.drop(['lat','long','altitude','accuracy',
-        'tvoc','lux','no2','co','co2',"pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"],
-        axis=1,inplace=True)
-    ff_sleep.to_csv(f'{data_dir}data/processed/fitbit_beiwe_beacon-sleep_summary-{study_suffix}.csv')
-
-    return complete_sleep, ff_sleep
-
 def main():
     get_restricted_beacon_datasets(data_dir='../../')
-    get_sleep_summaries(data_dir='../../')
+    ns = nightly_summaries(data_dir='../../')
+    ns.get_sleep_summaries()
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
