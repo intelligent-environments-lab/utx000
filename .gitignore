@@ -81,6 +81,9 @@ target/
 # exclude virtual environments
 /virtual_environments/
 
+# exclude admin
+/admin/
+
 # exclude temp figures from source control
 /inspection/
 
