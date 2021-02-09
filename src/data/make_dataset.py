@@ -10,8 +10,8 @@ import math
 
 # Operations
 import os
+import os.path
 import logging
-from pathlib import Path
 
 # Extra
 import ast
@@ -398,7 +398,7 @@ class utx000():
         self.suffix = suffix
         self.data_dir = data_dir
 
-        self.id_crossover = pd.read_excel(f'{self.data_dir}/raw/utx000/admin/id_crossover.xlsx',sheet_name='id')
+        self.id_crossover = pd.read_excel(f'{self.data_dir}/raw/utx000/admin/id_crossover.xlsx',sheet_name='all')
         self.beacon_id = pd.read_excel(f'{self.data_dir}/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon')
 
         # Beacon Attributes
@@ -436,6 +436,21 @@ class utx000():
         '''
         print('\t\tMoving to purgatory...')
         os.replace(path_to_file, path_to_destination)
+
+    def get_ids(self, pid, by_id="beiwe"):
+        """
+        Gets all ids associated with the given id
+        """
+        crossover_info = self.id_crossover.loc[self.id_crossover[by_id] == pid].reset_index(drop=True)
+        id_list = []
+        for id_type in ["redcap","beiwe","beacon","fitbit"]:
+            if id_type == by_id:
+                id_list.append(pid)
+            else:
+                id_list.append(crossover_info[id_type][0])
+        del crossover_info
+
+        return id_list[0], id_list[1], id_list[2], id_list[3]
 
     def process_beacon(self, extreme='zscore'):
         '''
@@ -675,10 +690,37 @@ class utx000():
         
         Returns True if able to save two dataframes for morning/evening survey data in /data/processed directory
         '''
-        # defining some variables for ease of understanding
-        morning_survey_id = 'eQ2L3J08ChlsdSXXKOoOjyLJ'
-        evening_survey_id = '7TaT8zapOWO0xdtONnsY8CE0'
-        weekly_survey_id = 'lh9veS0aSw2KfrfwSytYjxVr'
+        
+        def get_survey_id(path_to_dir,survey_type="morning"):
+            """
+            Gets the survey id for emas
+            """
+            # defining some variables for ease of understanding - "alt" vars refer to survey IDs from ULG participants
+            morning_survey_id = 'eQ2L3J08ChlsdSXXKOoOjyLJ'
+            morning_survey_id_alt = 'pJQCg6t6i6RtNqOE8PBvFK8I'
+            evening_survey_id = '7TaT8zapOWO0xdtONnsY8CE0'
+            evening_survey_id_alt = 'hflVY6iq39s1wd5slGwaCHBY'
+            weekly_survey_id = 'lh9veS0aSw2KfrfwSytYjxVr'
+            weekly_survey_id_alt = 'MlLhVitzIgRqOTA3jhPWkuc0'
+
+            if survey_type == "morning":
+                if os.path.exists(f"{path_to_dir}/{morning_survey_id}/"):
+                    morning_ema_id = morning_survey_id
+                else:
+                    morning_ema_id = morning_survey_id_alt
+                return morning_ema_id
+            elif survey_type == "evening":
+                if os.path.exists(f"{path_to_dir}/{evening_survey_id}/"):
+                    evening_ema_id = evening_survey_id
+                else:
+                    evening_ema_id = evening_survey_id_alt
+                return evening_ema_id
+            else:
+                if os.path.exists(f"{path_to_dir}/{weekly_survey_id}/"):
+                    weekly_ema_id = weekly_survey_id
+                else:
+                    weekly_ema_id = weekly_survey_id_alt
+                return weekly_ema_id
         
         # defining the final dataframes to append to
         evening_survey_df = pd.DataFrame()
@@ -694,18 +736,24 @@ class utx000():
             if len(participant) == 8:
                 pid = participant
                 participant_df = pd.DataFrame(columns=['ID','Content','Stress','Lonely','Sad','Energy','TST','SOL','NAW','Restful'])
-            
-                for file in os.listdir(f'{data_dir}{participant}/survey_answers/{morning_survey_id}/'):
+
+                ema_id = get_survey_id(f'{data_dir}{participant}/survey_answers',"morning")
+                redcap, _, beacon, _ = self.get_ids(pid)
+
+                for file in os.listdir(f'{data_dir}{participant}/survey_answers/{ema_id}/'):
                     # reading raw data
-                    df = pd.read_csv(f'{data_dir}{participant}/survey_answers/{morning_survey_id}/{file}')
+                    df = pd.read_csv(f'{data_dir}{participant}/survey_answers/{ema_id}/{file}')
                     # adding new row
                     try:
                         participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=5)] = [pid,df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],
                                                                                                df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer']]
                     except KeyError:
                         print(f'\t\tProblem with morning survey {file} for Participant {pid} - Participant most likely did not answer a question')
-                        self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{morning_survey_id}/{file}',f'../../data/purgatory/{pid}-survey-morning-{file}-{self.suffix}')
+                        self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{ema_id}/{file}',f'../../data/purgatory/{pid}-survey-morning-{file}-{self.suffix}')
             
+                # adding other ids
+                for col, oid in zip(["redcap","beacon"],[redcap,beacon]):
+                    morning_survey_df[col] = oid
                 # appending participant df to overall df
                 morning_survey_df = morning_survey_df.append(participant_df)
             else:
@@ -718,7 +766,7 @@ class utx000():
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
         # fixing any string inputs outside the above range
         morning_survey_df['NAW'] = pd.to_numeric(morning_survey_df['NAW'],errors='coerce')
-        morning_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy','tst','sol','naw','restful']
+        morning_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy','tst','sol','naw','restful','redcap','beacon']
         morning_survey_df.index.rename("timestamp",inplace=True)
         morning_survey_df = morning_survey_df.sort_index()[self.ema_start:self.ema_end]
         
@@ -730,15 +778,21 @@ class utx000():
                 pid = participant
                 # less columns
                 participant_df = pd.DataFrame(columns=['ID','Content','Stress','Lonely','Sad','Energy'])
+
+                ema_id = get_survey_id(f'{data_dir}{participant}/survey_answers',"evening")
+                redcap, _, beacon, _ = self.get_ids(pid)
             
-                for file in os.listdir(f'{data_dir}{participant}/survey_answers/{evening_survey_id}/'):
-                    df = pd.read_csv(f'{data_dir}{participant}/survey_answers/{evening_survey_id}/{file}')
+                for file in os.listdir(f'{data_dir}{participant}/survey_answers/{ema_id}/'):
+                    df = pd.read_csv(f'{data_dir}{participant}/survey_answers/{ema_id}/{file}')
                     try:
                         participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=5)] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer']]
                     except KeyError:
                         print(f'\t\tProblem with evening survey {file} for Participant {pid} - Participant most likely did not answer a question')
-                        self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{evening_survey_id}/{file}',f'../../data/purgatory/{pid}-survey-evening-{file}-{self.suffix}')
+                        self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{ema_id}/{file}',f'../../data/purgatory/{pid}-survey-evening-{file}-{self.suffix}')
             
+                # adding other ids
+                for col, oid in zip(["redcap","beacon"],[redcap,beacon]):
+                    evening_survey_df[col] = oid
                 evening_survey_df = evening_survey_df.append(participant_df)
             else:
                 print(f'\t\tDirectory {participant} is not valid')
@@ -747,7 +801,7 @@ class utx000():
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
-        evening_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy']
+        evening_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy','redcap','beacon']
         evening_survey_df.index.rename("timestamp",inplace=True)
         evening_survey_df = evening_survey_df.sort_index()[self.ema_start:self.ema_end]
 
@@ -759,10 +813,13 @@ class utx000():
                 pid = participant
                 # less columns
                 participant_df = pd.DataFrame(columns=['ID','Upset','Unable','Stressed','Confident','Your_Way','Cope','Able','Top','Angered','Overcome'])
+
+                ema_id = get_survey_id(f'{data_dir}{participant}/survey_answers',"weekly")
+                redcap, _, beacon, _ = self.get_ids(pid)
             
                 try:
-                    for file in os.listdir(f'{data_dir}{participant}/survey_answers/{weekly_survey_id}/'):
-                        df = pd.read_csv(f'{data_dir}{participant}/survey_answers/{weekly_survey_id}/{file}')
+                    for file in os.listdir(f'{data_dir}{participant}/survey_answers/{ema_id}/'):
+                        df = pd.read_csv(f'{data_dir}{participant}/survey_answers/{ema_id}/{file}')
                         try:
                             participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=6)] = [pid,df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],df.loc[9,'answer'],df.loc[10,'answer']]
                         except KeyError:
@@ -770,8 +827,10 @@ class utx000():
                                 participant_df.loc[datetime.strptime(file[:-4],'%Y-%m-%d %H_%M_%S') - timedelta(hours=6)] = [pid,df.loc[0,'answer'],df.loc[1,'answer'],df.loc[2,'answer'],df.loc[3,'answer'],df.loc[4,'answer'],df.loc[5,'answer'],df.loc[6,'answer'],df.loc[7,'answer'],df.loc[8,'answer'],df.loc[9,'answer']]
                             except:
                                 print(f'\t\tProblem with weekly survey {file} for Participant {pid} - Participant most likely did not answer a question')
-                                self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{weekly_survey_id}/{file}',f'../../data/purgatory/{pid}-survey-weekly-{file}-{self.suffix}')
-                
+                                self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{ema_id}/{file}',f'../../data/purgatory/{pid}-survey-weekly-{file}-{self.suffix}')
+                    # adding other ids
+                    for col, oid in zip(["redcap","beacon"],[redcap,beacon]):
+                        weekly_survey_df[col] = oid
                     weekly_survey_df = weekly_survey_df.append(participant_df)
                 except FileNotFoundError:
                     print(f'\t\tParticipant {pid} does not seem to have submitted any weekly surveys - check directory')
@@ -783,7 +842,7 @@ class utx000():
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
                                 'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
-        weekly_survey_df.columns = ['beiwe','upset','unable','stressed','confident','your_way','cope','able','top','angered','overcome']
+        weekly_survey_df.columns = ['beiwe','upset','unable','stressed','confident','your_way','cope','able','top','angered','overcome','redcap','beacon']
         weekly_survey_df.index.rename("timestamp",inplace=True)
         weekly_survey_df = weekly_survey_df.sort_index()[self.ema_start:self.ema_end]
 
