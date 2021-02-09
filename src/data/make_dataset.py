@@ -753,7 +753,7 @@ class utx000():
             
                 # adding other ids
                 for col, oid in zip(["redcap","beacon"],[redcap,beacon]):
-                    morning_survey_df[col] = oid
+                    participant_df[col] = oid
                 # appending participant df to overall df
                 morning_survey_df = morning_survey_df.append(participant_df)
             else:
@@ -792,7 +792,7 @@ class utx000():
             
                 # adding other ids
                 for col, oid in zip(["redcap","beacon"],[redcap,beacon]):
-                    evening_survey_df[col] = oid
+                    participant_df[col] = oid
                 evening_survey_df = evening_survey_df.append(participant_df)
             else:
                 print(f'\t\tDirectory {participant} is not valid')
@@ -830,7 +830,7 @@ class utx000():
                                 self.move_to_purgatory(f'{data_dir}{participant}/survey_answers/{ema_id}/{file}',f'../../data/purgatory/{pid}-survey-weekly-{file}-{self.suffix}')
                     # adding other ids
                     for col, oid in zip(["redcap","beacon"],[redcap,beacon]):
-                        weekly_survey_df[col] = oid
+                        participant_df[col] = oid
                     weekly_survey_df = weekly_survey_df.append(participant_df)
                 except FileNotFoundError:
                     print(f'\t\tParticipant {pid} does not seem to have submitted any weekly surveys - check directory')
