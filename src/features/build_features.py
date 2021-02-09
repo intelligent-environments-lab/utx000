@@ -185,6 +185,13 @@ class nightly_summaries():
 
         return fb_all,complete_sleep, ff_sleep
 
+    def get_fitbit_summaries(self):
+        """
+        Gets the various summaries of Fitbit metrics whent the participant is considered home and asleep
+        """
+
+        pass
+
     def get_beacon_summaries(self):
         """
         Gets various statistics for the beacon data when the participant is considered home and asleep
@@ -238,6 +245,8 @@ class daily_summaries():
     def __init__(self,data_dir='../../',study_suffix="ux_s20"):
         self.data_dir = data_dir
         self.study_suffix = study_suffix
+        # importing all possible fitbit sleep data that we will use to filter the other datasets
+        self.fb_sleep = pd.read_csv(f"{self.data_dir}data/processed/fitbit-sleep_data_summary-{self.study_suffix}.csv",parse_dates=["end_date"])
 
     def get_ema_mood_summaries(self):
         """
@@ -251,17 +260,22 @@ class daily_summaries():
         emas = morning.merge(evening,left_on=["date","beiwe"],right_on=["date","beiwe"],suffixes=('_morning', '_evening'))
         emas["date"] = pd.to_datetime(emas["date"])
         emas.to_csv(f"{self.data_dir}data/processed/beiwe-daily_ema-{self.study_suffix}")
-        # importing fitbit data and combining with ema data
-        fitbit = pd.read_csv(f"{self.data_dir}data/processed/fitbit-sleep_data_summary-{self.study_suffix}.csv")
-        fb_mood = fitbit.merge(emas,left_on=["end_date","beiwe"],right_on=["date","beiwe"])
-        fb_mood.drop(['tst', 'sol', 'naw', 'restful', 'date'],aaxis=1,inplace=True)
+        # importing fitbit data and combining fitbit data with ema data
+        fb_mood = self.fb_sleep.merge(emas,left_on=["end_date","beiwe"],right_on=["date","beiwe"])
+        fb_mood.drop(['tst', 'sol', 'naw', 'restful', 'date'],axis=1,inplace=True)
         fb_mood.to_csv(f"{self.data_dir}data/processed/fitbit_beiwe-sleep_and_mood-{self.study_suffix}.csv",index=False)
 
-    def get_fitbit_daily_summaries(self):
+    def get_fitbit_summaries(self):
         """
         Summarizes fitbit-related metrics and filters the data down to only include data with fitbit-measured sleep
         """
-        pass
+        # importing non-sleep fitbit data, combining, and saving
+        fb_activity = pd.read_csv(f"{self.data_dir}data/processed/fitbit-daily-{self.study_suffix}.csv",parse_dates=["timestamp"],infer_datetime_format=True)
+        fb_all = self.fb_sleep.merge(fb_activity,left_on=["end_date","beiwe"],right_on=["timestamp","beiwe"])
+        fb_all.to_csv(f"{self.data_dir}data/processed/fitbit-sleep_activity_daily-{self.study_suffix}.csv",index=False)
+
+        return fb_all
+
 
 def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='../../',study_suffix="ux_s20"):
     '''
@@ -362,15 +376,16 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
     return partially_filtered_beacon, fully_filtered_beacon
 
 def main():
-    #get_restricted_beacon_datasets(data_dir='../../')
+    get_restricted_beacon_datasets(data_dir='../../')
 
     ns = nightly_summaries(data_dir='../../')
     ns.get_sleep_summaries()
     ns.get_beacon_summaries()
+    ns.get_fitbit_summaries()
 
     ds = daily_summaries(data_dir='../../')
-    #ds.get_morning_ema_sleep_summaries()
-    #ds.get_fitbit_daily_summaries()
+    ds.get_ema_mood_summaries()
+    ds.get_fitbit_summaries()
 
 
 if __name__ == '__main__':
