@@ -154,8 +154,9 @@ class nightly_summaries():
 
             Returns a of dataframe of the EMA data with a revised date column
             """
-            dates = []
+            ema_with_dates = pd.DataFrame()
             for pt in ema["beiwe"].unique():
+                dates = []
                 ema_pt = ema[ema['beiwe'] == pt]
                 try:
                     fb_pt = fb[fb['beiwe'] == pt]
@@ -187,12 +188,12 @@ class nightly_summaries():
                             else:
                                 if verbose:
                                     print(f"EMA DT:\t{ema_dt}\nFB SDT:\t{fb_start}\nFB EDT:\t{fb_end}\nSomething isn\'t right here")
-            if verbose:
-                print(f"Number of Surveys:\t{len(ema)}\nNumber of Dates:\t{len(dates)}")
-                
-            # adding date column and returing
-            ema["date"] = dates
-            return ema
+
+                # adding dates and appending to final dataframe
+                ema_pt["date"] = dates
+                ema_with_dates = ema_with_dates.append(ema_pt)
+
+            return ema_with_dates
 
         # Self-report/EMA sleep
         ema_sleep = pd.read_csv(f'{self.data_dir}data/processed/beiwe-morning_ema-{self.study_suffix}.csv',index_col=0,parse_dates=True,infer_datetime_format=True)
@@ -208,10 +209,18 @@ class nightly_summaries():
             ema_sleep_beiwe = ema_sleep[ema_sleep['beiwe'] == pt]
             fb_beiwe = fb_all[fb_all['beiwe'] == pt]
             complete_sleep = complete_sleep.append(fb_beiwe.merge(ema_sleep_beiwe,left_on='end_date',right_on='date',how='inner'))
-        # Saving
+
+        # renaming and dropping for easier use
         complete_sleep.set_index('date',inplace=True)
         complete_sleep["beiwe"] = complete_sleep["beiwe_x"]
-        complete_sleep.drop(["beiwe_x","beiwe_y"],axis=1,inplace=True)
+        complete_sleep.drop(['content', 'stress', 'lonely', 'sad', 'energy', "main_sleep", "beiwe_x", "beiwe_y"],axis=1,inplace=True)
+        complete_sleep.columns = ['start_date', 'end_date', 'deep_count', 'deep_minutes',
+                                'light_count', 'light_minutes', 'rem_count', 'rem_minutes',
+                                'wake_count', 'wake_minutes', 'tst_fb', 'efficiency', 'end_time',
+                                'minutes_after_wakeup', 'minutes_asleep', 'minutes_awake',
+                                'minutes_to_sleep', 'start_time', 'time_in_bed', 'tst_ema', 'sol_ema', 'naw_ema', 'restful_ema', 'redcap',
+                                'beacon', 'beiwe']
+        complete_sleep["tst_fb"] /= 3600000
         complete_sleep.to_csv(f'{self.data_dir}data/processed/fitbit_beiwe-sleep_summary-{self.study_suffix}.csv')
 
         # Fully Filtered
