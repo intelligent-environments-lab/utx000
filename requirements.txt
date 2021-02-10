@@ -1,0 +1,10 @@
+openpyxl
+jupyterlab
+python==3.9
+seaborn
+pandas
+scipy
+geopy
+pdfkit
+scikit-learn
+joypy
