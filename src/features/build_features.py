@@ -142,11 +142,64 @@ class nightly_summaries():
         # EMA and Fitbit
         # --------------
         print('\tGetting Combined Sleep Summary from Fitbit and EMAs')
+
+        def fix_ema_timestamps(ema,fb,verbose=False):
+            """
+            Corrects the EMA timestamps based on nearby Fitbit sleep data
+
+            Inputs:
+            - ema: dataframe with the EMA data
+            - fb: dataframe with the fitbit sleep data
+            - verbose: boolean to show output or not
+
+            Returns a of dataframe of the EMA data with a revised date column
+            """
+            dates = []
+            for pt in ema["beiwe"].unique():
+                ema_pt = ema[ema['beiwe'] == pt]
+                try:
+                    fb_pt = fb[fb['beiwe'] == pt]
+                except KeyError:
+                    continue
+                for ema_dt in ema_pt.index:
+                    dates.append(ema_dt.date())
+                    if ema_dt.hour < 9:
+                        try:
+                            fb_info = fb_pt.loc[ema_dt.date(),:]
+                        except KeyError:
+                            fb_info = 0
+                            if verbose:
+                                print(f"EMA Hour:\t{ema_dt.hour}\nNo Fitbit data for this day\n")
+                            #dates.append(ema_dt.date())
+                        if type(fb_info) != int:
+                            fb_start = pd.to_datetime(fb_info["start_time"])
+                            fb_end = pd.to_datetime(fb_info["end_time"])
+                            if ema_dt.day == fb_start.day:
+                                if ema_dt.hour < fb_start.hour:
+                                    if verbose:
+                                        print(f"EMA DT:\t{ema_dt}\nFB DT:\t{fb_start}\nSubtract an Hour\n")
+                                    dates[-1] -= timedelta(days=1)
+                            elif ema_dt.day == fb_end.day:
+                                if ema_dt.hour > fb_end.hour:
+                                    dow = ema_dt.strftime("%A")
+                                    if verbose:
+                                        print(f"EMA DT:\t{ema_dt}\nFB DT:\t{fb_end}\nNo Change - {dow}\n")
+                            else:
+                                if verbose:
+                                    print(f"EMA DT:\t{ema_dt}\nFB SDT:\t{fb_start}\nFB EDT:\t{fb_end}\nSomething isn\'t right here")
+            if verbose:
+                print(f"Number of Surveys:\t{len(ema)}\nNumber of Dates:\t{len(dates)}")
+                
+            # adding date column and returing
+            ema["date"] = dates
+            return ema
+
         # Self-report/EMA sleep
         ema_sleep = pd.read_csv(f'{self.data_dir}data/processed/beiwe-morning_ema-{self.study_suffix}.csv',index_col=0,parse_dates=True,infer_datetime_format=True)
         for column in ['tst','sol','naw','restful']:
             ema_sleep = ema_sleep[ema_sleep[column].notna()]
-        ema_sleep['date'] = pd.to_datetime(ema_sleep.index.date)
+        ema_sleep = fix_ema_timestamps(ema_sleep,fb_all)
+        ema_sleep["date"] = pd.to_datetime(ema_sleep["date"])
 
         # Getting complete sleep dataframe
         complete_sleep = pd.DataFrame() # dataframe to append to
