@@ -1,0 +1,17 @@
+name: utx000
+channels:
+  - conda-forge
+  - defaults 
+dependencies:
+  - openpyxl
+  - jupyterlab
+  - python=3.9
+  - seaborn
+  - pandas
+  - scipy
+  - geopy
+  - pip
+  - pip:
+    - pdfkit
+  - scikit-learn
+  - joypy
