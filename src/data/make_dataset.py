@@ -901,7 +901,7 @@ class utx000():
                 if pt[0] != ".":
                     print(f"\t\tReading for participant {pt}")
                     try:
-                        temp = pd.read_csv(f"{data_dir}{pt}/fitbit_{filename}.csv", index_col=0, parse_dates=True)
+                        temp = pd.read_csv(f"{data_dir}{pt}/fitbit/fitbit_{filename}.csv", index_col=0, parse_dates=True)
                         if filename[:4] == "intr":
                             temp = process_fitbit_intraday(temp)
 
@@ -1150,10 +1150,11 @@ def main():
         print('\t7. WiFi')
         print('\t8. Reachability')
         print('\t9. Environment and Experiences Survey')
-        print('\t10. All')
+        print('\t10. Fitbit')
+        print('\t11. All')
         
     ans = int(input('Answer: ')) + mod
-    all_no = 10 # might change if more data types are added
+    all_no = 11 # might change if more data types are added
 
     # UT3000 Fitbit Sleep Data
     if ans == 101: 
@@ -1208,7 +1209,7 @@ def main():
 
     # Power state Data
     if ans == 6 or ans == all_no:
-        if bpeace_processor.process_noavg_beiwe(variable='power_state'):
+        if processor.process_noavg_beiwe(variable='power_state'):
             logger.info(f'Data for power state processed')
         else:
             logger.error(f'Data for power state NOT processed')
@@ -1233,6 +1234,12 @@ def main():
             logger.info(f'Data for environment and experiences survey processed')
         else:
             logger.error(f'Data for environment and experiences survey NOT processed')
+
+    if ans == 10 or ans == all_no:
+        if processor.process_fitbit():
+            logger.info(f'Data for fitbit processed')
+        else:
+            logger.error(f'Data for fitbit NOT processed')
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
