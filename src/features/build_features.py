@@ -208,18 +208,19 @@ class nightly_summaries():
         for pt in pt_list:
             ema_sleep_beiwe = ema_sleep[ema_sleep['beiwe'] == pt]
             fb_beiwe = fb_all[fb_all['beiwe'] == pt]
-            complete_sleep = complete_sleep.append(fb_beiwe.merge(ema_sleep_beiwe,left_on='end_date',right_on='date',how='inner'))
+            complete_sleep = complete_sleep.append(fb_beiwe.merge(ema_sleep_beiwe,left_on=['end_date',"beiwe","redcap","beacon"],right_on=['date',"beiwe","redcap","beacon"],how='inner'))
 
         # renaming and dropping for easier use
         complete_sleep.set_index('date',inplace=True)
-        complete_sleep["beiwe"] = complete_sleep["beiwe_x"]
-        complete_sleep.drop(['content', 'stress', 'lonely', 'sad', 'energy', "main_sleep", "beiwe_x", "beiwe_y"],axis=1,inplace=True)
+        #complete_sleep["beiwe"] = complete_sleep["beiwe_x"]
+        complete_sleep.drop(['content', 'stress', 'lonely', 'sad', 'energy', "main_sleep"],axis=1,inplace=True)
+        print(complete_sleep.columns)
         complete_sleep.columns = ['start_date', 'end_date', 'deep_count', 'deep_minutes',
                                 'light_count', 'light_minutes', 'rem_count', 'rem_minutes',
-                                'wake_count', 'wake_minutes', 'tst_fb', 'efficiency', 'end_time',
+                                'wake_count', 'wake_minutes', "beiwe",'tst_fb', 'efficiency', 'end_time',
                                 'minutes_after_wakeup', 'minutes_asleep', 'minutes_awake',
-                                'minutes_to_sleep', 'start_time', 'time_in_bed', 'tst_ema', 'sol_ema', 'naw_ema', 'restful_ema', 'redcap',
-                                'beacon', 'beiwe']
+                                'minutes_to_sleep', 'start_time', 'time_in_bed', "redcap","beacon",
+                                'tst_ema', 'sol_ema', 'naw_ema', 'restful_ema',]
         complete_sleep["tst_fb"] /= 3600000
         complete_sleep.to_csv(f'{self.data_dir}data/processed/fitbit_beiwe-sleep_summary-{self.study_suffix}.csv')
 
@@ -438,7 +439,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
     return partially_filtered_beacon, fully_filtered_beacon
 
 def main():
-    get_restricted_beacon_datasets(data_dir='../../')
+    #get_restricted_beacon_datasets(data_dir='../../')
 
     ns = nightly_summaries(data_dir='../../')
     ns.get_sleep_summaries()
