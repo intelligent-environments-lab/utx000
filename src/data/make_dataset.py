@@ -490,7 +490,7 @@ class utx000():
                                             infer_datetime_format=True)
                         df_list.append(day_df)
                         
-                    except Exception as inst:
+                    except Exception:
                         # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
                         #print(f'{inst}; filename: {file}')
                         print(f'Issue encountered while importing {csv_dir}/{file}, skipping...')
@@ -886,7 +886,7 @@ class utx000():
         '''
         print('\tProcessing Fitbit data...')
 
-        def import_fitbit(filename, data_dir=f"../../data/raw/utx000/fitbit/"):
+        def import_fitbit(filename, data_dir=f"../../data/raw/utx000/fitbit/",verbose=False):
             '''
             Imports the specified file for each participant in the directory
 
@@ -899,7 +899,8 @@ class utx000():
             df = pd.DataFrame()
             for pt in os.listdir(data_dir):
                 if pt[0] != ".":
-                    print(f"\t\tReading for participant {pt}")
+                    if verbose:
+                        print(f"\t\tReading for participant {pt}")
                     try:
                         temp = pd.read_csv(f"{data_dir}{pt}/fitbit/fitbit_{filename}.csv", index_col=0, parse_dates=True)
                         if filename[:4] == "intr":
@@ -908,7 +909,7 @@ class utx000():
                         temp["beiwe"] = pt
                         df = df.append(temp)
                     except FileNotFoundError:
-                        print(f"\t\tFile {filename} not found for participant {pt}")
+                        print(f"\t\t{pt}: File {filename} not found for participant {pt}")
             df.index.rename("timestamp",inplace=True)       
             return df
 
@@ -944,7 +945,7 @@ class utx000():
             df.drop("date",axis=1,inplace=True)
             return df.set_index('timestamp')
 
-        def get_daily_sleep(daily_df):
+        def get_daily_sleep(daily_df,verbose=False):
             '''
             Creates a dataframe with the daily sleep data summarized
             
@@ -957,9 +958,8 @@ class utx000():
             for row in range(len(daily_df)):
                 # in case Fitbit didn't record sleep records for that night - value is NaN
                 pt = daily_df['beiwe'][row]
-                # pts with classic sleep data
-                if pt in ['awa8uces','ewvz3zm1','pgvvwyvh']:
-                    continue
+                if verbose:
+                    print(f"\t\tWorking for Participant {pt}")
                 if type(daily_df['sleep'][row]) == float:
                     continue
                 else:
@@ -968,15 +968,17 @@ class utx000():
                         Dict = Dict
                     else:
                         Dict = Dict[0]
-                    for key in Dict.keys():
-                        overall_dict.setdefault(key, [])
-                        overall_dict[key].append(Dict[key])
-                    # adding in the date of recording
-                    overall_dict.setdefault('date', [])
-                    overall_dict['date'].append(daily_df.index[row])
-                    # adding beiwe id
-                    overall_dict.setdefault('beiwe', [])
-                    overall_dict['beiwe'].append(daily_df['beiwe'][row])
+                    # pts with classic sleep data
+                    if "awakeCount" not in Dict.keys():
+                        for key in Dict.keys():
+                            overall_dict.setdefault(key, [])
+                            overall_dict[key].append(Dict[key])
+                        # adding in the date of recording
+                        overall_dict.setdefault('date', [])
+                        overall_dict['date'].append(daily_df.index[row])
+                        # adding beiwe id
+                        overall_dict.setdefault('beiwe', [])
+                        overall_dict['beiwe'].append(daily_df['beiwe'][row])
 
             df = pd.DataFrame(overall_dict)
             df['date'] = pd.to_datetime(df['date'],errors='coerce')
@@ -985,7 +987,7 @@ class utx000():
             # dropping/renaming columns
             df.drop(["dateOfSleep","infoCode","logId","type"],axis=1,inplace=True)
             df.columns = ["duration_ms","efficiency","end_time","main_sleep","levels","minutes_after_wakeup","minutes_asleep","minutes_awake","minutes_to_sleep","start_time","time_in_bed","date","beiwe"]
-            df.set_index("date",inplace=True)
+            #df.set_index("date",inplace=True)
             return df
 
         def get_sleep_stages(daily_sleep):
