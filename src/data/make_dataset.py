@@ -977,8 +977,24 @@ class utx000():
                         overall_dict.setdefault('date', [])
                         overall_dict['date'].append(daily_df.index[row])
                         # adding beiwe id
+                        bid = daily_df['beiwe'][row]
                         overall_dict.setdefault('beiwe', [])
-                        overall_dict['beiwe'].append(daily_df['beiwe'][row])
+                        overall_dict['beiwe'].append(bid)
+                        # adding other ids
+                        crossover_info = self.id_crossover.loc[self.id_crossover['beiwe']==bid].reset_index(drop=True)
+                        try:
+                            bb = crossover_info['beacon'][0]
+                        except IndexError:
+                            bb = np.nan
+                        try:
+                            rid = crossover_info['redcap'][0]
+                        except IndexError:
+                            rid = np.nan
+                        del crossover_info
+                        overall_dict.setdefault('redcap', [])
+                        overall_dict['redcap'].append(rid)
+                        overall_dict.setdefault('beacon', [])
+                        overall_dict['beacon'].append(bb)
 
             df = pd.DataFrame(overall_dict)
             df['date'] = pd.to_datetime(df['date'],errors='coerce')
@@ -986,8 +1002,7 @@ class utx000():
             df = df[df['type'] != 'classic']
             # dropping/renaming columns
             df.drop(["dateOfSleep","infoCode","logId","type"],axis=1,inplace=True)
-            df.columns = ["duration_ms","efficiency","end_time","main_sleep","levels","minutes_after_wakeup","minutes_asleep","minutes_awake","minutes_to_sleep","start_time","time_in_bed","date","beiwe"]
-            #df.set_index("date",inplace=True)
+            df.columns = ["duration_ms","efficiency","end_time","main_sleep","levels","minutes_after_wakeup","minutes_asleep","minutes_awake","minutes_to_sleep","start_time","time_in_bed","date","beiwe","redcap","beacon"]
             return df
 
         def get_sleep_stages(daily_sleep):
