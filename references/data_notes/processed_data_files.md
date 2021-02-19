@@ -18,3 +18,12 @@ The second section highlights what data from the modality or modalities is prese
 
 ### Study Suffix
 The last section identifies which study the data is taken from. More information on study suffixes can be found on the [Key File](https://github.com/intelligent-environments-lab/utx000/blob/master/references/WCWH%20Study%20Key.xlsx).
+
+## Processed Data Files
+Each of the subsections below highlights a certain processed data file and gives a short description of what to expect in the data file and how the data were generated/compiled.
+
+### `beacon-fb_and_gps_filtered-ux_s20.csv`
+This file corresponds to beacon data measured during the evenings when participants' Fitbit devices reported sleep data and GPS coordinates from Beiwe confirmed they were at their home location (based on addresses submitted during consent). 
+
+### `beacon-fb_and_gps_filtered_summary-ux_s20.csv`
+This file is similar to the one above, but corresponds to _summarized_ beacon data from evenings when participants' Fitbit devices reported sleep data and GPS coordinates from Beiwe confirmed they were at their home location (based on addresses submitted during consent). Rather than provide timeseries data, the columns correspond to summary statistics like mean, median, max, etc. for each pollutant for each night.
