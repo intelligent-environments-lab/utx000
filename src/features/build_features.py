@@ -214,7 +214,6 @@ class nightly_summaries():
         complete_sleep.set_index('date',inplace=True)
         #complete_sleep["beiwe"] = complete_sleep["beiwe_x"]
         complete_sleep.drop(['content', 'stress', 'lonely', 'sad', 'energy', "main_sleep"],axis=1,inplace=True)
-        print(complete_sleep.columns)
         complete_sleep.columns = ['start_date', 'end_date', 'deep_count', 'deep_minutes',
                                 'light_count', 'light_minutes', 'rem_count', 'rem_minutes',
                                 'wake_count', 'wake_minutes', "beiwe",'tst_fb', 'efficiency', 'end_time',

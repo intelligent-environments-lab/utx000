@@ -954,7 +954,9 @@ class utx000():
             
             Returns a dataframe of the daily sleep data
             '''
-            overall_dict = {}
+            overall_dict = {"dateOfSleep": [],"duration": [],"efficiency":[],"endTime": [],"infoCode": [],"isMainSleep": [],"levels": [],"logId": [],
+                    "minutesAfterWakeup": [],"minutesAsleep": [],"minutesAwake": [],"minutesToFallAsleep": [],"startTime": [],"timeInBed": [],
+                    "type": [],"date": [],"beiwe": [],"awakeCount": [],"awakeDuration": [],"awakeningsCount": [],"minuteData": [],"restlessCount": [],"restlessDuration": []}
             for row in range(len(daily_df)):
                 # in case Fitbit didn't record sleep records for that night - value is NaN
                 pt = daily_df['beiwe'][row]
@@ -968,40 +970,45 @@ class utx000():
                         Dict = Dict
                     else:
                         Dict = Dict[0]
-                    # pts with classic sleep data
-                    if "awakeCount" not in Dict.keys():
-                        for key in Dict.keys():
-                            overall_dict.setdefault(key, [])
+                    for key in overall_dict.keys():
+                        #overall_dict.setdefault(key, [])
+                        if key in ["date","beiwe","redcap","beacon"]:
+                            pass
+                        elif key in Dict.keys():
                             overall_dict[key].append(Dict[key])
-                        # adding in the date of recording
-                        overall_dict.setdefault('date', [])
-                        overall_dict['date'].append(daily_df.index[row])
-                        # adding beiwe id
-                        bid = daily_df['beiwe'][row]
-                        overall_dict.setdefault('beiwe', [])
-                        overall_dict['beiwe'].append(bid)
-                        # adding other ids
-                        crossover_info = self.id_crossover.loc[self.id_crossover['beiwe']==bid].reset_index(drop=True)
-                        try:
-                            bb = crossover_info['beacon'][0]
-                        except IndexError:
-                            bb = np.nan
-                        try:
-                            rid = crossover_info['redcap'][0]
-                        except IndexError:
-                            rid = np.nan
-                        del crossover_info
-                        overall_dict.setdefault('redcap', [])
-                        overall_dict['redcap'].append(rid)
-                        overall_dict.setdefault('beacon', [])
-                        overall_dict['beacon'].append(bb)
+                        else:
+                            overall_dict[key].append(np.nan)
+                    # adding in the date of recording
+                    overall_dict.setdefault('date', [])
+                    overall_dict['date'].append(daily_df.index[row])
+                    # adding beiwe id
+                    bid = daily_df['beiwe'][row]
+                    overall_dict.setdefault('beiwe', [])
+                    overall_dict['beiwe'].append(bid)
+                    # adding other ids
+                    crossover_info = self.id_crossover.loc[self.id_crossover['beiwe']==bid].reset_index(drop=True)
+                    try:
+                        bb = crossover_info['beacon'][0]
+                    except IndexError:
+                        bb = np.nan
+                    try:
+                        rid = crossover_info['redcap'][0]
+                    except IndexError:
+                        rid = np.nan
+                    del crossover_info
+                    overall_dict.setdefault('redcap', [])
+                    overall_dict['redcap'].append(rid)
+                    overall_dict.setdefault('beacon', [])
+                    overall_dict['beacon'].append(bb)
 
+            for key, val in overall_dict.items():
+                print(f"{key}: {len(overall_dict[key])}")
             df = pd.DataFrame(overall_dict)
             df['date'] = pd.to_datetime(df['date'],errors='coerce')
             # removing classic sleep stage data
             df = df[df['type'] != 'classic']
             # dropping/renaming columns
-            df.drop(["dateOfSleep","infoCode","logId","type"],axis=1,inplace=True)
+            df.drop(["dateOfSleep","infoCode","logId","type","awakeCount","awakeDuration","awakeningsCount","minuteData","restlessCount","restlessDuration"],axis=1,inplace=True)
             df.columns = ["duration_ms","efficiency","end_time","main_sleep","levels","minutes_after_wakeup","minutes_asleep","minutes_awake","minutes_to_sleep","start_time","time_in_bed","date","beiwe","redcap","beacon"]
             return df
 
@@ -1017,34 +1024,38 @@ class utx000():
             - summary: a dataframe with the nightly sleep stage information
             '''
             
+            print(daily_sleep.head())
             data_dict = {'startDate':[],'endDate':[],'dateTime':[],'level':[],'seconds':[],'beiwe':[]}
             summary_dict = {'start_date':[],'end_date':[],'deep_count':[],'deep_minutes':[],'light_count':[],'light_minutes':[],
                             'rem_count':[],'rem_minutes':[],'wake_count':[],'wake_minutes':[],'beiwe':[]}
             for i in range(len(daily_sleep)):
                 d0 = pd.to_datetime(daily_sleep.iloc[i,:]["start_time"])
                 d1 = pd.to_datetime(daily_sleep.iloc[i,:]["date"])
-                sleep_dict = daily_sleep.iloc[i,:]["levels"]
-                for key in sleep_dict.keys():
-                    if key == 'data': # data without short wake periods
-                        temp_data = sleep_dict['data']
-                        for temp_data_dict in temp_data:
-                            for data_key in temp_data_dict.keys():
-                                data_dict[data_key].append(temp_data_dict[data_key])
-                            data_dict['startDate'].append(d0.date())
-                            data_dict['endDate'].append(d1.date())
-                            data_dict['beiwe'].append(daily_sleep.iloc[i,:]['beiwe'])
-                    elif key == 'summary': # nightly summary data - already in dictionary form
-                        for summary_key in sleep_dict['summary'].keys():
-                            stage_dict = sleep_dict['summary'][summary_key]
-                            for stage_key in ['count','minutes']:
-                                summary_dict[f'{summary_key}_{stage_key}'].append(stage_dict[stage_key])
-                            
-                        summary_dict['start_date'].append(d0.date())
-                        summary_dict['end_date'].append(d1.date())
-                        summary_dict['beiwe'].append(daily_sleep.iloc[i,:]['beiwe'])
-                    else: # shortData or data with short wake periods - don't need
-                        pass
-                    
+                try:
+                    sleep_dict = daily_sleep.iloc[i,:]["levels"]
+                    for key in sleep_dict.keys():
+                        if key == 'data': # data without short wake periods
+                            temp_data = sleep_dict['data']
+                            for temp_data_dict in temp_data:
+                                for data_key in temp_data_dict.keys():
+                                    data_dict[data_key].append(temp_data_dict[data_key])
+                                data_dict['startDate'].append(d0.date())
+                                data_dict['endDate'].append(d1.date())
+                                data_dict['beiwe'].append(daily_sleep.iloc[i,:]['beiwe'])
+                        elif key == 'summary': # nightly summary data - already in dictionary form
+                            for summary_key in sleep_dict['summary'].keys():
+                                stage_dict = sleep_dict['summary'][summary_key]
+                                for stage_key in ['count','minutes']:
+                                    summary_dict[f'{summary_key}_{stage_key}'].append(stage_dict[stage_key])
+                                
+                            summary_dict['start_date'].append(d0.date())
+                            summary_dict['end_date'].append(d1.date())
+                            summary_dict['beiwe'].append(daily_sleep.iloc[i,:]['beiwe'])
+                        else: # shortData or data with short wake periods - don't need
+                            pass
+                except AttributeError:
+                    pass
+                
             sleep_stages = pd.DataFrame(data_dict)
             sleep_stages.columns = ['start_date','end_date','time','stage','time_at_stage','beiwe'] # renaming columns
             # adding column for numeric value of sleep stage 
