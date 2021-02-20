@@ -1001,7 +1001,7 @@ class utx000():
                     overall_dict.setdefault('beacon', [])
                     overall_dict['beacon'].append(bb)
 
-            for key, val in overall_dict.items():
+            for key in overall_dict.keys():
                 print(f"{key}: {len(overall_dict[key])}")
             df = pd.DataFrame(overall_dict)
             df['date'] = pd.to_datetime(df['date'],errors='coerce')
