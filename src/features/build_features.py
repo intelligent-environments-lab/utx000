@@ -6,8 +6,15 @@ import logging
 
 import pandas as pd
 import numpy as np
+from sklearn.feature_selection import mutual_info_regression, mutual_info_classif
 
 import geopy.distance
+
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+import seaborn as sns
+import matplotlib.dates as mdates
 
 class beacon_statistics():
 
@@ -523,6 +530,122 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
 
     return partially_filtered_beacon, fully_filtered_beacon
 
+class feature_engineering():
+    """
+    Methods used to help investigate and build features
+    """
+
+    def __init__(self):
+        pass
+
+    def encode_categoricals(self,feature_set):
+        """
+        Encodes categorical variables to numeric dtypes
+
+        Inputs:
+        - feature_set: dataframe with features as columns
+
+        Returns new dataframe with categorical variables encoded as numbers
+        """
+        df = feature_set.copy() # so we don't overwrite the original data
+        print("Categorical Variables:")
+        for col in df.select_dtypes("object"):
+            print(f"\t{col}")
+            df[col], _ = df[col].factorize() # encode the data
+
+        return df
+
+    def get_datasets(self,original_dataset,feature_labels,target_labels):
+        """
+        Gets the feature and target datasets
+        """
+        temp = original_dataset.copy()
+        df = self.encode_categoricals(temp)
+        
+        X = df[feature_labels]
+        y = df[target_labels]
+        
+        return X, y
+
+    def get_mi_scores(self, X, y):
+        """
+        Gets the Mutual Information (MI) scores
+        
+        Inputs:
+        - X: dataframe of features dataset
+        - y: array/series of target
+        
+        Returns MI scores as a series
+        """
+        # getting discrete features
+        discrete_features = X.dtypes == int
+        # getting and formatting mi scores for output
+        mi_scores = mutual_info_regression(X, y, discrete_features=discrete_features)
+        mi_scores = pd.Series(mi_scores, name="MI Scores", index=X.columns)
+        mi_scores = mi_scores.sort_values(ascending=False)
+        
+        return mi_scores
+
+    def plot_mi_scores(self, scores):
+        """
+        Plots the Mutual Information (MI) scores
+        
+        Returns void
+        """
+        # setting up bar chart
+        vals = scores.sort_values(ascending=True)
+        locs = np.arange(len(vals))
+        ticks = list(vals.index)
+        formatted_ticks = []
+        for tick in ticks:
+            formatted_ticks.append(tick.replace("_", " ").title())
+        my_cmap = plt.get_cmap("Blues")
+        rescale = lambda y: y / np.max(y)
+        
+        _, ax = plt.subplots(figsize=(8,5))
+        ax.barh(locs, vals, color=my_cmap(rescale(vals)), edgecolor="black")
+        # formatting y-axis
+        plt.yticks(locs, formatted_ticks)
+        # formatting remainder
+        ax.set_title("Mutual Information Scores")
+        
+        for spine_loc in ["top","right"]:
+            ax.spines[spine_loc].set_visible(False)
+        
+        plt.show()
+        plt.close()
+
+    def plot_high_scoring_relationships(self, X, y, mi_scores, num_scores=3, width=16):
+        """
+        Plots scatterplots of the top-ranking features and the given target
+        
+        Inputs:
+        - X: dataframe of features
+        - y: series of targets
+        - mi_scores: series/list of MI scores
+        - num_scores: integer of number of variables/scores to show
+        - width: width of figure which also controls the height (width/num_scores)
+        
+        Returns void
+        """
+        target = y.columns[0]
+        df = X.merge(right=y,left_index=True,right_index=True)
+        _, axes = plt.subplots(1,num_scores,figsize=(width,width/num_scores))
+        colors = cm.get_cmap('Blues_r', num_scores)(range(num_scores))
+        for var, score, color, ax in zip(list(mi_scores.index[:num_scores]),mi_scores,colors,axes.flat):
+            sns.scatterplot(x=var, y=target, data=df, color=color, edgecolor="black",ax=ax)
+            # formatting x
+            ax.set_xlabel(var.replace("_", " ").title())
+            # formatting y
+            ax.set_ylabel(target.replace("_", " ").title())
+            # formatting remainder
+            ax.set_title(f"MI Score: {round(score,3)}")
+            for spine_loc in ["top","right"]:
+                ax.spines[spine_loc].set_visible(False)
+                
+        plt.show()
+        plt.close()
+        
 def main():
     #get_restricted_beacon_datasets(data_dir='../../')
 
