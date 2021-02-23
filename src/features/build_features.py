@@ -151,7 +151,7 @@ class fitbit_sleep():
 
         fb_all["tst_fb"] = fb_all["duration_ms"] / 3600000
         # dropping unecessary columns
-        fb_all.drop(["main_sleep","duration_ms","minutes_after_wakeup","minutes_to_sleep","time_in_bed"],axis="columns",inplace=True)
+        fb_all.drop(["main_sleep","duration_ms","minutes_after_wakeup","minutes_to_sleep","time_in_bed","minutes_asleep","minutes_awake"],axis="columns",inplace=True)
         # saving and returning
         fb_all.to_csv(f"{self.data_dir}data/processed/fitbit-sleep_summary-{self.study_suffix}.csv",index=False)
 
@@ -268,8 +268,7 @@ class fitbit_sleep():
         complete_sleep.drop(['content', 'stress', 'lonely', 'sad', 'energy'],axis=1,inplace=True)
         complete_sleep.columns = ['start_date', 'end_date', 'deep_count', 'deep_minutes',
                                 'light_count', 'light_minutes', 'rem_count', 'rem_minutes',
-                                'wake_count', 'wake_minutes', "beiwe", 'efficiency', 'end_time',
-                                'minutes_asleep', 'minutes_awake', 'start_time', "redcap","beacon",
+                                'wake_count', 'wake_minutes', "beiwe", 'efficiency', 'end_time', 'start_time', "redcap", "beacon",
                                 "nrem_count",	"rem2nrem_count",	"nrem_minutes",	"rem2nrem_minutes",	"tst_fb",
                                 'tst_ema', 'sol_ema', 'naw_ema', 'restful_ema',]
                                 
@@ -663,6 +662,33 @@ class feature_engineering():
                 
         plt.show()
         plt.close()
+
+    def check_features_against_targets(self, df, target_labels):
+        """
+        Checks the features in df to targets given by target_labels which are also in df
+
+        Inputs:
+        - df:
+        - target_labels:
+
+        Returns void
+        """
+        temp = df.copy()
+        for target_label in target_labels:
+            print(f"Target: {target_label.replace('_',' ').title()}")
+            features = [feature for feature in temp.columns if feature not in target_labels]
+            # getting data
+            try:
+                X, y = self.get_datasets(original_dataset=temp,feature_labels=features,target_labels=target_label)
+            except KeyError:
+                print(f"\t{target_label} not in dataframe")
+                continue
+            # getting MI scores
+            mi_scores = self.get_mi_scores(X, y, tolerance=0.01)
+            # plotting scores
+            self.plot_mi_scores(mi_scores)
+            # scattering strong relationships
+            self.plot_high_scoring_relationships(X, y, mi_scores, num_scores=3, width=12)
         
 def main():
     #get_restricted_beacon_datasets(data_dir='../../')
