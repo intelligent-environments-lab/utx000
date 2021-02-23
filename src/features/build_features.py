@@ -140,10 +140,19 @@ class fitbit_sleep():
         fb_daily_sleep = pd.read_csv(f'{self.data_dir}data/processed/fitbit-sleep_daily-{self.study_suffix}.csv',index_col="date",parse_dates=True,infer_datetime_format=True)
         # sleep stages
         fb_daily_sleep_stages = pd.read_csv(f'{self.data_dir}data/processed/fitbit-sleep_stages_summary-{self.study_suffix}.csv',parse_dates=["start_date","end_date"],infer_datetime_format=True)
-        # combining and saving
+        # combining
         fb_all = fb_daily_sleep_stages.merge(fb_daily_sleep,left_on=["end_date","beiwe"],right_on=["date","beiwe"],how="inner")
+        # filtering data
         fb_all = fb_all[fb_all["main_sleep"] == True]
-        fb_all.drop(["main_sleep"],axis="columns",inplace=True)
+        # creating features
+        for sleep_stage_metric in ["count","minutes"]:
+            fb_all[f"nrem_{sleep_stage_metric}"] = fb_all[f"light_{sleep_stage_metric}"] + fb_all[f"deep_{sleep_stage_metric}"] # nrem count and minutes
+            fb_all[f"rem2nrem_{sleep_stage_metric}"] = fb_all[f"rem_{sleep_stage_metric}"] / fb_all[f"nrem_{sleep_stage_metric}"] # ratio of nrem to rem (count and minutes)
+
+        fb_all["tst_fb"] = fb_all["duration_ms"] / 3600000
+        # dropping unecessary columns
+        fb_all.drop(["main_sleep","duration_ms","minutes_after_wakeup","minutes_to_sleep","time_in_bed"],axis="columns",inplace=True)
+        # saving and returning
         fb_all.to_csv(f"{self.data_dir}data/processed/fitbit-sleep_summary-{self.study_suffix}.csv",index=False)
 
         return fb_all
@@ -259,11 +268,11 @@ class fitbit_sleep():
         complete_sleep.drop(['content', 'stress', 'lonely', 'sad', 'energy'],axis=1,inplace=True)
         complete_sleep.columns = ['start_date', 'end_date', 'deep_count', 'deep_minutes',
                                 'light_count', 'light_minutes', 'rem_count', 'rem_minutes',
-                                'wake_count', 'wake_minutes', "beiwe",'tst_fb', 'efficiency', 'end_time',
-                                'minutes_after_wakeup', 'minutes_asleep', 'minutes_awake',
-                                'minutes_to_sleep', 'start_time', 'time_in_bed', "redcap","beacon",
+                                'wake_count', 'wake_minutes', "beiwe", 'efficiency', 'end_time',
+                                'minutes_asleep', 'minutes_awake', 'start_time', "redcap","beacon",
+                                "nrem_count",	"rem2nrem_count",	"nrem_minutes",	"rem2nrem_minutes",	"tst_fb",
                                 'tst_ema', 'sol_ema', 'naw_ema', 'restful_ema',]
-        complete_sleep["tst_fb"] /= 3600000
+                                
         complete_sleep.to_csv(f'{self.data_dir}data/processed/beiwe_fitbit-sleep_summary-{self.study_suffix}.csv')
 
         # Fully Filtered
@@ -634,7 +643,10 @@ class feature_engineering():
         
         Returns void
         """
-        target = y.name
+        try:
+            target = y.name
+        except AttributeError:
+            target = y.columns[0]
         df = X.merge(right=y,left_index=True,right_index=True)
         _, axes = plt.subplots(1,num_scores,figsize=(width,width/num_scores))
         colors = cm.get_cmap('Blues_r', num_scores)(range(num_scores))
