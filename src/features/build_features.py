@@ -538,7 +538,7 @@ class feature_engineering():
     def __init__(self):
         pass
 
-    def encode_categoricals(self,feature_set):
+    def encode_categoricals(self,feature_set,verbose=False):
         """
         Encodes categorical variables to numeric dtypes
 
@@ -548,26 +548,31 @@ class feature_engineering():
         Returns new dataframe with categorical variables encoded as numbers
         """
         df = feature_set.copy() # so we don't overwrite the original data
-        print("Categorical Variables:")
+        if verbose:
+            print("Categorical Variables:")
         for col in df.select_dtypes("object"):
-            print(f"\t{col}")
+            if verbose:
+                print(f"\t{col}")
             df[col], _ = df[col].factorize() # encode the data
 
         return df
 
-    def get_datasets(self,original_dataset,feature_labels,target_labels):
+    def get_datasets(self,original_dataset,feature_labels,target_labels,verbose=False):
         """
         Gets the feature and target datasets
         """
         temp = original_dataset.copy()
-        df = self.encode_categoricals(temp)
+        if verbose:
+            df = self.encode_categoricals(temp,verbose=True)
+        else:
+            df = self.encode_categoricals(temp,verbose=False)
         
         X = df[feature_labels]
         y = df[target_labels]
         
         return X, y
 
-    def get_mi_scores(self, X, y):
+    def get_mi_scores(self, X, y, tolerance=0.05):
         """
         Gets the Mutual Information (MI) scores
         
@@ -582,6 +587,7 @@ class feature_engineering():
         # getting and formatting mi scores for output
         mi_scores = mutual_info_regression(X, y, discrete_features=discrete_features)
         mi_scores = pd.Series(mi_scores, name="MI Scores", index=X.columns)
+        mi_scores = mi_scores[mi_scores >= tolerance]
         mi_scores = mi_scores.sort_values(ascending=False)
         
         return mi_scores
@@ -628,7 +634,7 @@ class feature_engineering():
         
         Returns void
         """
-        target = y.columns[0]
+        target = y.name
         df = X.merge(right=y,left_index=True,right_index=True)
         _, axes = plt.subplots(1,num_scores,figsize=(width,width/num_scores))
         colors = cm.get_cmap('Blues_r', num_scores)(range(num_scores))
