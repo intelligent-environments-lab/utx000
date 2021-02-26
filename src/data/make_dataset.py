@@ -763,7 +763,7 @@ class utx000():
         morning_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3,
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
-                                'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
+                                'NO_ANSWER_SELECTED':np.nan,'NOT_PRESENTED':np.nan,'SKIP QUESTION':np.nan},inplace=True)
         # fixing any string inputs outside the above range
         morning_survey_df['NAW'] = pd.to_numeric(morning_survey_df['NAW'],errors='coerce')
         morning_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy','tst','sol','naw','restful','redcap','beacon']
@@ -800,7 +800,7 @@ class utx000():
         evening_survey_df.replace({'Not at all':0,'A little bit':1,'Quite a bit':2,'Very Much':3,
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
-                                'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
+                                'NO_ANSWER_SELECTED':np.nan,'NOT_PRESENTED':np.nan,'SKIP QUESTION':np.nan},inplace=True)
         evening_survey_df.columns = ['beiwe','content','stress','lonely','sad','energy','redcap','beacon']
         evening_survey_df.index.rename("timestamp",inplace=True)
         evening_survey_df = evening_survey_df.sort_index()[self.ema_start:self.ema_end]
@@ -841,7 +841,7 @@ class utx000():
                                 'Never':0,'Almost Never':1,'Sometimes':2,'Fairly Often':3,'Very Often':4,
                                 'Low energy':0,'Low Energy':0,'Somewhat low energy':1,'Neutral':2,'Somewhat high energy':3,'High energy':4,'High Energy':4,
                                 'Not at all restful':0,'Slightly restful':1,'Somewhat restful':2,'Very restful':3,
-                                'NO_ANSWER_SELECTED':-1,'NOT_PRESENTED':-1,'SKIP QUESTION':-1},inplace=True)
+                                'NO_ANSWER_SELECTED':np.nan,'NOT_PRESENTED':np.nan,'SKIP QUESTION':np.nan},inplace=True)
         weekly_survey_df.columns = ['beiwe','upset','unable','stressed','confident','your_way','cope','able','top','angered','overcome','redcap','beacon']
         weekly_survey_df.index.rename("timestamp",inplace=True)
         weekly_survey_df = weekly_survey_df.sort_index()[self.ema_start:self.ema_end]
@@ -1069,7 +1069,7 @@ class utx000():
                 elif row['stage'] == 'rem':
                     return 3
                 else:
-                    return -1
+                    return np.nan
                 
             sleep_stages['value'] = sleep_stages.apply(lambda row: numeric_from_str_sleep_stage(row), axis=1)
             
