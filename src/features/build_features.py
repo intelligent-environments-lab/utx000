@@ -618,6 +618,13 @@ class feature_engineering():
         
         _, ax = plt.subplots(figsize=(8,5))
         ax.barh(locs, vals, color=my_cmap(rescale(vals)), edgecolor="black")
+        # formatting x-axis
+        try:
+            upper_x = max(0.5,max(vals))
+        except:
+            upper_x = 0.5
+
+        ax.set_xlim([0,upper_x])
         # formatting y-axis
         plt.yticks(locs, formatted_ticks)
         # formatting remainder
@@ -647,7 +654,7 @@ class feature_engineering():
         except AttributeError:
             target = y.columns[0]
         df = X.merge(right=y,left_index=True,right_index=True)
-        _, axes = plt.subplots(1,num_scores,figsize=(width,width/num_scores))
+        _, axes = plt.subplots(1,num_scores,figsize=(num_scores*5,5))
         colors = cm.get_cmap('Blues_r', num_scores)(range(num_scores))
         for var, score, color, ax in zip(list(mi_scores.index[:num_scores]),mi_scores,colors,axes.flat):
             sns.scatterplot(x=var, y=target, data=df, color=color, edgecolor="black",ax=ax)
@@ -663,7 +670,7 @@ class feature_engineering():
         plt.show()
         plt.close()
 
-    def check_features_against_targets(self, df, target_labels):
+    def check_features_against_targets(self, df, target_labels, features_to_show=3, tolerance=0.01):
         """
         Checks the features in df to targets given by target_labels which are also in df
 
@@ -684,12 +691,20 @@ class feature_engineering():
                 print(f"\t{target_label} not in dataframe")
                 continue
             # getting MI scores
-            mi_scores = self.get_mi_scores(X, y, tolerance=0.01)
+            mi_scores = self.get_mi_scores(X, y, tolerance=tolerance)
             # plotting scores
             self.plot_mi_scores(mi_scores)
             # scattering strong relationships
-            self.plot_high_scoring_relationships(X, y, mi_scores, num_scores=3, width=12)
+            self.plot_high_scoring_relationships(X, y, mi_scores, num_scores=features_to_show)
         
+class principal_component_analysis():
+
+    def __init__(self):
+        pass
+
+
+    
+
 def main():
     #get_restricted_beacon_datasets(data_dir='../../')
 

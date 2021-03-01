@@ -8,7 +8,22 @@ from datetime import datetime, timedelta
 
 class update():
 
-    def __init__():
+    def __init__(self, single=False):
+        """
+        Checks if we want a single beacon, otherwise runs for all. User can
+        download, remove, or run diagnostics.
+        """
+        # Getting Beacon Numbers
+        # ----------------------
+        if single:
+            self.beacon = input("Enter Beacon Number (0,50): ") # setting to user input
+            try:
+                self.beacon = [int(self.beacon)] # single beacon number - 0 will be added in run()
+            except ValueError:
+                print("You must enter a valid number")
+                self.terminated()
+        else:
+            self.beacon = range(0,51) # setting to list of all beacons
         self.run([self.update_os,self.upgrade])
 
     def update_os(self, beacon_no):
@@ -37,7 +52,11 @@ class update():
             for f in fxns:
                 f(i)
 
-class install_libraries(update):
+    def terminated(self):
+        print("User has terminated program.")
+        return False
+
+class install(update):
 
     def __init__(self):
         self.run()

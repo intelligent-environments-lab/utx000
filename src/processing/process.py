@@ -130,7 +130,7 @@ class preprocess():
         sns.heatmap(corr,
                         vmin=-1, vmax=1, center=0, 
                         cmap=sns.diverging_palette(20, 220, n=200),cbar_kws={'ticks':[-1,-0.5,0,0.5,1]},
-                        square=True,linewidths=0.5,linecolor="black",annot=annotate,ax=ax)
+                        square=True,linewidths=0.5,linecolor="black",annot=annotate,fmt=".2f",ax=ax)
 
         yticklabels = ax.get_yticklabels()
         yticklabels[0] = ' '
