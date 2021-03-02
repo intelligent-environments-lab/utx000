@@ -720,7 +720,7 @@ class principal_component_analysis():
     
 
 def main():
-    #get_restricted_beacon_datasets(data_dir='../../')
+    get_restricted_beacon_datasets(data_dir='../../')
 
     fs = fitbit_sleep(data_dir='../../')
     fs.get_beiwe_summaries()
