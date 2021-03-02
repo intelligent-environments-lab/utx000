@@ -9,6 +9,8 @@ import numpy as np
 from sklearn.feature_selection import mutual_info_regression, mutual_info_classif
 
 import geopy.distance
+import warnings
+warnings.filterwarnings('ignore')
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -440,6 +442,18 @@ class fitbit_sleep():
         final_combined.drop(["date","timestamp","start_date","end_date","bmi","bmr","fat","weight","food_calories_logged","water_logged"],axis="columns",inplace=True)
         final_combined.to_csv(f"{self.data_dir}data/processed/all_modalities-fb_and_gps_filtered-{self.study_suffix}.csv",index=False)
 
+    def get_redcap_ee_survey_summary(self):
+        """
+
+        """
+        print("\tCombining Environment and Sleep Data")
+        # data import
+        ee = pd.read_csv(f"{self.data_dir}data/processed/redcap-ee_survey-{self.study_suffix}.csv")
+        # merging information
+        ee_and_fb = self.fb_sleep_summary.merge(right=ee,on=["beiwe","redcap","beacon"],how="left").dropna(subset=["building_type"])
+        # saving
+        ee_and_fb.to_csv(f"{self.data_dir}data/processed/redcap_fitbit-environment_and_sleep-{self.study_suffix}.csv",index=False)
+
 def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='../../',study_suffix="ux_s20"):
     '''
     Gets restricted/filtered datasets for the beacon considering we have fitbit/GPS alone
@@ -713,6 +727,7 @@ def main():
     fs.get_fitbit_summaries()
     fs.get_beacon_summaries()
     fs.get_complete_summary()
+    fs.get_redcap_ee_survey_summary()
 
 
 if __name__ == '__main__':
