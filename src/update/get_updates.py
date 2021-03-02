@@ -118,6 +118,7 @@ def main():
         else:
             installer = install(single=False)
         
+        # edit with packages to install
         installer.run([installer.add_tailscale])
 
 if __name__ == '__main__':
