@@ -15,6 +15,8 @@ import logging
 
 # Extra
 import ast
+import warnings
+warnings.filterwarnings('ignore')
 
 # Local
 from ut3000 import ut1000, ut2000, ut3000
@@ -863,17 +865,110 @@ class utx000():
 
         Returns True if processed, False otherwise
         '''
-        print('\tProcessing first environment survey...')
+        def get_building_type(row):
+            for i, building_type in enumerate(["apartment","duplex","house","dormitory","hotel","other"]):
+                if row.iloc[i] == 1:
+                    return building_type
 
-        ee = pd.read_csv(data_file,usecols=[0,2,4,5,6,7,8,9],parse_dates=[1])
-        ee.columns = ['redcap','timestamp','apartment','duplex','house','dorm','hotel','other_living']
-        ee.dropna(subset=['timestamp'],inplace=True)
-        ee.set_index('timestamp',inplace=True)
+        def get_window_use(row):
+            d = {"use":[]}
+            if row.iloc[0] != "No":
+                uses = []
+                for i, choice in enumerate(["change_temperature","fresh_air","both","other"]):
+                    if row.iloc[i+1] == 1:
+                        uses.append(choice)
+                        
+                d["use"] = uses
+                
+            return d 
 
+        def get_smell(row):
+            for i, smell_type in enumerate(["stagnant","smelly","earthy","moldy","cooking","fragrant","well_ventilated","obnoxious","other"]):
+                if row.iloc[i] == 1:
+                    return smell_type
+
+        def get_allergy(row):
+            if row.iloc[0] == "No":
+                return 0
+            else:
+                for i, allergy_intensity in enumerate(["significantly_worse","somewhat_worse","same","somewhat_better","significantly_better"]):
+                    if row.iloc[i] == 1:
+                        return allergy_intensity
+                    
+            return 0
+
+        def get_cleaner_use(row):
+            d = {"cleaners":[]}
+            for i, cleaner in enumerate(["bleach","ammonia","pinesol","vinegar","alcohol","disinfectant_wipes","soap_and_water","floor_cleaners"]):
+                cleaners = []
+                if row.iloc[i] == 1:
+                    cleaners.append(cleaner)
+                
+            d["cleaners"] = cleaners
+                
+            return d
+
+        def get_cleaner_location(row):
+            d = {"bleach":[],"ammonia":[],"pinesol":[],"vinegar":[],"alcohol":[],"disinfectant_wipes":[],"soap_and_water":[],"floor_cleaners":[]}
+            for cleaner in d.keys():
+                temp = row[[column for column in row.index if cleaner in column.replace(" ","_").lower()]]
+                locs = []
+
+                for i in range(len(temp)):
+                    if temp.iloc[i] == 1:
+                        locs.append(temp.index[i].split("=")[1][:-1])
+                        
+                d[cleaner] = (locs)
+                
+            return d
+
+        print('\tProcessing first environment survey...',end="")
+        # data import and cleaning
+        ee = pd.read_csv(f"{self.data_dir}/raw/utx000/surveys/EESurvey_E1_labels.csv",parse_dates=["Survey Timestamp"],index_col=0)
+        ee.dropna(subset=["Survey Timestamp"], axis="rows",inplace=True)
+        ee.drop([column for column in ee.columns if "gender" in column.lower() or "family" in column.lower()],axis="columns",inplace=True)
+        ee.replace("Unchecked",0,inplace=True)
+        ee.replace("Checked",1,inplace=True)
+        # building type
+        ee_building_type = ee[[column for column in ee.columns if "What type of building" in column]]
+        ee_building_type["building_type"] = ee_building_type.apply(get_building_type, axis="columns")
+        ee_building_type.drop([column for column in ee_building_type.columns if "What type of building" in column], axis="columns", inplace=True)
+        # window use
+        ee_window = ee[[column for column in ee.columns if "windows" in column.lower() and "isolate" not in column.lower()]]
+        ee_window["window_use"] = ee_window.apply(get_window_use, axis="columns")
+        ee_window.drop([column for column in ee_window.columns if "windows" in column.lower()],axis="columns",inplace=True)
+        # smell
+        ee_smell = ee[[column for column in ee.columns if "smell" in column.lower()]]
+        ee_smell["smell_type"] = ee_smell.apply(get_smell,axis="columns")
+        ee_smell.drop([column for column in ee_smell.columns if "smell" in column.lower() and "type" not in column.lower()],axis="columns",inplace=True)
+        # allergy
+        ee_allergy = ee[[column for column in ee.columns if "allergy" in column.lower()]]
+        ee_allergy["allergy_intensity"] = ee_allergy.apply(get_allergy,axis="columns")
+        ee_allergy.drop([column for column in ee_allergy.columns if "allergy" in column.lower() and "intensity" not in column.lower()],axis="columns",inplace=True)
+        # use of cleaners
+        ee_cleaner_use = ee[[column for column in ee.columns if "cleaners been used" in column.lower()]]
+        ee_cleaner_use["cleaner"] = ee_cleaner_use.apply(get_cleaner_use, axis="columns")
+        ee_cleaner_use.drop([column for column in ee.columns if "cleaners been used" in column.lower()], axis="columns", inplace=True)
+        # cleaner location
+        ee_cleaner_locs = ee[[column for column in ee.columns if "in which rooms" in column.lower()]]
+        ee_cleaner_locs["cleaner_locations"] = ee_cleaner_locs.apply(get_cleaner_location,axis="columns")
+        ee_cleaner_locs.drop([column for column in ee.columns if "in which rooms" in column.lower()],axis="columns",inplace=True)
+        # combining and processing
+        data = [ee_building_type,ee_window,ee_smell,ee_allergy,ee_cleaner_use,ee_cleaner_locs]
+        for data_df in data:
+            data_df.sort_index(inplace=True)
+
+        df = pd.concat(data,axis="columns")
+        df.index.rename("redcap",inplace=True)
+        # getting other ids
+        df = df.merge(right=self.id_crossover,left_index=True,right_on="redcap")
+        df.drop(["first","last"],axis="columns",inplace=True)
         # saving
         try:
-            ee.to_csv(f'../../data/processed/ee-survey-{self.suffix}.csv')
+            df.to_csv(f"{self.data_dir}/processed/redcap-ee_survey-{self.suffix}.csv",index=False)
+            print("finished")
         except:
+            print("error")
             return False
 
         return True
