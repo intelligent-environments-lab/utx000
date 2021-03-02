@@ -10,8 +10,7 @@ class update():
 
     def __init__(self, single=False):
         """
-        Checks if we want a single beacon, otherwise runs for all. User can
-        download, remove, or run diagnostics.
+        Checks if we want a single beacon, otherwise runs for all. Updates and upgrades RPi on Beacon(s).
         """
         # Getting Beacon Numbers
         # ----------------------
@@ -24,7 +23,6 @@ class update():
                 self.terminated()
         else:
             self.beacon = range(0,51) # setting to list of all beacons
-        self.run([self.update_os,self.upgrade])
 
     def update_os(self, beacon_no):
         """
@@ -58,9 +56,6 @@ class update():
 
 class install(update):
 
-    def __init__(self):
-        self.run()
-
     def add_pigpio(self, beacon_no):
         """
         Adds the pigpio library for python and python3. The pigpio package is the library used to communicate with the RPi pins.
@@ -89,11 +84,41 @@ class install(update):
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo pip install pandas"')
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo pip3 install pandas"')
 
-    def run(self):
-        pass
+    def add_tailscale(self, beacon_no, auth_key="tskey-3a35f9a673f63fd83e6ef7ba"):
+        """
+        Adds tailscale vpn to beacons
+        """
+        # strings containing install isntructions 
+        transport = "sudo apt-get install apt-transport-https" # install transport
+        signing_key = "curl -fsSL https://pkgs.tailscale.com/stable/raspbian/buster.gpg | sudo apt-key add -"
+        repo = "curl -fsSL https://pkgs.tailscale.com/stable/raspbian/buster.list | sudo tee /etc/apt/sources.list.d/tailscale.list"
+        up = "sudo apt-get update"
+        tailscale = "sudo apt-get install tailscale"
+        auth = f"sudo tailscale up --authkey {auth_key}"
+        show_key = "ip addr show tailscale0"
+
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=3 "{transport} && {signing_key} && {repo} && {up} && {tailscale} && {auth} && {show_key}"')
 
 def main():
-    pass
+    up = input("Update and upgrade devices (y/n): ")
+    if up.lower() in ["y","yes","1"]:
+        single = input("Single beacon or all:\n\t1. single\n\t2. all\nChoice: ")
+        if single.lower() in ["1","single","y","yes"]:
+            updater = update(single=True)
+        else:
+            updater = update(single=False)
+        
+        updater.run([updater.update_os,updater.upgrade])
+
+    ins = input("Install new packages (y/n): ")
+    if ins.lower() in ["y","yes","1"]:
+        single = input("Single beacon or all:\n\t1. single\n\t2. all\nChoice: ")
+        if single.lower() in ["1","single","y","yes"]:
+            installer = install(single=True)
+        else:
+            installer = install(single=False)
+        
+        installer.run([installer.add_tailscale])
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
