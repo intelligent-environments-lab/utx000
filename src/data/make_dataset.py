@@ -870,18 +870,6 @@ class utx000():
                 if row.iloc[i] == 1:
                     return building_type
 
-        def get_window_use(row):
-            d = {"use":[]}
-            if row.iloc[0] != "No":
-                uses = []
-                for i, choice in enumerate(["change_temperature","fresh_air","both","other"]):
-                    if row.iloc[i+1] == 1:
-                        uses.append(choice)
-                        
-                d["use"] = uses
-                
-            return d 
-
         def get_smell(row):
             for i, smell_type in enumerate(["stagnant","smelly","earthy","moldy","cooking","fragrant","well_ventilated","obnoxious","other"]):
                 if row.iloc[i] == 1:
@@ -896,17 +884,6 @@ class utx000():
                         return allergy_intensity
                     
             return 0
-
-        def get_cleaner_use(row):
-            d = {"cleaners":[]}
-            for i, cleaner in enumerate(["bleach","ammonia","pinesol","vinegar","alcohol","disinfectant_wipes","soap_and_water","floor_cleaners"]):
-                cleaners = []
-                if row.iloc[i] == 1:
-                    cleaners.append(cleaner)
-                
-            d["cleaners"] = cleaners
-                
-            return d
 
         def get_cleaner_location(row):
             d = {"bleach":[],"ammonia":[],"pinesol":[],"vinegar":[],"alcohol":[],"disinfectant_wipes":[],"soap_and_water":[],"floor_cleaners":[]}
@@ -934,9 +911,8 @@ class utx000():
         ee_building_type["building_type"] = ee_building_type.apply(get_building_type, axis="columns")
         ee_building_type.drop([column for column in ee_building_type.columns if "What type of building" in column], axis="columns", inplace=True)
         # window use
-        ee_window = ee[[column for column in ee.columns if "windows" in column.lower() and "isolate" not in column.lower()]]
-        ee_window["window_use"] = ee_window.apply(get_window_use, axis="columns")
-        ee_window.drop([column for column in ee_window.columns if "windows" in column.lower()],axis="columns",inplace=True)
+        ee_window = ee[[column for column in ee.columns if "your windows" in column.lower()]]
+        ee_window.columns = ["change_temperature","fresh_air","both","other"]
         # smell
         ee_smell = ee[[column for column in ee.columns if "smell" in column.lower()]]
         ee_smell["smell_type"] = ee_smell.apply(get_smell,axis="columns")
@@ -947,8 +923,7 @@ class utx000():
         ee_allergy.drop([column for column in ee_allergy.columns if "allergy" in column.lower() and "intensity" not in column.lower()],axis="columns",inplace=True)
         # use of cleaners
         ee_cleaner_use = ee[[column for column in ee.columns if "cleaners been used" in column.lower()]]
-        ee_cleaner_use["cleaner"] = ee_cleaner_use.apply(get_cleaner_use, axis="columns")
-        ee_cleaner_use.drop([column for column in ee.columns if "cleaners been used" in column.lower()], axis="columns", inplace=True)
+        ee_cleaner_use.columns = ["bleach","ammonia","pinesol","vinegar","alcohol","disinfectant_wipes","soap_and_water","floor_cleaners"]
         # cleaner location
         ee_cleaner_locs = ee[[column for column in ee.columns if "in which rooms" in column.lower()]]
         ee_cleaner_locs["cleaner_locations"] = ee_cleaner_locs.apply(get_cleaner_location,axis="columns")
