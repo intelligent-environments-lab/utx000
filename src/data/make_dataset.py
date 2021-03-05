@@ -865,15 +865,22 @@ class utx000():
 
         Returns True if processed, False otherwise
         '''
+        # Helper Functions
+        # ----------------
+        def check_resonse(row):
+            """
+            Checks to see if the user responded with anything (given by 1s). Returns 1 indicating the user did NOT respond, else 0.
+            """
+            s = sum(row)
+            if s == 0:
+                return 1
+            else:
+                return 0
+
         def get_building_type(row):
             for i, building_type in enumerate(["apartment","duplex","house","dormitory","hotel","other"]):
                 if row.iloc[i] == 1:
                     return building_type
-
-        def get_smell(row):
-            for i, smell_type in enumerate(["stagnant","smelly","earthy","moldy","cooking","fragrant","well_ventilated","obnoxious","other"]):
-                if row.iloc[i] == 1:
-                    return smell_type
 
         def get_allergy(row):
             if row.iloc[0] == "No":
@@ -912,11 +919,12 @@ class utx000():
         ee_building_type.drop([column for column in ee_building_type.columns if "What type of building" in column], axis="columns", inplace=True)
         # window use
         ee_window = ee[[column for column in ee.columns if "your windows" in column.lower()]]
-        ee_window.columns = ["change_temperature","fresh_air","both","other"]
+        ee_window.columns = ["change_temperature","fresh_air","both","other_window_use"]
+        ee_window["no_window_use"] = ee_window.apply(check_resonse, axis="columns")
         # smell
         ee_smell = ee[[column for column in ee.columns if "smell" in column.lower()]]
-        ee_smell["smell_type"] = ee_smell.apply(get_smell,axis="columns")
-        ee_smell.drop([column for column in ee_smell.columns if "smell" in column.lower() and "type" not in column.lower()],axis="columns",inplace=True)
+        ee_smell.columns = ["stagnant","smelly","earthy","moldy","cooking","fragrant","well_ventilated","obnoxious","other_smell"]
+        ee_smell["no_smell"] = ee_smell.apply(check_resonse, axis="columns")
         # allergy
         ee_allergy = ee[[column for column in ee.columns if "allergy" in column.lower()]]
         ee_allergy["allergy_intensity"] = ee_allergy.apply(get_allergy,axis="columns")
@@ -924,6 +932,7 @@ class utx000():
         # use of cleaners
         ee_cleaner_use = ee[[column for column in ee.columns if "cleaners been used" in column.lower()]]
         ee_cleaner_use.columns = ["bleach","ammonia","pinesol","vinegar","alcohol","disinfectant_wipes","soap_and_water","floor_cleaners"]
+        ee_cleaner_use["no_cleaners"] = ee_cleaner_use.apply(check_resonse, axis="columns")
         # cleaner location
         ee_cleaner_locs = ee[[column for column in ee.columns if "in which rooms" in column.lower()]]
         ee_cleaner_locs["cleaner_locations"] = ee_cleaner_locs.apply(get_cleaner_location,axis="columns")
