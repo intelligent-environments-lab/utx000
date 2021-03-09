@@ -684,7 +684,7 @@ class feature_engineering():
         plt.show()
         plt.close()
 
-    def check_features_against_targets(self, df, target_labels, features_to_show=3, tolerance=0.01):
+    def check_features_against_targets(self, df, target_labels, features_to_show=3, tolerance=0.01, verbose=False):
         """
         Checks the features in df to targets given by target_labels which are also in df
 
@@ -696,7 +696,8 @@ class feature_engineering():
         """
         temp = df.copy()
         for target_label in target_labels:
-            print(f"Target: {target_label.replace('_',' ').title()}")
+            if verbose:
+                print(f"Target: {target_label.replace('_',' ').title()}")
             features = [feature for feature in temp.columns if feature not in target_labels]
             # getting data
             try:
@@ -706,11 +707,15 @@ class feature_engineering():
                 continue
             # getting MI scores
             mi_scores = self.get_mi_scores(X, y, tolerance=tolerance)
-            # plotting scores
-            self.plot_mi_scores(mi_scores)
-            # scattering strong relationships
-            self.plot_high_scoring_relationships(X, y, mi_scores, num_scores=features_to_show)
-        
+            if len(mi_scores) > 0:
+                # plotting scores
+                self.plot_mi_scores(mi_scores)
+                # scattering strong relationships
+                self.plot_high_scoring_relationships(X, y, mi_scores, num_scores=features_to_show)
+                return True
+            else:
+                return False
+            
 class principal_component_analysis():
 
     def __init__(self):
