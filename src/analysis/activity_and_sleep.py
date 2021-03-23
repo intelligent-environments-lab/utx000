@@ -2,6 +2,8 @@
 # General
 import os
 import logging
+import warnings
+warnings.filterwarnings('ignore')
 
 # Data Science
 import pandas as pd
@@ -10,36 +12,16 @@ import numpy as np
 # Stats
 from scipy import stats
 from scipy.stats import linregress
+from sklearn.metrics import r2_score
 
 # Plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-class fitbit_sleep():
+class activity():
 
-    def __init__(self, path_to_data="../../data", path_to_figures="../../reports/figures"):
-        # initializing read and save locations
-        self.path_to_data = path_to_data
-        self.path_to_figures = path_to_figures
-        # getting data
-        self.data = pd.read_csv(f"{self.path_to_data}/processed/fitbit_fitbit-daily_activity_and_sleep-ux_s20.csv",parse_dates=["date","start_date","end_date","start_time","end_time"])
-        # cleaning 
-        self.data.drop(["water_logged","food_calories_logged","fat","bmr","start_date","end_date","timestamp","end_time","start_time","beiwe","beacon"],axis="columns",inplace=True)
-        self.data = self.data[self.data["efficiency"] > 75]
-        self.add_sleep_percentage(self.data)
-
-    def add_sleep_percentage(self, df):
-        """Converts and drops minute columns into percentage columns"""
-        for column in df.columns:
-            # looking for sleep columns only
-            if column.endswith("minutes") and column not in ["sedentary_minutes","lightly_active_minutes","fairly_active_minutes","very_active_minutes"]:
-                variable = column.split("_")[0]
-                # converting to percent and dropping
-                df[variable+"_percent"] = df[column] / (df["tst_fb"]*60) * 100
-                df.drop(column,axis="columns",inplace=True)
-
-        # getting rem:nrem percent
-        df["rem2nrem_percent"] = df["rem_percent"] / df["nrem_percent"]
+    def __init__(self):
+        pass
 
     def get_active_minutes_per_week(self, raw_data, index_col="date", id_col="redcap"):
         """
@@ -69,23 +51,14 @@ class fitbit_sleep():
                 df_to_return = df_to_return.append(act_by_pt)
 
         # removing unobserved days by using dummy column
-        df_to_return = df_to_return[df_to_return["nrem_percent"] > 0]
+        df_to_return = df_to_return[df_to_return["steps"] > 0]
         return df_to_return
 
     def add_guidelines_met(self, df, activity_level="moderately", threshold=150):
-        """
-        Adds column to see if a guideline was met based on an activity level and threshold
-
-        Inputs:
-        - df:
-        - activity level:
-        - threshold:
-
-        Returns void; column should have been added to dataframe
-        """
+        """Adds column to see if a guideline was met based on an activity level and threshold"""
         df[f"{activity_level}_met"] = df[f"{activity_level}_weekly"] >= threshold
 
-    def plot_violins(self, df, checks=["moderately_met","vigorously_met","combined_met"], sleep_metrics=["rem_percent","wake_percent","nrem_percent","rem2nrem_percent","efficiency","tst_fb"], annotate=False, save_dir="../reports/figures", save=False):
+    def plot_violins(self, df, checks=["moderately_met","vigorously_met","combined_met"], sleep_metrics=["rem_percent","wake_percent","nrem_percent","rem2nrem_percent","efficiency","tst_fb"], annotate=False, save_dir="../reports/figures", save=False, save_annotation=""):
         """
 
         """
@@ -97,13 +70,13 @@ class fitbit_sleep():
             sns.violinplot(x="condition",y=sleep_metric,hue="met",data=df_expanded,split=True,hue_order=["False","True"],palette={"False":"white","True":"seagreen"},inner="quartile",cut=0,ax=ax)
             # x-axis
             ax.set_xticklabels([check.split("_met")[0].replace("_","-").title()+" Active Minutes" for check in checks])
-            ax.set_xlabel("Recommendation Basis")
+            ax.set_xlabel("Guidline Basis")
             # y-axis
             ax.set_ylabel(sleep_metric.replace("_"," ").upper()) 
             # remainder
             for loc in ["top","right"]:
                     ax.spines[loc].set_visible(False)
-            ax.legend(title=f"Weekly Recommendation Met?",loc="lower center",bbox_to_anchor=(1.1,0.5),frameon=False)
+            ax.legend(title=f"Guideline Met?",ncol=1,frameon=False)
 
             # Annotating with p-values
             if annotate:
@@ -111,11 +84,9 @@ class fitbit_sleep():
                 ns = []
                 for check in checks:
                     temp = df_expanded[df_expanded["condition"] == check]
-                    low_vals = temp[temp["met"] == "False"]
-                    high_vals = temp[temp["met"] == "True"]
-                    _, p = stats.ttest_ind(low_vals[sleep_metric],high_vals[sleep_metric], equal_var=True)
+                    p, n = self.calculate_pvalue(temp,"met",sleep_metric, ("False","True"))
                     pvals.append(p)
-                    ns.append([len(low_vals),len(high_vals)])
+                    ns.append(n)
 
                 xlocs = ax.get_xticks()
                 ax.text(ax.get_xlim()[0],ax.get_ylim()[1],"          p:",ha="center",va="bottom",fontsize=12)
@@ -124,10 +95,70 @@ class fitbit_sleep():
                     ax.text(xloc,ax.get_ylim()[1],f"{round(p,3)} ({n[0]},{n[1]})",fontsize=12,ha="center",va="bottom",weight=weight)
 
             if save:
-                plt.savefig(f"{save_dir}/fitbit_summary/weekly_activity_recommendations-{sleep_metric}-violin.png")
+                plt.savefig(f"{save_dir}/weekly_activity_recommendations-{sleep_metric}{save_annotation}-violin.png")
 
             plt.show()
             plt.close()
+
+    def calculate_pvalue(self, df, split_col, target_col, split_labels=(False,True), equal_var=True):
+        """Gets p-values and number of observatiosn between distributions"""
+        low_vals = df[df[split_col] == split_labels[0]]
+        high_vals = df[df[split_col] == split_labels[1]]
+        _, p = stats.ttest_ind(low_vals[target_col],high_vals[target_col], equal_var=equal_var)
+        return p, [len(low_vals),len(high_vals)]
+
+class fitbit_sleep(activity):
+
+    def __init__(self, path_to_data="../../data", path_to_figures="../../reports/figures/fitbit_summary"):
+        # initializing read and save locations
+        self.path_to_data = path_to_data
+        self.path_to_figures = path_to_figures
+        # getting and cleaning Fitbit data
+        self.data = pd.read_csv(f"{self.path_to_data}/processed/fitbit_fitbit-daily_activity_and_sleep-ux_s20.csv",parse_dates=["date","start_date","end_date","start_time","end_time"])
+        self.data.drop(["water_logged","food_calories_logged","fat","bmr","start_date","end_date","timestamp","end_time","start_time","beiwe","beacon"],axis="columns",inplace=True)
+        self.data = self.data[self.data["efficiency"] > 75]
+        self.add_sleep_percentage(self.data)
+
+    def add_sleep_percentage(self, df):
+        """Converts and drops minute columns into percentage columns"""
+        for column in df.columns:
+            # looking for sleep columns only
+            if column.endswith("minutes") and column not in ["sedentary_minutes","lightly_active_minutes","fairly_active_minutes","very_active_minutes"]:
+                variable = column.split("_")[0]
+                # converting to percent and dropping
+                df[variable+"_percent"] = df[column] / (df["tst_fb"]*60) * 100
+                df.drop(column,axis="columns",inplace=True)
+
+        # getting rem:nrem percent
+        df["rem2nrem_percent"] = df["rem_percent"] / df["nrem_percent"]
+
+    def get_pvalues(self, df, checks=["moderately_met","vigorously_met","combined_met"], sleep_metrics=["rem_percent","wake_percent","nrem_percent","rem2nrem_percent","efficiency","tst_fb"]):
+        """
+
+        """
+        df_expanded = df.melt(id_vars=sleep_metrics,value_vars=checks,var_name="condition",value_name="met")
+        df_expanded.replace(False,"False",inplace=True)
+        df_expanded.replace(True,"True",inplace=True)
+        d = {"target":[],"activity_guideline":[],"n_unmet":[],"n_met":[],"p":[]}
+        for sleep_metric in sleep_metrics:
+            for check in checks:
+                temp = df_expanded[df_expanded["condition"] == check]
+                p, n = self.calculate_pvalue(temp,"met",sleep_metric, ("False","True"))
+                d["target"].append(sleep_metric)
+                d["activity_guideline"].append(check)
+                d["n_unmet"] .append(n[0])
+                d["n_met"].append(n[1])
+                d["p"].append(p)
+                
+        return pd.DataFrame(data=d)
+
+    def run_regression(self, x, y, order=1):
+        """Gets sum of residuals for the order of polynomial fit"""
+        fit = np.polyfit(x,y,deg=order,full=True)
+        coeff = fit[0][0] # leading coefficient
+        const = fit[0][-1] # constant
+        resid = fit[1][0] # sum of residuals
+        return coeff, const, resid
 
     def get_cleaned_activity_df(self, df, activity_level, sleep_metric, order=1, id_col="redcap", min_points=3):
         """
@@ -140,13 +171,15 @@ class fitbit_sleep():
                 df_by_pt_no_zeros = df_by_pt[df_by_pt[f"{activity_level}_active_minutes"] > 0]
                 if len(df_by_pt_no_zeros) >= min_points:
                     df_by_pt_no_zeros["n"] = len(df_by_pt_no_zeros)
-                    df_by_pt_no_zeros["slope"] = np.polyfit(df_by_pt_no_zeros[f"{activity_level}_active_minutes"],df_by_pt_no_zeros[sleep_metric],deg=order)[0]
-                    df_by_pt_no_zeros["r"] = abs(np.polyfit(df_by_pt_no_zeros[f"{activity_level}_active_minutes"],df_by_pt_no_zeros[sleep_metric],deg=order,full=True)[1][0])
+                    coeff, const, resid = self.run_regression(df_by_pt_no_zeros[f"{activity_level}_active_minutes"], df_by_pt_no_zeros[sleep_metric], order=order)
+                    df_by_pt_no_zeros["slope"] = coeff
+                    df_by_pt_no_zeros["r"] = resid / len(df_by_pt_no_zeros)
+                    df_by_pt_no_zeros["constant"] = const
                     df_cleaned = df_cleaned.append(df_by_pt_no_zeros)
                 
         return df_cleaned.sort_values("r",ascending=True)
 
-    def plot_indvidual_responses(self, df, sleep_metrics = ["rem_percent","wake_percent","nrem_percent","rem2nrem_percent","efficiency","tst_fb"], save_dir="../reports/figures",save=False):
+    def plot_indvidual_responses(self, df, sleep_metrics=["rem_percent","wake_percent","nrem_percent","rem2nrem_percent","efficiency","tst_fb"], save_dir="../reports/figures", save=False, show=False):
         """
 
         """
@@ -171,10 +204,14 @@ class fitbit_sleep():
 
                 axes[3,0].get_xaxis().set_visible(True)
                 axes[3,0].get_yaxis().set_visible(True)
-                plt.show()
+
+                if save:
+                    plt.savefig(f"{save_dir}/{activity_level}-{sleep_metric}-individual_scatter.png",bbox_inches="tight")
+                if show:
+                    plt.show()
                 plt.close()
 
-    def run_aggregate_analysis(self, thresholds={"moderately":150,"vigorously":75,"combined":150}):
+    def run(self, thresholds={"moderately":150,"vigorously":75,"combined":150}):
         """
 
         """
@@ -183,18 +220,13 @@ class fitbit_sleep():
         for level, threshold in thresholds.items():
             self.add_guidelines_met(df,level,threshold)
 
-        print(df)
+        #self.plot_violins(df, annotate=True, save_dir=self.path_to_figures, save=True)
+        #print(self.get_pvalues(df))
+        self.plot_indvidual_responses(df, save_dir=self.path_to_figures, save=True)
 
-
-    def run_individual_analysis(self):
-        """
-
-        """
-        df = self.get_active_minutes_per_week(self.data)
-
-def main():
+def main(): 
     activity_and_fitbit_sleep = fitbit_sleep()
-    activity_and_fitbit_sleep.run_aggregate_analysis()
+    activity_and_fitbit_sleep.run(thresholds={"moderately":300,"vigorously":150,"combined":300})
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
