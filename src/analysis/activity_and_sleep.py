@@ -18,7 +18,7 @@ from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-class activity():
+class base():
 
     def __init__(self):
         pass
@@ -107,7 +107,7 @@ class activity():
         _, p = stats.ttest_ind(low_vals[target_col],high_vals[target_col], equal_var=equal_var)
         return p, [len(low_vals),len(high_vals)]
 
-class fitbit_sleep(activity):
+class fitbit_sleep(base):
 
     def __init__(self, path_to_data="../../data", path_to_figures="../../reports/figures/fitbit_summary"):
         # initializing read and save locations
@@ -179,19 +179,43 @@ class fitbit_sleep(activity):
                 
         return df_cleaned.sort_values("r",ascending=True)
 
-    def plot_indvidual_responses(self, df, sleep_metrics=["rem_percent","wake_percent","nrem_percent","rem2nrem_percent","efficiency","tst_fb"], save_dir="../reports/figures", save=False, show=False):
+    def plot_scatter(self, df, levels=["combined","vigorously"], sleep_metrics=["rem_percent","wake_percent","nrem_percent","rem2nrem_percent","efficiency","tst_fb"], save=False, save_dir="../reports/figures/fitbit_summary"):
+    
+        for sleep_metric in sleep_metrics:
+            _, axes = plt.subplots(1,len(levels),figsize=(8*len(levels),6),sharey=True,gridspec_kw={"wspace":0})
+            for level, ax in zip(levels,axes):
+                sns.scatterplot(x=f"{level}_weekly",y=sleep_metric,hue=f"{level}_met",palette=["black","seagreen"],data=df,ax=ax)
+                # x-axis
+                ax.set_xlabel(level.title())
+                ax.set_xlim(left=0)
+                # remainder
+                for loc in ["top","right"]:
+                    ax.spines[loc].set_visible(False)
+            # y-axis
+            axes[0].set_ylabel(sleep_metric.replace("_"," ").upper()) 
+            
+            if save:
+                plt.savefig(f"{save_dir}/{level}_active_minutes-{sleep_metric}-scatter.png",bbox_inches="tight")
+                
+            plt.show()
+            plt.close()
+
+    def plot_indvidual_responses(self, df, levels=["combined","vigorously"], sleep_metrics=["wake_percent","rem_percent","nrem_percent","rem2nrem_percent","efficiency","tst_fb"], save_dir="../reports/figures/fitbit_summary", save=False, show=False):
         """
 
         """
         for sleep_metric in sleep_metrics:
-            for activity_level in ["moderately","combined","vigorously"]:
-                df_to_plot = self.get_cleaned_activity_df(df,activity_level,sleep_metric)
+            for level in levels:
+                df_to_plot = self.get_cleaned_activity_df(df,level,sleep_metric)
                 fig, axes = plt.subplots(4,11,figsize=(22,8),sharey=True,sharex=True,gridspec_kw={"wspace":0,"hspace":0})
                 for pt, ax in zip(df_to_plot["redcap"].unique(),axes.flat):
                     df_to_plot_by_pt = df_to_plot[df_to_plot["redcap"] == pt]
-                    sns.regplot(x=f"{activity_level}_active_minutes",y=sleep_metric,data=df_to_plot_by_pt,ci=None,truncate=True,order=1,
-                                scatter_kws={"s": 20, "alpha":0.7,"color":"cornflowerblue"},
-                                line_kws={"linewidth":1,"color":"black"},ax=ax)
+                    sns.regplot(x=f"{level}_active_minutes",y=sleep_metric,data=df_to_plot_by_pt,ci=None,truncate=True,order=1,
+                                scatter=False,line_kws={"linewidth":1,"color":"black"},ax=ax)
+                    try:
+                        sns.scatterplot(x=f"{level}_active_minutes",y=sleep_metric,hue=f"{level}_met",palette=["black","seagreen"],data=df_to_plot_by_pt,ax=ax,legend=False)
+                    except ValueError:
+                        sns.scatterplot(x=f"{level}_active_minutes",y=sleep_metric,color="black",data=df_to_plot_by_pt,ax=ax,legend=False)
                     ax.set_xlabel("")
                     ax.set_ylabel("")
                     ax.set_title(int(pt),y=1.0)
@@ -200,13 +224,13 @@ class fitbit_sleep(activity):
                     ax.get_yaxis().set_visible(False)
                     
                 fig.text(0.1,0.5,sleep_metric.replace("_"," ").replace("2",":").title(), ha='center', va='center', rotation='vertical',size=16)
-                fig.text(0.5, 0.07, f"{activity_level.title()} Active Minutes per Day", ha='center', va='center',size=16)
+                fig.text(0.5, 0.07, f"{level.title()} Active Minutes per Day", ha='center', va='center',size=16)
 
                 axes[3,0].get_xaxis().set_visible(True)
                 axes[3,0].get_yaxis().set_visible(True)
 
                 if save:
-                    plt.savefig(f"{save_dir}/{activity_level}-{sleep_metric}-individual_scatter.png",bbox_inches="tight")
+                    plt.savefig(f"{save_dir}/{level}-{sleep_metric}-individual_scatter.png",bbox_inches="tight")
                 if show:
                     plt.show()
                 plt.close()
@@ -223,6 +247,36 @@ class fitbit_sleep(activity):
         #self.plot_violins(df, annotate=True, save_dir=self.path_to_figures, save=True)
         #print(self.get_pvalues(df))
         self.plot_indvidual_responses(df, save_dir=self.path_to_figures, save=True)
+
+class ema_sleep(base):
+
+    def __init__(self):
+        pass
+
+    def plot_strip(self, df, levels=["combined","vigorously"], save=False, save_dir="../reports/figures/ema_fitbit"):
+        for level in levels:
+            _, axes = plt.subplots(1,2,figsize=(12,4),sharey=False, gridspec_kw={'wspace':0.1})
+            for met, ax in zip([False, True], axes.flat):
+                temp = df[df[f"{level}_met"] == met]
+                sns.stripplot(x="restful", y=f"{level}_weekly", data=temp, jitter=.2, alpha=0.7, ax=ax)
+                labels = ax.get_xticklabels()
+                c = temp["restful"].value_counts().sort_index()
+                new_labels = []
+                for label, count in zip(labels,c):
+                    new_labels.append(f"{label.get_text()} ({count})")
+                ax.set_xticklabels(new_labels)
+                ax.set_xlabel("Restful Score")
+                ax.set_ylim(bottom=0)
+                for loc in ["top","right"]:
+                    ax.spines[loc].set_visible(False)
+
+            axes[0].set_ylabel(f"{level.title()} Active Minutes (Weekly)")
+            axes[1].set_ylabel("")
+
+            if save:
+                plt.savefig(f"{save_dir}/{level}_active_minutes-restful-stripplot.png",bbox_inches="tight")
+            plt.show()
+            plt.close()
 
 def main(): 
     activity_and_fitbit_sleep = fitbit_sleep()
