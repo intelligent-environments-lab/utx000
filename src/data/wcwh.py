@@ -2,12 +2,19 @@
 # Data Science Packages
 import pandas as pd
 import numpy as np
+import scipy.stats as stats
 
 # Useful
 from datetime import datetime, timedelta
+import math
 
 # Operations
 import os
+
+# Extra
+import ast
+import warnings
+warnings.filterwarnings('ignore')
 
 class wcwh():
     """
@@ -81,7 +88,7 @@ class wcwh():
                                             infer_datetime_format=True)
                         df_list.append(day_df)
                         
-                    except Exception as inst:
+                    except Exception:
                         # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
                         print(f'Issue encountered while importing {csv_dir}/{file}, skipping...')
                         self.move_to_purgatory(f'{csv_dir}/{file}',f'{self.data_dir}/purgatory/B{number}-py3-{file}-{self.suffix}')
