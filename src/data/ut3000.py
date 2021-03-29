@@ -56,7 +56,6 @@ class ut2000():
         '''
 
         beacons = pd.DataFrame()
-        trh = pd.DataFrame()
         measurements = ['pm1.0','pm2.5','pm10','std1.0','std2.5','std10','pc0.3','pc0.5','pc1.0','pc2.5','pc5.0','pc10.0']
         for folder in os.listdir(data_dir):
             beacon_no = folder[-2:]
