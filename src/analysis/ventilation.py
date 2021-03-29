@@ -27,10 +27,13 @@ class calculate():
 
         # participant information
         pt_names = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='all')
-        pt_names = pt_names[["beiwe","first","last"]]
+        pt_names = pt_names[["beiwe","first","last","sex"]]
         pt_ids = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='beacon')
         pt_ids = pt_ids[['redcap','beiwe','beacon','lat','long','volume','roommates']] # keep their address locations
         self.pt_info = pt_ids.merge(right=pt_names,on='beiwe')
+
+        # fitbit data
+        self.fb = pd.read_csv(f'{self.data_dir}/processed/fitbit-daily-{self.suffix}.csv',index_col=0,parse_dates=True,infer_datetime_format=True)
 
 #class steady_state(calculate):
 
