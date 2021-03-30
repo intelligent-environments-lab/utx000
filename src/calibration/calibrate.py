@@ -571,7 +571,7 @@ class Calibration():
 
                     # plotting
                     if show_plot == True:
-                        _, ax = plt.subplots(figsize=(6,6))
+                        fig, ax = plt.subplots(figsize=(6,6))
                         im = ax.scatter(x,y,c=times,cmap="Blues",edgecolor="black",s=75,label="Measured",zorder=2)
                         fig.colorbar(im,ax=ax,label="Minutes since Start")
                         # Make draw the line of best-fit
