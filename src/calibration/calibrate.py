@@ -198,7 +198,7 @@ class Calibration():
                                                 infer_datetime_format=True)
                             df_list.append(day_df)
 
-                        except Exception as inst:
+                        except Exception:
                             # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
                             if verbose:
                                 print(f'\t\tIssue encountered while importing {csv_dir}/{file}, skipping...')
@@ -262,7 +262,7 @@ class Calibration():
         """
 
         if timeseries:
-            fig, ax = plt.subplots(figsize=(16,6))
+            _, ax = plt.subplots(figsize=(16,6))
             if "beacon" in df.columns:
                 for bb in df["beacon"].unique():
                     df_by_bb = df[df["beacon"] == bb]
@@ -274,7 +274,7 @@ class Calibration():
             plt.show()
             plt.close()
         else: #heatmap
-            fig,ax = plt.subplots(figsize=(14,7))
+            _, ax = plt.subplots(figsize=(14,7))
             if "beacon" in df.columns:
                 df.columns=["concentration","beacon"]
                 df_to_plot = pd.DataFrame()
@@ -303,7 +303,7 @@ class Calibration():
         - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
         """
         ref_data = ref_data[self.start_time:self.end_time]
-        fig, ax = plt.subplots(figsize=(16,6))
+        _, ax = plt.subplots(figsize=(16,6))
         ax.plot(ref_data.index,ref_data.iloc[:,0].values,linewidth=3,color="black",zorder=100,label="Reference")
         for bb in beacon_data.iloc[:,1].unique():    
             data_by_bb = beacon_data[beacon_data.iloc[:,1] == bb]
@@ -331,7 +331,7 @@ class Calibration():
         - ref_data: dataframe of reference data with single column corresponding to data indexed by time
         - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
         """
-        fig, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
+        _, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
         for i, axes in enumerate(ax.flat):
             # getting relevant data
             beacon_df = beacon_data[beacon_data["beacon"] == i]
@@ -532,7 +532,8 @@ class Calibration():
             if len(beacon_by_bb) > 1:
                 beacon_by_bb.drop(["beacon"],axis=1,inplace=True)
                 if len(ref_data) == len(beacon_by_bb):
-                    index = int(test_size*len(ref_data))
+                    pass
+                    #index = int(test_size*len(ref_data))
                 else:
                     # resizing arrays to included data from both modalities
                     max_start_date = max(ref_df.index[0],beacon_by_bb.index[0])
@@ -570,7 +571,7 @@ class Calibration():
 
                     # plotting
                     if show_plot == True:
-                        fig, ax = plt.subplots(figsize=(6,6))
+                        _, ax = plt.subplots(figsize=(6,6))
                         im = ax.scatter(x,y,c=times,cmap="Blues",edgecolor="black",s=75,label="Measured",zorder=2)
                         fig.colorbar(im,ax=ax,label="Minutes since Start")
                         # Make draw the line of best-fit
@@ -578,8 +579,8 @@ class Calibration():
                         ax.plot(x,y_pred,color='firebrick',linewidth=3,label="Prediction",zorder=3)
                         ax.legend(bbox_to_anchor=(1.65,1),frameon=False)
 
-                        plt_min = min(min(x),min(y))
-                        plt_max = max(max(x),max(y))
+                        #plt_min = min(min(x),min(y))
+                        #plt_max = max(max(x),max(y))
                         #ax.text(0.975*plt_min,0.975*plt_min,f"Coefficient: {round(regr.coef_[0],3)}",backgroundcolor="white",ma="center")
                         #ax.set_xlim([0.95*plt_min,1.05*plt_max])
                         ax.set_xlabel("Beacon Measurement")
@@ -598,13 +599,13 @@ class Calibration():
                 # adding blank
                 coeffs["beacon"].append(bb)
                 coeffs["constant"].append(0)
-                coeffs["coefficient"].append(0)
+                coeffs["coefficient"].append(1)
 
         coeff_df = pd.DataFrame(coeffs)
         coeff_df.set_index("beacon",inplace=True)
 
         if show_corrected:
-            fig, ax = plt.subplots(figsize=(16,6))
+            _, ax = plt.subplots(figsize=(16,6))
             for bb in beacon_data["beacon"].unique():
                 beacon_df = beacon_data[beacon_data["beacon"] == bb]
                 beacon_df.dropna(subset=[beacon_var],inplace=True)
