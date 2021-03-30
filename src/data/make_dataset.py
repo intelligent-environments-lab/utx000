@@ -464,7 +464,7 @@ class utx000():
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         beacons_folder=f'{self.data_dir}/raw/utx000/beacon'
         # list of all beacons used in the study
-        beacon_list = self.beacon_list = [1,5,10,15,16,17,19,21,22,24,25,26,28,29,30,32,34,36,38,40,44,46] #6,11,13,23,41,48
+        beacon_list = self.beacon_list = [1,5,10,15,16,17,19,21,22,24,25,26,28,29,30,32,34,36,38,40,44,46] #6,7,11,13,23,41,48
         print('\tProcessing beacon data...\n\t\tReading for beacon:')
         for beacon in beacon_list:
 
