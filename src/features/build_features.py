@@ -489,7 +489,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
                  index_col=0,parse_dates=[0,1],infer_datetime_format=True)
     # participant info data for beacon users
     info = pd.read_excel(f'{data_dir}data/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon',
-                    parse_dates=[3,4,5,6],infer_datetime_format=True)
+                    parse_dates=[3,4,5,6])
 
     partially_filtered_beacon = pd.DataFrame() # df restricted by fitbit and gps
     for pt in sleep['beiwe'].unique():
@@ -499,8 +499,10 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
             sleep_pt = sleep[sleep['beiwe'] == pt]
             beacon_pt = beacon[beacon['beiwe'] == pt]
             info_pt = info[info['beiwe'] == pt]
-            lat_pt = info_pt['lat'].values[0]
-            long_pt = info_pt['long'].values[0]
+            lat_pt1 = info_pt['lat'].values[0]
+            long_pt1 = info_pt['long'].values[0]
+            lat_pt2 = info_pt['lat2'].values[0]
+            long_pt2 = info_pt['long2'].values[0]
             print(f'Working for {pt} - Beacon', info_pt['beacon'])
             # looping through sleep start and end times
             print(f'\tNumber of nights of sleep:', len(sleep_pt['start_time']))
@@ -512,10 +514,15 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
                 beacon_pt_night = beacon_pt[start_time:end_time]
                 # checking distances between pt GPS and home GPS
                 if len(gps_pt_night) > 0:
-                    coords_1 = (lat_pt, long_pt)
-                    coords_2 = (np.nanmean(gps_pt_night['lat']), np.nanmean(gps_pt_night['long']))
-                    d = geopy.distance.distance(coords_1, coords_2).m
-                    if d < radius:
+                    coords_add_1 = (lat_pt1, long_pt1)
+                    coords_add_2 = (lat_pt2, long_pt2)
+                    coords_beiwe = (np.nanmean(gps_pt_night['lat']), np.nanmean(gps_pt_night['long']))
+                    d1 = geopy.distance.distance(coords_add_1, coords_beiwe).m
+                    try:
+                        d2 = geopy.distance.distance(coords_add_2, coords_beiwe).m
+                    except ValueError:
+                        d2 = radius + 1 # dummy value greater than radius
+                    if d1 < radius or d2 < radius:
                         # resampling so beacon and gps data are on the same time steps
                         gps_pt_night = gps_pt_night.resample('5T').mean()
                         beacon_pt_night = beacon_pt_night.resample('5T').mean()
@@ -725,7 +732,7 @@ class principal_component_analysis():
     
 
 def main():
-    #get_restricted_beacon_datasets(data_dir='../../')
+    get_restricted_beacon_datasets(data_dir='../../')
 
     fs = fitbit_sleep(data_dir='../../')
     fs.get_beiwe_summaries()
