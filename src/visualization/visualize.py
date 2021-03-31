@@ -13,6 +13,40 @@ import numpy as np
 import pandas as pd
 import re
 
+def get_pollutant_units(pollutant):
+    """Gets the formated label for the pollutant"""
+    if pollutant == "co2":
+        return "ppm"
+    elif pollutant == "co":
+        return "ppb"
+    elif pollutant == "pm2p5_mass":
+        return "$\mu$g/m$^3$"
+    elif pollutant == "no2":
+        return "ppb"
+    elif pollutant == "tvoc":
+        return "ppb"
+    elif pollutant == "temperature_c":
+        return "$^\circ$C"
+    else:
+        return ""
+
+def get_pollutant_label(pollutant):
+    """Gets the formated label for the pollutant"""
+    if pollutant == "co2":
+        return "CO$_2$"
+    elif pollutant == "co":
+        return "CO"
+    elif pollutant == "pm2p5_mass":
+        return "PM$_{2.5}$"
+    elif pollutant == "no2":
+        return "NO$_2$"
+    elif pollutant == "tvoc":
+        return "TVOC"
+    elif pollutant == "temperature_c":
+        return "T"
+    else:
+        return ""
+
 class single_var:
     '''
     Visualizations that incorporate only one variable
@@ -124,7 +158,7 @@ class single_var:
         if save:
             # default location for Hagen's projects
             y_var = input('Shorthand for y-variable: ') ## user input for variable to identify figure
-            plt.savefig(f'../../reports/figures/{yvar}-{self.fig_type}-{self.study_suffix}.png')
+            plt.savefig(f'../../reports/figures/{y_var}-{self.fig_type}-{self.study_suffix}.png')
         
         # return the fig and axis so user can do more unique modifications
         return fig, ax
@@ -196,7 +230,7 @@ class single_var:
         if save:
             # default location for Hagen's projects
             y_var = input('Shorthand for y-variable: ') ## user input for variable to identify figure
-            plt.savefig(f'../../reports/figures/{yvar}-{self.fig_type}-{self.study_suffix}.png')
+            plt.savefig(f'../../reports/figures/{y_var}-{self.fig_type}-{self.study_suffix}.png')
         
         # return the fig and axis so user can do more unique modifications
         return fig, ax
