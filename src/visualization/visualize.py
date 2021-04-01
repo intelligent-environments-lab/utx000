@@ -47,6 +47,21 @@ def get_pollutant_label(pollutant):
     else:
         return ""
 
+def get_sleep_label(metric):
+    """Gets the formated label for the given sleep metric"""
+    if metric[0:3].lower() == "tst":
+        return "TST (h)"
+    if metric.lower() == "sol":
+        return "SOL (minutes)"
+    if metric.lower() == "naw":
+        return "NAW"
+    elif metric.lower() == "efficiency":
+        return "Sleep Efficiency (%)"
+    elif metric[0:8].lower() == "rem2nrem":
+        return "REM:nREM Ratio"
+    else:
+        return ""
+
 class single_var:
     '''
     Visualizations that incorporate only one variable
