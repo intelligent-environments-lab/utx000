@@ -57,6 +57,10 @@ def get_sleep_label(metric):
         return "NAW"
     elif metric.lower() == "efficiency":
         return "Sleep Efficiency (%)"
+    elif metric.lower() == "rem_percent":
+        return "% REM"
+    elif metric.lower() == "nrem_percent":
+        return "% nREM"
     elif metric[0:8].lower() == "rem2nrem":
         return "REM:nREM Ratio"
     else:
