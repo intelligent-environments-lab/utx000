@@ -21,12 +21,18 @@ def get_pollutant_units(pollutant):
         return "ppb"
     elif pollutant == "pm2p5_mass":
         return "$\mu$g/m$^3$"
+    elif pollutant == "pm2p5_number":
+        return "#/dL"
     elif pollutant == "no2":
         return "ppb"
     elif pollutant == "tvoc":
         return "ppb"
     elif pollutant == "temperature_c":
         return "$^\circ$C"
+    elif pollutant == "rh":
+        return "%"
+    elif pollutant == "lux":
+        return "lux"
     else:
         return ""
 
@@ -36,14 +42,18 @@ def get_pollutant_label(pollutant):
         return "CO$_2$"
     elif pollutant == "co":
         return "CO"
-    elif pollutant == "pm2p5_mass":
+    elif pollutant == "pm2p5_mass" or pollutant == "pm2p5_number" or pollutant == "pm2p5p":
         return "PM$_{2.5}$"
     elif pollutant == "no2":
         return "NO$_2$"
     elif pollutant == "tvoc":
         return "TVOC"
     elif pollutant == "temperature_c":
-        return "T"
+        return "Temperature"
+    elif pollutant == "rh":
+        return "Relative Humidity"
+    elif pollutant == "lux":
+        return "Light Level"
     else:
         return ""
 
@@ -270,7 +280,7 @@ class Beacon_Visual():
         """
         Plots a basic time series and saves it to the user's desktop
         """
-        fig, ax = plt.subplots(figsize=(12,6))
+        _, ax = plt.subplots(figsize=(12,6))
         ax.plot(self.data.index,self.data[variable])
         ax.set_title(variable.upper())
         plt.savefig(f"{self.data_dir}/../../reports/inspection/{variable.lower()}-timeseries-{self.start_datetime.date()}-{self.end_datetime.date()}-{self.study}.png")
