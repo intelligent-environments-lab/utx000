@@ -87,6 +87,7 @@ class Diagnostics():
         print("\n\tDownloading Data:")
         os.system(f'scp -r -o ConnectTimeout=3 pi@iaq{beacon_no}:/home/pi/DATA/adafruit/ {self.save_dir}B{beacon_no}/')
         os.system(f'scp -r -o ConnectTimeout=3 pi@iaq{beacon_no}:/home/pi/DATA/sensirion/ {self.save_dir}B{beacon_no}/')
+        os.system(f'scp -r -o ConnectTimeout=3 pi@iaq{beacon_no}:/home/pi/DATA/ {self.save_dir}B{beacon_no}/')
 
         print("\n\tRemoving Bad Data:")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo rm DATA/*/b00*"')
