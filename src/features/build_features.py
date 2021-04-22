@@ -152,9 +152,12 @@ class fitbit_sleep():
             fb_all[f"rem2nrem_{sleep_stage_metric}"] = fb_all[f"rem_{sleep_stage_metric}"] / fb_all[f"nrem_{sleep_stage_metric}"] # ratio of nrem to rem (count and minutes)
 
         fb_all["tst_fb"] = fb_all["duration_ms"] / 3600000
+        for stage in ["rem","nrem"]:
+            fb_all[f"{stage}_percent"] = fb_all[f"{stage}_minutes"] / (fb_all["tst_fb"]*60)
         fb_all["waso"] = (1 - fb_all["efficiency"]/100) * fb_all["tst_fb"] * 60
+        fb_all["sol_fb"] = fb_all["wake_minutes"] - fb_all["waso"]
         # dropping unecessary columns
-        fb_all.drop(["main_sleep","duration_ms","minutes_after_wakeup","minutes_to_sleep","time_in_bed","minutes_asleep","minutes_awake"],axis="columns",inplace=True)
+        fb_all.drop(["main_sleep","duration_ms","minutes_after_wakeup","time_in_bed","minutes_asleep","minutes_to_sleep","minutes_awake"],axis="columns",inplace=True)
         # saving and returning
         fb_all.to_csv(f"{self.data_dir}data/processed/fitbit-sleep_summary-{self.study_suffix}.csv",index=False)
 
@@ -272,7 +275,7 @@ class fitbit_sleep():
         complete_sleep.columns = ['start_date', 'end_date', 'deep_count', 'deep_minutes',
                                 'light_count', 'light_minutes', 'rem_count', 'rem_minutes',
                                 'wake_count', 'wake_minutes', "beiwe", 'efficiency', 'end_time', 'start_time', "redcap", "beacon",
-                                "nrem_count",	"rem2nrem_count",	"nrem_minutes",	"rem2nrem_minutes",	"tst_fb","waso",
+                                "nrem_count",	"rem2nrem_count",	"nrem_minutes",	"rem2nrem_minutes",	"tst_fb","rem_percent",	"nrem_percent",	"waso", "sol_fb", 
                                 'tst_ema', 'sol_ema', 'naw_ema', 'restful_ema',]
                                 
         complete_sleep.to_csv(f'{self.data_dir}data/processed/beiwe_fitbit-sleep_summary-{self.study_suffix}.csv')
