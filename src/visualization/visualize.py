@@ -36,6 +36,45 @@ def get_pollutant_units(pollutant):
     else:
         return ""
 
+def get_label(var):
+    """Gets the formated label for the pollutant"""
+    if var == "co2":
+        return "CO$_2$"
+    elif var == "co":
+        return "CO"
+    elif var == "pm2p5_mass" or var == "pm2p5_number" or var == "pm2p5p":
+        return "PM$_{2.5}$"
+    elif var == "no2":
+        return "NO$_2$"
+    elif var == "tvoc":
+        return "TVOC"
+    elif var == "temperature_c":
+        return "Temperature"
+    elif var == "rh":
+        return "Relative Humidity"
+    elif var == "lux":
+        return "Light Level"
+    elif var[0:3].lower() == "tst":
+        return "TST (h)"
+    elif var.lower() == "sol":
+        return "SOL (minutes)"
+    elif var.lower() == "naw":
+        return "NAW"
+    elif var.lower() == "efficiency":
+        return "Sleep Efficiency (%)"
+    elif var.lower() == "rem_percent":
+        return "% REM"
+    elif var.lower() == "nrem_percent":
+        return "% nREM"
+    elif var[0:8].lower() == "rem2nrem":
+        return "REM:nREM Ratio"
+    elif var.endswith("count"):
+        return "Number"
+    elif var.endswith("minutes"):
+        return "Minutes"
+    else:
+        return ""
+
 def get_pollutant_label(pollutant):
     """Gets the formated label for the pollutant"""
     if pollutant == "co2":
