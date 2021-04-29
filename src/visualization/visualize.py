@@ -58,10 +58,12 @@ def get_label(var):
         return "TST (h)"
     elif var.lower() == "sol":
         return "SOL (minutes)"
+    elif var.lower() == "waso":
+        return "WASO (minutes)"
     elif var.lower() == "naw":
         return "NAW"
     elif var.lower() == "efficiency":
-        return "Sleep Efficiency (%)"
+        return "SE (%)"
     elif var.lower() == "rem_percent":
         return "% REM"
     elif var.lower() == "nrem_percent":
