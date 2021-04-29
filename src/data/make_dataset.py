@@ -1067,11 +1067,11 @@ class utx000():
                     # adding other ids
                     crossover_info = self.id_crossover.loc[self.id_crossover['beiwe']==bid].reset_index(drop=True)
                     try:
-                        bb = crossover_info['beacon'][0]
+                        bb = crossover_info['beacon'].iloc[0]
                     except IndexError:
                         bb = np.nan
                     try:
-                        rid = crossover_info['redcap'][0]
+                        rid = crossover_info['redcap'].iloc[0]
                     except IndexError:
                         rid = np.nan
                     del crossover_info
@@ -1080,8 +1080,8 @@ class utx000():
                     overall_dict.setdefault('beacon', [])
                     overall_dict['beacon'].append(bb)
 
-            for key in overall_dict.keys():
-                print(f"{key}: {len(overall_dict[key])}")
+            #for key in overall_dict.keys():
+                #print(f"{key}: {len(overall_dict[key])}")
             df = pd.DataFrame(overall_dict)
             df['date'] = pd.to_datetime(df['date'],errors='coerce')
             # removing classic sleep stage data
@@ -1089,6 +1089,8 @@ class utx000():
             # dropping/renaming columns
             df.drop(["dateOfSleep","infoCode","logId","type","awakeCount","awakeDuration","awakeningsCount","minuteData","restlessCount","restlessDuration"],axis=1,inplace=True)
             df.columns = ["duration_ms","efficiency","end_time","main_sleep","levels","minutes_after_wakeup","minutes_asleep","minutes_awake","minutes_to_sleep","start_time","time_in_bed","date","beiwe","redcap","beacon"]
+            # recalculating se because Fitbit determines it some unknown/incorrect way
+            df["efficiency"] = df["minutes_asleep"] / df["time_in_bed"] * 100
             return df
 
         def get_sleep_stages(daily_sleep):
@@ -1103,7 +1105,6 @@ class utx000():
             - summary: a dataframe with the nightly sleep stage information
             '''
             
-            print(daily_sleep.head())
             data_dict = {'startDate':[],'endDate':[],'dateTime':[],'level':[],'seconds':[],'beiwe':[]}
             summary_dict = {'start_date':[],'end_date':[],'deep_count':[],'deep_minutes':[],'light_count':[],'light_minutes':[],
                             'rem_count':[],'rem_minutes':[],'wake_count':[],'wake_minutes':[],'beiwe':[]}
@@ -1153,7 +1154,16 @@ class utx000():
             sleep_stages['value'] = sleep_stages.apply(lambda row: numeric_from_str_sleep_stage(row), axis=1)
             
             summary = pd.DataFrame(summary_dict)
-            return sleep_stages, summary
+            # getting sol
+            sol = sleep_stages.groupby(["beiwe","start_date"]).first().reset_index()
+            sol = sol[sol["stage"] == "wake"]
+            sol["sol"] = sol["time_at_stage"] / 60
+            # getting wol
+            wol = sleep_stages.groupby(["beiwe","start_date"]).last().reset_index()
+            wol = wol[wol["stage"] == "wake"]
+            wol["wol"] = wol["time_at_stage"] / 60
+            wol["date"] = pd.to_datetime(wol["end_date"],errors="coerce")
+            return sleep_stages, summary, sol[["beiwe","time","sol"]], wol[["beiwe","date","wol"]]
 
         def process_fitbit_intraday(raw_df,resample_rate=1):
             '''
@@ -1185,9 +1195,16 @@ class utx000():
         sleep_daily = get_daily_sleep(daily)
         daily.drop(['activities_heart','sleep'],axis=1,inplace=True)
         daily.columns = ["calories","bmr","steps","distance","sedentary_minutes","lightly_active_minutes","fairly_active_minutes","very_active_minutes","calories_from_activities","bmi","fat","weight","food_calories_logged","water_logged","beiwe"]
-        sleep_stages, sleep_stages_summary = get_sleep_stages(sleep_daily)
+        sleep_stages, sleep_stages_summary, sol, wol = get_sleep_stages(sleep_daily)
         sleep_daily.drop(["levels"],axis=1,inplace=True)
-
+        # adding SOL to daily sleep from sleep stages
+        sleep_daily = sleep_daily.merge(right=sol,left_on=["beiwe","start_time"],right_on=["beiwe","time"],how="left")
+        sleep_daily["sol"].fillna(0,inplace=True)
+        # adding WOL to daily sleep from sleep stages
+        sleep_daily["date"] = pd.to_datetime(sleep_daily["date"],errors="coerce")
+        sleep_daily = sleep_daily.merge(right=wol,on=["beiwe","date"],how="left")
+        sleep_daily["wol"].fillna(0,inplace=True)
+        sleep_daily.drop("time",axis="columns",inplace=True)
         # saving
         try:
             daily.to_csv(f'../../data/processed/fitbit-daily-{self.suffix}.csv')
