@@ -152,7 +152,7 @@ class fitbit_sleep():
         
         fb_all[f"rem2nrem"] = fb_all[f"rem_minutes"] / fb_all[f"nrem_minutes"] # ratio of nrem to rem (count and minutes)
 
-        fb_all["tst_fb"] = fb_all["duration_ms"] / 3600000
+        fb_all["tst_fb"] = fb_all["minutes_asleep"] / 60
         for stage in ["rem","nrem"]:
             fb_all[f"{stage}_percent"] = fb_all[f"{stage}_minutes"] / (fb_all["tst_fb"]*60)
         fb_all["waso"] = fb_all["minutes_awake"] - fb_all["sol"] - fb_all["wol"]
