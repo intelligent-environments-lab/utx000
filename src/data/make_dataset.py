@@ -559,13 +559,13 @@ class utx000():
             
             # offsetting measurements with linear model (except CO)
             for var in self.linear_model.keys():
-                if var != "co":
-                    beacon_df[var] = beacon_df[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]
-                else:
+                if var in ["co","pm2p5_mass"]:
                     beacon_df[var] -= self.constant_model[var].loc[beacon,"correction"]
-            
+                else:
+                    beacon_df[var] = beacon_df[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]
+
             # variables that should never have anything less than zero
-            for var in ["tvoc","lux","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]:
+            for var in ["tvoc","lux","co2","co","no2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]:
                 beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
             
             # variables that should never be less than a certain limit
