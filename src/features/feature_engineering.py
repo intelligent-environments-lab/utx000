@@ -4,6 +4,8 @@ import numpy as np
 from sklearn.feature_selection import mutual_info_regression
 
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 import seaborn as sns
 
 class fe():
