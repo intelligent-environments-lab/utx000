@@ -117,6 +117,23 @@ def get_sleep_label(metric):
     else:
         return ""
 
+def get_marker(number):
+    """
+    Gets a marker style based on the beacon number
+    """
+    if number < 10:
+        m = "s"
+    elif number < 20:
+        m = "^"
+    elif number < 30:
+        m = "P"
+    elif number <40:
+        m = "*"
+    else:
+        m = "o"
+
+    return m
+
 class single_var:
     '''
     Visualizations that incorporate only one variable
