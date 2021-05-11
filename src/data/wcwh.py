@@ -43,6 +43,10 @@ class wcwh():
                         print(f"Missing offset for {file_info[0]} - padding with zeros")
                         self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
 
+        # EMA Attributes
+        self.ema_start = datetime(2020,6,1)
+        self.ema_end = datetime(2020,9,1)
+
     def move_to_purgatory(self,path_to_file,path_to_destination):
         '''
         Moves problematic file to the purgatory data directory
