@@ -18,7 +18,7 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 class Calibration():
 
-    def __init__(self, start_time, end_time, data_dir="../../data/", study_suffix="ux_s20", calibration_start=datetime(2020,12,30,12,40,0)):
+    def __init__(self, start_time, end_time, data_dir="../../data/", study="utx000", study_suffix="ux_s20", calibration_start=datetime(2020,12,30,12,40,0)):
         """
         Initiates the calibration object with:
         - start_time: datetime object with precision to the minute specifying the event START time
@@ -32,6 +32,7 @@ class Calibration():
 
         self.data_dir = data_dir
         self.suffix = study_suffix
+        self.study = study
         self.beacons = []
 
     def get_zero_baseline(self,**kwargs):
@@ -48,7 +49,7 @@ class Calibration():
         df.index.rename("timestamp",inplace=True)
         return df
 
-    def get_pm_ref(self,file,resample_rate=2,minute_offset=5):
+    def get_pm_ref(self,file,resample_rate=2,minute_offset=0):
         """
         Gets the reference PM data
 
@@ -88,7 +89,7 @@ class Calibration():
         df_resampled = df_resampled[self.start_time:self.end_time]
         return df_resampled
 
-    def get_co2_ref(self,file,resample_rate=2,minute_offset=5):
+    def get_co2_ref(self,file,resample_rate=2,minute_offset=0):
         """
         Gets the reference CO2 data
 
@@ -103,14 +104,14 @@ class Calibration():
             raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",usecols=[0,1],names=["timestamp","concentration"])
             raw_data["timestamp"] = pd.to_datetime(raw_data["timestamp"],yearfirst=True)
             raw_data.set_index("timestamp",inplace=True)
-            df = raw_data.resample(f"{resample_rate}T").mean()
-            df.index += timedelta(minutes=minute_offset)# = df.shift(periods=3) 
+            raw_data.index += timedelta(minutes=minute_offset)# = df.shift(periods=3) 
+            df = raw_data.resample(f"{resample_rate}T",closed="left").mean()
             return df[self.start_time:self.end_time]
         except FileNotFoundError:
             print("No file found for this event - returning empty dataframe")
             return pd.DataFrame()
 
-    def get_no2_ref(self,file,resample_rate=2):
+    def get_no2_ref(self,file,resample_rate=2,minute_offset=0):
         """
         Gets the reference NO2 data
 
@@ -148,7 +149,9 @@ class Calibration():
         Returns a dataframe with no concentration data indexed by time
         """
         try:
-            raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",names=["timestamp","concentration"],skiprows=1,index_col=0,parse_dates=True,infer_datetime_format=True)
+            raw_data = pd.read_csv(f"{self.data_dir}calibration/{file}",names=["timestamp","concentration"],skiprows=1)
+            raw_data["timestamp"] = pd.to_datetime(raw_data["timestamp"])
+            raw_data.set_index("timestamp",inplace=True)
             df = raw_data.resample(f"{resample_rate}T").mean()
             return df[self.start_time:self.end_time]
         except FileNotFoundError:
@@ -168,7 +171,7 @@ class Calibration():
         """
         self.beacons = beacon_list
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
-        beacons_folder=f"{self.data_dir}raw/utx000/beacon"
+        beacons_folder=f"{self.data_dir}raw/{self.study}/beacon"
         # list of all beacons used in the study
         if verbose:
             print('Processing beacon data...\n\tReading for beacon:')
@@ -252,6 +255,10 @@ class Calibration():
         #beacon_data.fillna(method="bfill",inplace=True)
         return beacon_data
 
+    def set_beacon_data(self,data):
+        """sets the beacon data attribute with given data"""
+        self.beacon_data = data
+
     def inspect(self,df,timeseries=True):
         """
         Visually inspect data in dataframe
@@ -303,22 +310,25 @@ class Calibration():
         - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
         """
         ref_data = ref_data[self.start_time:self.end_time]
-        _, ax = plt.subplots(figsize=(16,6))
+        _, ax = plt.subplots(figsize=(17,6))
         ax.plot(ref_data.index,ref_data.iloc[:,0].values,linewidth=3,color="black",zorder=100,label="Reference")
         for bb in beacon_data.iloc[:,1].unique():    
             data_by_bb = beacon_data[beacon_data.iloc[:,1] == bb]
             data_by_bb = data_by_bb[self.start_time:self.end_time]
-            try:
-                data_by_bb.drop("beacon",axis=1,inplace=True)
-            except KeyError:
-                data_by_bb.drop("beacon",axis=1,inplace=True)
-
             data_by_bb.dropna(inplace=True)
-            
             if len(data_by_bb) > 0:
                 ax.plot(data_by_bb.index,data_by_bb.iloc[:,0].values,marker=self.get_marker(int(bb)),zorder=int(bb),label=bb)
             
-        ax.legend(bbox_to_anchor=(1,1),frameon=False,ncol=2)
+        # x-axis
+        plt.xticks(fontsize=14,rotation=-30,ha="left")
+        ax.set_xlim([self.start_time,self.end_time])
+        # y_axis
+        ax.set_ylabel("Concentration",fontsize=16)
+        plt.yticks(fontsize=14)
+        # remainder
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+        ax.legend(bbox_to_anchor=(1,1),frameon=False,title="Device",title_fontsize=14,fontsize=12,ncol=2)
             
         plt.show()
         plt.close()
@@ -331,17 +341,22 @@ class Calibration():
         - ref_data: dataframe of reference data with single column corresponding to data indexed by time
         - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
         """
-        _, ax = plt.subplots(10,5,figsize=(30,15),sharex=True)  
+        _, ax = plt.subplots(10,5,figsize=(30,15),gridspec_kw={"hspace":0.5})  
         for i, axes in enumerate(ax.flat):
             # getting relevant data
             beacon_df = beacon_data[beacon_data["beacon"] == i]
             beacon_df.dropna(inplace=True)
             if len(beacon_df) > 1:
                 # reference data
-                axes.hist(ref_data.iloc[:,0].values,bins=bins,color="black",zorder=1,alpha=0.7)
+                axes.hist(ref_data.iloc[:,0].values,bins=bins,color="black",zorder=1)
                 # beacon data
-                axes.hist(beacon_df.iloc[:,0].values,bins=bins,color="seagreen",zorder=9) 
-                axes.set_title(f"beacon {i}")          
+                axes.hist(beacon_df.iloc[:,0].values,bins=bins,color="white",edgecolor="black",alpha=0.7,zorder=9) 
+                axes.set_title(f"B{i}",pad=0)   
+                # x-axis
+                axes.set_xticks(bins)
+                # remainder
+                for spine in ["top","right"]:
+                    axes.spines[spine].set_visible(False)   
             else:
                 # making it easier to read by removing the unused figures
                 axes.set_xticks([])
