@@ -76,7 +76,7 @@ class Calibration():
         for column in df.columns:
             df[column] = pd.to_numeric(df[column])
 
-        if file[3:16] == "concentration":
+        if file[3:7] == "mass":
             factor = 1000
         else:
             factor = 1
