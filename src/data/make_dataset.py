@@ -1089,6 +1089,11 @@ class utx000():
             # dropping/renaming columns
             df.drop(["dateOfSleep","infoCode","logId","type","awakeCount","awakeDuration","awakeningsCount","minuteData","restlessCount","restlessDuration"],axis=1,inplace=True)
             df.columns = ["duration_ms","efficiency","end_time","main_sleep","levels","minutes_after_wakeup","minutes_asleep","minutes_awake","minutes_to_sleep","start_time","time_in_bed","date","beiwe","redcap","beacon"]
+            # main sleep issues
+            df['main_sleep'] = df.apply(
+                lambda row: True if np.isnan(row['main_sleep']) and row["minutes_asleep"] > 180 else row['main_sleep'],
+                axis=1
+            )
             # recalculating se because Fitbit determines it some unknown/incorrect way
             df["efficiency"] = df["minutes_asleep"] / df["time_in_bed"] * 100
             return df

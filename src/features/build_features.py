@@ -140,11 +140,11 @@ class fitbit_sleep():
         # ---------------------------------------
         print("\tCombining Fitbit Sleep Measurements")
         # sleep summary
-        fb_daily_sleep = pd.read_csv(f'{self.data_dir}data/processed/fitbit-sleep_daily-{self.study_suffix}.csv',index_col="date",parse_dates=True,infer_datetime_format=True)
+        fb_daily_sleep = pd.read_csv(f'{self.data_dir}data/processed/fitbit-sleep_daily-{self.study_suffix}.csv',index_col="date",parse_dates=["date","start_time","end_time"],infer_datetime_format=True)
         # sleep stages
         fb_daily_sleep_stages = pd.read_csv(f'{self.data_dir}data/processed/fitbit-sleep_stages_summary-{self.study_suffix}.csv',parse_dates=["start_date","end_date"],infer_datetime_format=True)
         # combining
-        fb_all = fb_daily_sleep_stages.merge(fb_daily_sleep,left_on=["end_date","beiwe"],right_on=["date","beiwe"],how="inner")
+        fb_all = fb_daily_sleep_stages.merge(fb_daily_sleep,left_on=["end_date","beiwe"],right_on=["date","beiwe"],how="right")
         # filtering data
         fb_all = fb_all[fb_all["main_sleep"] == True]
         # creating features
@@ -162,6 +162,11 @@ class fitbit_sleep():
         fb_all.drop(["sol","wol"],axis="columns",inplace=True)
         # dropping unecessary columns
         fb_all.drop(["main_sleep","duration_ms","minutes_after_wakeup","time_in_bed","minutes_asleep","minutes_to_sleep","minutes_awake"],axis="columns",inplace=True)
+        # creating start and end dates for certain participants
+        for t in ["start","end"]:
+            fb_all[f"{t}_date"] = fb_all.apply(
+                    lambda row: row[f'{t}_time'].date() if pd.isnull(row[f'{t}_date']) else row[f'{t}_date'],
+                    axis=1)
         # saving and returning
         fb_all.to_csv(f"{self.data_dir}data/processed/fitbit-sleep_summary-{self.study_suffix}.csv",index=False)
 
@@ -569,14 +574,14 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
     return partially_filtered_beacon, fully_filtered_beacon
             
 def main():
-    get_restricted_beacon_datasets(data_dir='../../')
+    #get_restricted_beacon_datasets(data_dir='../../')
 
     fs = fitbit_sleep(data_dir='../../')
-    fs.get_beiwe_summaries()
-    fs.get_fitbit_summaries()
-    fs.get_beacon_summaries()
-    fs.get_complete_summary()
-    fs.get_redcap_ee_survey_summary()
+    #fs.get_beiwe_summaries()
+    #fs.get_fitbit_summaries()
+    #fs.get_beacon_summaries()
+    #fs.get_complete_summary()
+    #fs.get_redcap_ee_survey_summary()
 
 
 if __name__ == '__main__':
