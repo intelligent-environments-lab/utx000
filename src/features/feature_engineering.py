@@ -164,6 +164,3 @@ class fe():
                 self.plot_mi_scores(mi_scores)
                 # scattering strong relationships
                 self.plot_high_scoring_relationships(X, y, mi_scores, num_scores=features_to_show)
-                return True
-            else:
-                return False
