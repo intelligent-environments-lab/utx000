@@ -164,3 +164,8 @@ class fe():
                 self.plot_mi_scores(mi_scores)
                 # scattering strong relationships
                 self.plot_high_scoring_relationships(X, y, mi_scores, num_scores=features_to_show)
+
+
+def limit_dataset(df,byvar="beacon",id_list=range(0,51,1)):
+    """limits datasets to only including observations from certain participants"""
+    return df[df[byvar].isin(id_list)]
