@@ -574,14 +574,14 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
     return partially_filtered_beacon, fully_filtered_beacon
             
 def main():
-    #get_restricted_beacon_datasets(data_dir='../../')
+    get_restricted_beacon_datasets(data_dir='../../')
 
     fs = fitbit_sleep(data_dir='../../')
-    #fs.get_beiwe_summaries()
-    #fs.get_fitbit_summaries()
-    #fs.get_beacon_summaries()
-    #fs.get_complete_summary()
-    #fs.get_redcap_ee_survey_summary()
+    fs.get_beiwe_summaries()
+    fs.get_fitbit_summaries()
+    fs.get_beacon_summaries()
+    fs.get_complete_summary()
+    fs.get_redcap_ee_survey_summary()
 
 
 if __name__ == '__main__':
