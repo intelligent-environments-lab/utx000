@@ -106,6 +106,7 @@ class Diagnostics():
         print("\n\tDeleting Data...")
         #os.system('tput setaf 1; echo REMOVING LOG2/LOG3 DATA; tput sgr 0')
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd DATA/adafruit/ && sudo rm *.csv && cd ../sensirion/ && sudo rm *.csv"')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd DATA/ && sudo rm *.csv"')
 
     def reboot(self,beacon_no):
         """
