@@ -126,7 +126,7 @@ class Calibration():
             # Using igor time (time since Jan 1st, 1904) to get timestamp
             ts = []
             for seconds in raw_data["IgorTime"]:
-                ts.append(datetime(1904,1,1) + timedelta(seconds=int(seconds)))
+                ts.append(datetime(1904,1,1) + timedelta(seconds=int(seconds))+timedelta(minutes=minute_offset))
             raw_data["timestamp"] = ts
             raw_data.set_index("timestamp",inplace=True)
             raw_data.drop("IgorTime",axis=1,inplace=True)
