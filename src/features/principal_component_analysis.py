@@ -84,3 +84,21 @@ class pca():
         plt.show()
 
         return fig, ax
+
+    def compare_loadings(self, loadings1, loadings2, n_components=6):
+        """scatters loadings from the specified number of PCs"""
+        fig, axes = plt.subplots(1,n_components,figsize=(4*n_components,4),sharey=True)
+        for i, ax in enumerate(axes.flat):
+            sns.regplot(loadings1.iloc[:,i],loadings2.iloc[:,i],ci=68,ax=ax)
+            ax.set_xlim([-1,1])
+            ax.set_xlabel("")
+            ax.set_ylim([-1,1])
+            ax.set_ylabel("")
+            r = np.corrcoef(loadings1.iloc[:,i],loadings2.iloc[:,i])
+            ax.set_title(f"PC{i+1} r$^2$: {round(r[1,0],2)}",fontsize=14)
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            
+        ax.set_yticks([-1,-0.5,0,0.5,1])
+        plt.show()
+        plt.close()
