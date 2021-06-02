@@ -166,6 +166,71 @@ class fe():
                 self.plot_high_scoring_relationships(X, y, mi_scores, num_scores=features_to_show)
 
 
+class clustering():
+
+    def get_and_scale_features(self,df,features,scale=True):
+        """gets the features from the df that have a specified aggregate"""
+        X = df[features]
+        X.dropna(inplace=True)
+        if scale:
+            return (X-X.min())/(X.max()-X.min())
+        
+        return X
+
+    def elbow(self,X):
+        """plot of sum of squared differences for different ks for elbow method"""
+        # getting sum of squared distance for different k
+        errors = []
+        for k in range(2,11,1):
+            model = KMeans(n_clusters=k)
+            model.fit(X)
+            errors.append(model.inertia_)
+
+        # plotting
+        fig, ax = plt.subplots(figsize=(5,5))
+        ax.plot(range(2,11,1),errors,linewidth=2,color="cornflowerblue")
+        ## x-axis
+        ax.set_xlabel("Number of Clusters",fontsize=16)
+        plt.xticks(fontsize=14)
+        ## y-axis
+        ax.set_ylabel("Sum of Squared Distance",fontsize=16)
+        plt.yticks(fontsize=14)
+        ## remainder
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+
+        plt.show()
+        plt.close()
+
+    def create_model(self, X, k=3):
+        kmeans = KMeans(n_clusters=k)
+        cluster = kmeans.fit(X)
+        for c in range(k):
+            n_points = len(cluster.labels_[cluster.labels_ == c])
+            print(f"Number of points in Cluster {c}: {n_points}")
+            
+        X["cluster"] = cluster.labels_
+        return X
+
+    def plot_distributions(X):
+        """plots the distributions from the clusters"""
+        for var in X.columns:
+            if var not in ["cluster"]:
+                fig, ax = plt.subplots(figsize=(12,3))
+                for c in X_norm["cluster"].unique():
+                    to_plot = X[X["cluster"] == c]
+                    sns.kdeplot(to_plot[var],ax=ax,label=c)
+                # improving graph
+                for loc in ["left","top","right"]:
+                    ax.spines[loc].set_visible(False)
+                ax.set_xlabel("Normalized " + visualize.get_pollutant_label(var.split("_median")[0]))
+                ax.set_yticks([])
+                ax.set_ylabel("")
+                ax.legend(title="Cluster",frameon=False,title_fontsize=12,fontsize=10)
+
+                plt.show()
+                plt.close()
+
 def limit_dataset(df,byvar="beacon",id_list=range(0,51,1)):
     """limits datasets to only including observations from certain participants"""
     return df[df[byvar].isin(id_list)]
