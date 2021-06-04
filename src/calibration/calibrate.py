@@ -1,14 +1,15 @@
 
 # General
 import os
+import math
 from datetime import datetime, timedelta
 import dateutil.parser
 import warnings
+from numpy.core.numeric import Inf
 # Data Science
 import pandas as pd
 import numpy as np
 from sklearn import linear_model
-from sklearn.metrics import mean_squared_error, r2_score
 # Plotting
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -472,35 +473,133 @@ class Calibration():
             else:
                 sns.heatmap(df.T,vmin=np.nanmin(df),vmax=np.nanmax(df),ax=ax)
 
-    def compare_time_series(self,species):
+    def compare_time_series(self,species,**kwargs):
         """
         Plots reference and beacon data as a time series
 
         Inputs:
         - species: string specifying which ieq parameter to plot
+
+        Keyword Arguments:
+        - ax: 
+        - beacons: 
+        - data:
         """
-        _, ax = plt.subplots(figsize=(17,6))
+        if "ax" in kwargs.keys():
+            ax = kwargs["ax"]
+        else:
+            _, ax = plt.subplots(figsize=(17,6))
+        # plotting reference
         ax.plot(self.ref[species].index,self.ref[species].iloc[:,0].values,linewidth=3,color="black",zorder=100,label="Reference")
-        for bb in self.beacon_data["beacon"].unique():    
-            data_by_bb = self.beacon_data[self.beacon_data["beacon"] == bb].set_index("timestamp")
+        # plotting beacon data
+        if "beacons" in kwargs.keys():
+            beacon_list = kwargs["beacons"]
+        else:
+            beacon_list = self.beacon_data["beacon"].unique()
+        for bb in beacon_list:    
+            if "data" in kwargs.keys():
+                data_by_bb = kwargs["data"]
+            else:
+                data_by_bb = self.beacon_data[self.beacon_data["beacon"] == bb].set_index("timestamp")
+                
             data_by_bb.dropna(subset=[species],inplace=True)
             if len(data_by_bb) > 0:
                 ax.plot(data_by_bb.index,data_by_bb[species],marker=visualize.get_marker(int(bb)),zorder=int(bb),label=bb)
             
         # x-axis
-        plt.xticks(fontsize=14,rotation=-30,ha="left")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax.xaxis.set_major_locator(mdates.HourLocator())
         ax.set_xlim([self.start_time,self.end_time])
         # y_axis
-        ax.set_ylabel("Concentration",fontsize=16)
-        plt.yticks(fontsize=14)
+        ax.set_ylabel("Concentration",fontsize=14)
         # remainder
+        ax.tick_params(axis="both",labelsize=12)
         for loc in ["top","right"]:
             ax.spines[loc].set_visible(False)
-        ax.legend(bbox_to_anchor=(1,1),frameon=False,title="Device",title_fontsize=14,fontsize=12,ncol=2)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5,-0.05),frameon=False,title="Device",title_fontsize=12,fontsize=10,ncol=25)
             
+        if "ax" in kwargs.keys():
+            return ax
+
         plt.show()
         plt.close()
 
+    def compare_scatter(self,species,**kwargs):
+        """
+        Scatter of measured points between beacons and reference
+        
+        Inputs:
+
+        Keyword Arguments:
+        - ax: 
+        - beacons: 
+        - data:
+        - min_val:
+        """
+        if "beacons" in kwargs.keys():
+            beacon_list = kwargs["beacons"]
+        else:
+            beacon_list = self.beacon_data["beacon"].unique()
+        
+        for bb in beacon_list: 
+            # getting data to plot   
+            if "data" in kwargs.keys():
+                data_by_bb = kwargs["data"]
+            else:
+                data_by_bb = self.beacon_data[self.beacon_data["beacon"] == bb].set_index("timestamp")
+        
+            comb = data_by_bb.merge(right=self.ref[species],left_index=True,right_index=True)
+
+            if "ax" in kwargs.keys():
+                ax = kwargs["ax"]
+            else:
+                _, ax = plt.subplots(figsize=(8,8))
+
+            im = ax.scatter(comb["concentration"],comb[species],c=data_by_bb.index,cmap="Blues",edgecolor="black",s=50,label="Measured",zorder=2)
+            #fig.colorbar(im,ax=ax,label="Minutes since Start")
+            max_val = max(np.nanmax(comb["concentration"]),np.nanmax(comb[species]))
+            if "min_val" in kwargs.keys():
+                min_val = kwargs["min_val"]
+            else:
+                min_val = 0
+            # 1:1
+            ax.plot([min_val,max_val],[min_val,max_val],color="firebrick",linewidth=2,zorder=1)
+            # x-axis
+            ax.set_xlabel("Reference Measurement",fontsize=14)
+            ax.set_xlim(left=min_val,right=max_val)
+            # y-axis
+            ax.set_ylabel("Beacon Measurement",fontsize=14)
+            ax.set_ylim(bottom=min_val,top=max_val)
+            # remainder
+            ax.tick_params(axis="both",labelsize=12)
+            ax.set_title(bb)
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            if "ax" in kwargs.keys():
+                return ax
+
+            plt.show()
+            plt.close()
+
+    def show_linear_correction(self,species,**kwargs):
+        """plots the original and corrected data against the reference for the given species"""
+        for bb in self.beacon_data["beacon"].unique():
+            beacon_by_bb = self.beacon_data[self.beacon_data["beacon"] == bb].set_index("timestamp")
+            _, axes = plt.subplots(1,4,figsize=(26,6),gridspec_kw={"wspace":0.2,"width_ratios":[0.25,0.25,0.25,0.25]})
+            self.compare_time_series(species,ax=axes[0],beacons=[bb])
+            # original data - scatter
+            self.compare_scatter(species,ax=axes[1],beacons=[bb],**kwargs)
+            # corrected data - timeseries
+            corrected_by_bb = beacon_by_bb.copy()
+            corrected_by_bb[species] = beacon_by_bb[species] * self.lms[species].loc[bb,"coefficient"] + self.lms[species].loc[bb,"constant"]
+            corrected_by_bb = corrected_by_bb.shift(self.lms[species].loc[bb,"ts_shift"])
+            self.compare_time_series(species,ax=axes[2],beacons=[bb],data=corrected_by_bb)
+            # corrected data - scatter
+            self.compare_scatter(species,ax=axes[3],beacons=[bb],data=corrected_by_bb,**kwargs)
+            plt.show()
+            plt.close()
+        
     # deprecated
     def compare_histogram(self,ref_data,beacon_data,bins):
         """
@@ -600,8 +699,7 @@ class Calibration():
         offset_df.set_index("beacon",inplace=True)
         self.offsets[species] = offset_df
         if save_to_file:
-            s = species.lower() #string of variable
-            offset_df.to_csv(f"{self.data_dir}interim/{s}-offset-{self.suffix}.csv")
+            self.save_offsets(species)
 
         if show_corrected:
             # Plotting Corrected Timeseries by beacon
@@ -648,134 +746,85 @@ class Calibration():
             plt.show()
             plt.close()
 
-    def linear_regression(self,ref_data,beacon_data,ref_var,beacon_var,save_to_file=False,show_plot=False,show_corrected=False,verbose=False):
+    def get_linear_model_params(self,df,x_label,y_label):
+        """runs linear regression and returns intercept, slope, and r2"""
+        x = df.loc[:,x_label].values
+        y = df.loc[:,y_label].values
+
+        regr = linear_model.LinearRegression()
+        try:
+            regr.fit(x.reshape(-1, 1), y)
+            return regr.intercept_, regr.coef_[0], regr.score(x.reshape(-1, 1),y)
+        except ValueError:
+            print("Error with data - returning (0,1)")
+            return 0, 1, 0
+
+    def linear_regression(self,species,save_to_file=False,verbose=False):
         """
         Runs a linear regression model
         
         Inputs:
-        - ref_data: dataframe of reference data with single column corresponding to data indexed by time
-        - beacon_data: dataframe of beacon data with two columns corresponding to data and beacon number indexed by time
-        - test_size: float specifying the proportion of data to use for the training set
         - show_plot: boolean to show the plot or not
-
-        Returns coefficient(s) of the linear fit
         """
-        coeffs = {"beacon":[],"constant":[],"coefficient":[]}
-        ref_df = ref_data[ref_var]
-        beacon_data = beacon_data[[beacon_var,"beacon"]]
+        coeffs = {"beacon":[],"constant":[],"coefficient":[],"score":[],"ts_shift":[]}
+        ref_df = self.ref[species]
+        data = self.beacon_data[["timestamp",species,"beacon"]]
         for bb in np.arange(1,51):
-            beacon_by_bb = beacon_data[beacon_data["beacon"] == bb]
+            beacon_by_bb = data[data["beacon"] == bb].set_index("timestamp")
             if verbose:
                 print(f"Working for Beacon {bb}")
                 print(beacon_by_bb.head())
             if len(beacon_by_bb) > 1:
                 beacon_by_bb.drop(["beacon"],axis=1,inplace=True)
-                if len(ref_data) == len(beacon_by_bb):
-                    pass
-                    #index = int(test_size*len(ref_data))
-                else:
-                    # resizing arrays to included data from both modalities
+                if len(ref_df) != len(beacon_by_bb):
+                    # resizing arrays to include data from both modalities
                     max_start_date = max(ref_df.index[0],beacon_by_bb.index[0])
                     min_end_date = min(ref_df.index[-1],beacon_by_bb.index[-1])
                     ref_df = ref_df[max_start_date:min_end_date]
                     beacon_by_bb = beacon_by_bb[max_start_date:min_end_date]
                     warnings.warn("Reference and beacon data are not the same length")
 
-                df = pd.merge(left=ref_df,right=beacon_by_bb,left_index=True,right_index=True,how="inner")
-                if verbose:
-                    print(df.head())
+                # running linear models with shifted timestamps
+                best_params = [-math.inf,-math.inf,-math.inf, -math.inf] # b, m, r2, ts_shift
+                for ts_shift in range(-5,6):
+                    comb = ref_df.merge(right=beacon_by_bb.shift(ts_shift),left_index=True,right_index=True,how="inner")
+                    comb.dropna(inplace=True)
 
-                if len(df) > 2:
-                    df.dropna(inplace=True)
+                    b, m, r2 = self.get_linear_model_params(comb,species,"concentration")
+                    if r2 > best_params[2]:
+                        best_params = [b, m, r2, ts_shift]
 
-                    times = []
-                    for t in df.index:
-                        times.append((t - beacon_by_bb.index[0]).total_seconds()/60)
-
-                    y = df.loc[:,"concentration"].values
-                    x = df.loc[:,beacon_var].values
-
-                    # linear regression model
-                    regr = linear_model.LinearRegression()
-                    try:
-                        regr.fit(x.reshape(-1, 1), y)
-                    except ValueError:
-                        print("Error with data.")
-                        continue
-
-                    # adding data
-                    coeffs["beacon"].append(bb)
-                    coeffs["constant"].append(regr.intercept_)
-                    coeffs["coefficient"].append(regr.coef_[0])
-
-                    # plotting
-                    if show_plot == True:
-                        fig, ax = plt.subplots(figsize=(6,6))
-                        im = ax.scatter(x,y,c=times,cmap="Blues",edgecolor="black",s=75,label="Measured",zorder=2)
-                        fig.colorbar(im,ax=ax,label="Minutes since Start")
-                        # Make draw the line of best-fit
-                        y_pred = regr.predict(x.reshape(-1, 1))
-                        ax.plot(x,y_pred,color='firebrick',linewidth=3,label="Prediction",zorder=3)
-                        ax.legend(bbox_to_anchor=(1.65,1),frameon=False)
-
-                        #plt_min = min(min(x),min(y))
-                        #plt_max = max(max(x),max(y))
-                        #ax.text(0.975*plt_min,0.975*plt_min,f"Coefficient: {round(regr.coef_[0],3)}",backgroundcolor="white",ma="center")
-                        #ax.set_xlim([0.95*plt_min,1.05*plt_max])
-                        ax.set_xlabel("Beacon Measurement")
-                        #ax.set_ylim([0.95*plt_min,1.05*plt_max])
-                        ax.set_ylabel("Reference Measurement")
-                        ax.set_title(bb)
-                        ax.spines['right'].set_visible(False)
-                        ax.spines['top'].set_visible(False)
-
-                        plt.show()
-                        plt.close()
-
-                else:
-                    warnings.warn("Merged dataframe has no length - check data availability and timestamps")
-            else:
-                # adding blank
+                # adding data
                 coeffs["beacon"].append(bb)
-                coeffs["constant"].append(0)
-                coeffs["coefficient"].append(1)
+                for param, label in zip(best_params, ["constant","coefficient","score","ts_shift"]):
+                    coeffs[label].append(param)
+
+            else:
+                # adding base values
+                coeffs["beacon"].append(bb)
+                for param, label in zip([0,1,0,0], ["constant","coefficient","score","ts_shift"]):
+                    coeffs[label].append(param)
 
         coeff_df = pd.DataFrame(coeffs)
         coeff_df.set_index("beacon",inplace=True)
-
-        if show_corrected:
-            _, ax = plt.subplots(figsize=(16,6))
-            for bb in beacon_data["beacon"].unique():
-                beacon_df = beacon_data[beacon_data["beacon"] == bb]
-                beacon_df.dropna(subset=[beacon_var],inplace=True)
-                if verbose:
-                    print(beacon_df.head())
-                if len(beacon_df) > 1:
-                    beacon_df[beacon_var] = beacon_df[beacon_var] * coeff_df.loc[bb,"coefficient"] + coeff_df.loc[bb,"constant"]
-                    ax.scatter(beacon_df.index,beacon_df[beacon_var],marker=self.get_marker(int(bb)),zorder=int(bb),label=bb)
-            
-            for spine in ["top","right"]:
-                ax.spines[spine].set_visible(False) 
-
-            ax.plot(ref_df.index,ref_df["concentration"],color="black",linewidth=3,zorder=99)
-            ax.legend(bbox_to_anchor=(1,1),frameon=False,ncol=2)
-            plt.show()
-            plt.close()
-
+        self.lms[species] = coeff_df
         if save_to_file:
-                s = beacon_var.lower() #string of variable
-                coeff_df.to_csv(f"{self.data_dir}interim/{s}-linear_model-{self.suffix}.csv")
-
-        return coeff_df
+            self.save_lms(species)
 
     # saving
-    def save_offsets():
+    def save_offsets(self,species):
         """saves offset results to file"""
-        pass
+        try:
+            self.offsets[species].to_csv(f"{self.data_dir}interim/{species.lower()}-offset-{self.suffix}.csv")
+        except KeyError:
+            print("Offset has not been generated for species", species)
 
-    def save_lms():
+    def save_lms(self, species):
         """saves linear model results to file"""
-        pass
+        try:
+            self.lms[species].to_csv(f"{self.data_dir}interim/{species.lower()}-linear_model-{self.suffix}.csv")
+        except KeyError:
+            print("Linear model has not been generated for species", species)
 
 def main():
     pass
