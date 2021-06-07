@@ -42,16 +42,16 @@ def get_label(var):
         return "CO$_2$"
     elif var == "co":
         return "CO"
-    elif var == "pm2p5_mass" or var == "pm2p5_number" or var == "pm2p5p":
+    elif var == "pm2p5_mass" or var == "pm2p5_number" or var == "pm2p5":
         return "PM$_{2.5}$"
     elif var == "no2":
         return "NO$_2$"
     elif var == "tvoc":
         return "TVOC"
-    elif var == "temperature_c":
+    elif var == "temperature_c" or var == "temperature":
         return "Temperature"
     elif var == "rh":
-        return "Relative Humidity"
+        return "RH"
     elif var == "lux":
         return "Light Level"
     elif var[0:3].lower() == "tst":
