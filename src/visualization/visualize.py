@@ -74,6 +74,10 @@ def get_label(var):
         return "Number"
     elif var.endswith("minutes"):
         return "Minutes"
+    elif var == "active":
+        return "Activity"
+    elif var == "steps":
+        return "Steps"
     else:
         return ""
 
