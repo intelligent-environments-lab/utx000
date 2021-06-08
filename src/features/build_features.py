@@ -540,7 +540,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
                         # resampling so beacon and gps data are on the same time steps
                         gps_pt_night = gps_pt_night.resample('5T').mean()
                         beacon_pt_night = beacon_pt_night.resample('5T').mean()
-                        nightly_temp = gps_pt_night.merge(right=beacon_pt_night,left_index=True,right_index=True,how='inner')
+                        nightly_temp = gps_pt_night.merge(right=beacon_pt_night,left_index=True,right_index=True,how='outer')
                         nightly_temp['start_time'] = start_time
                         nightly_temp['end_time'] = end_time
                         nightly_temp['beiwe'] = pt
