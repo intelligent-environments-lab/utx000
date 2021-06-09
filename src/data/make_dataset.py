@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # Data Science Packages
+from numpy.lib.twodim_base import vander
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
@@ -454,13 +455,14 @@ class utx000():
 
         return id_list[0], id_list[1], id_list[2], id_list[3]
 
-    def process_beacon(self, extreme='zscore'):
+    def process_beacon(self, extreme='zscore', resample_rate=2):
         '''
         Combines data from all sensors on all beacons
 
         Returns True if able to save one dataframe that contains all the data at regular intervals in /data/processed directory
         '''
 
+        averaging_window = int(60 / resample_rate)
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         beacons_folder=f'{self.data_dir}/raw/utx000/beacon'
         # list of all beacons used in the study
@@ -482,7 +484,7 @@ class utx000():
             redcap = beacon_crossover_info['redcap'][0]
             del beacon_crossover_info
 
-            def import_and_merge(csv_dir,number,resample_rate=2):
+            def import_and_merge(csv_dir,number,resample_rate=resample_rate):
                 df_list = []
                 for file in os.listdir(csv_dir+'/'):
                     try:
@@ -505,17 +507,12 @@ class utx000():
             # ---------------
             py3_df = import_and_merge(f'{beacon_folder}/adafruit', number)
             
-            # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
+            # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues)
             if int(number) >= 28:
                 print('\t\t\tNo NO2 sensor - removing values')
 
                 py3_df[['CO','T_CO','RH_CO']] = py3_df[['NO2','T_NO2','RH_NO2']]
                 py3_df[['NO2','T_NO2','RH_NO2']] = np.nan
-
-            # Removing data from bad sensors
-            #if int(number) in [21,24,26]:
-            #    print("\t\t\tRemoving NO2 data")
-            #    py3_df[['NO2']] = np.nan
 
             py3_df['CO'] /= 1000 # converting ppb measurements to ppm
 
@@ -529,7 +526,7 @@ class utx000():
                 for variable in ['PM_C_1','PM_C_2p5','PM_C_10','PM_N_1','PM_N_2p5','PM_N_10']:
                     py2_df[[variable]] = np.nan
                 
-            # merging python2 and 3 sensor dataframes
+            # merging py2 and py3 sensor dataframes
             beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
             
             # Adding time for bad RTC
@@ -561,19 +558,22 @@ class utx000():
             for var in beacon_df.columns:
                 beacon_df[var].replace(-100,np.nan,inplace=True)
             
-            # offsetting measurements with linear model (except CO)
+            # offsetting measurements with constant (CO and pm2p5) or linear model (others)
             for var in self.linear_model.keys():
                 if var in ["co","pm2p5_mass"]:
                     beacon_df[var] -= self.constant_model[var].loc[beacon,"correction"]
                 else:
                     beacon_df[var] = beacon_df[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]
 
-            # variables that should never have anything less than zero
-            for var in ["tvoc","lux","co2","co","no2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]:
+            # variables that should never have anything less than zero (setting to zero)
+            for var in ["tvoc","lux","co","no2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]:
+                beacon_df[var].mask(beacon_df[var] < 0, 0, inplace=True)
+            # (setting to nan)
+            for var in ["temperature_c","rh"]:
                 beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
             
             # variables that should never be less than a certain limit
-            for var, threshold in zip(['co2'],[100]):
+            for var, threshold in zip(['co2'],[200]):
                 beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
             
             # removing extreme values 
@@ -597,15 +597,16 @@ class utx000():
             else:
                 print('\t\t\tExtreme values retained')
 
-            # dropping NaN values that get in
-            beacon_df.dropna(how='all',inplace=True)
+            # smooting data  
+            for var in beacon_df.columns:
+                beacon_df[var] = beacon_df[var].rolling(window=averaging_window,center=True,min_periods=int(averaging_window/2)).mean()
 
             # adding columns for the pt details
             beacon_df['beacon'] = beacon
             beacon_df['beiwe'] = beiwe
-            beacon_df['fitbit'] = fitbit
             beacon_df['redcap'] = redcap
             
+            # adding to overall df
             beacon_data = pd.concat([beacon_data,beacon_df])
 
         # saving

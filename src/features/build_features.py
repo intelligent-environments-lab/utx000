@@ -4,6 +4,7 @@ import os
 import sys
 sys.path.append('../../')
 import logging
+import math
 
 import pandas as pd
 import numpy as np
@@ -370,43 +371,44 @@ class fitbit_sleep():
         # Beacon Data During Sleep
         # ------------------------
         print("\tGetting Beacon Data During Fitbit Sleep with GPS Confirmation")
-        data = pd.read_csv(f"{self.data_dir}data/processed/beacon-fb_and_gps_filtered-{self.study_suffix}.csv",index_col="timestamp",parse_dates=["timestamp","start_time","end_time"],infer_datetime_format=True)
-        summarized_df = pd.DataFrame()
-        for s in ["mean","median","delta","delta_percent"]:
-            beacon_by_s = pd.DataFrame()
-            for pt in data["beiwe"].unique():
-                data_by_pt = data[data["beiwe"] == pt]
-                ids = data_by_pt[["end_time","beacon","beiwe","fitbit","redcap"]]
-                data_by_pt.drop(["end_time","beacon","beiwe","fitbit","redcap"],axis=1,inplace=True)
-                if s == "mean":
-                    data_s_by_pt = data_by_pt.groupby("start_time").mean()
-                elif s == "median":
-                    data_s_by_pt = data_by_pt.groupby("start_time").median()
-                elif s == "delta":
-                    little = data_by_pt.groupby("start_time").min()
-                    big = data_by_pt.groupby("start_time").max()
-                    data_s_by_pt = big - little
+        for filename in ["beacon-fb_and_gps_filtered","beacon-fb_co2_and_gps_filtered"]:
+            data = pd.read_csv(f"{self.data_dir}data/processed/{filename}-{self.study_suffix}.csv",index_col="timestamp",parse_dates=["timestamp","start_time","end_time"],infer_datetime_format=True)
+            summarized_df = pd.DataFrame()
+            for s in ["mean","median","delta","delta_percent"]:
+                beacon_by_s = pd.DataFrame()
+                for pt in data["beiwe"].unique():
+                    data_by_pt = data[data["beiwe"] == pt]
+                    ids = data_by_pt[["end_time","beacon","beiwe","fitbit","redcap"]]
+                    data_by_pt.drop(["end_time","beacon","beiwe","fitbit","redcap"],axis=1,inplace=True)
+                    if s == "mean":
+                        data_s_by_pt = data_by_pt.groupby("start_time").mean()
+                    elif s == "median":
+                        data_s_by_pt = data_by_pt.groupby("start_time").median()
+                    elif s == "delta":
+                        little = data_by_pt.groupby("start_time").min()
+                        big = data_by_pt.groupby("start_time").max()
+                        data_s_by_pt = big - little
+                    else:
+                        little = data_by_pt.groupby("start_time").min()
+                        big = data_by_pt.groupby("start_time").max()
+                        data_s_by_pt = (big - little) / little * 100
+
+                    data_s_by_pt = data_s_by_pt.add_suffix(f"_{s}")
+                    data_s_by_pt["end_time"] = ids["end_time"].unique()
+                    for col in ids.columns[1:]:
+                        data_s_by_pt[col] = ids[col][0]
+
+                    beacon_by_s = beacon_by_s.append(data_s_by_pt)
+
+                if len(summarized_df) == 0:
+                    summarized_df = beacon_by_s
                 else:
-                    little = data_by_pt.groupby("start_time").min()
-                    big = data_by_pt.groupby("start_time").max()
-                    data_s_by_pt = (big - little) / little * 100
+                    summarized_df = summarized_df.merge(beacon_by_s,on=["start_time","end_time","beacon","beiwe","fitbit","redcap"])
 
-                data_s_by_pt = data_s_by_pt.add_suffix(f"_{s}")
-                data_s_by_pt["end_time"] = ids["end_time"].unique()
-                for col in ids.columns[1:]:
-                    data_s_by_pt[col] = ids[col][0]
-
-                beacon_by_s = beacon_by_s.append(data_s_by_pt)
-
-            if len(summarized_df) == 0:
-                summarized_df = beacon_by_s
-            else:
-                summarized_df = summarized_df.merge(beacon_by_s,on=["start_time","end_time","beacon","beiwe","fitbit","redcap"])
-
-        summarized_df.to_csv(f"{self.data_dir}data/processed/beacon-fb_and_gps_filtered_summary-{self.study_suffix}.csv")
-        # combining fitbit data to the beacon summary
-        beacon_fitbit_summary = self.fb_sleep_summary.merge(summarized_df,left_on=["start_time","end_time","beiwe","beacon","redcap"],right_on=["start_time","end_time","beiwe","beacon","redcap"])
-        beacon_fitbit_summary.to_csv(f"{self.data_dir}data/processed/beacon_fitbit-ieq_and_sleep-{self.study_suffix}.csv",index=False)
+            summarized_df.to_csv(f"{self.data_dir}data/processed/{filename}_summary-{self.study_suffix}.csv")
+            # combining fitbit data to the beacon summary
+            beacon_fitbit_summary = self.fb_sleep_summary.merge(summarized_df,left_on=["start_time","end_time","beiwe","beacon","redcap"],right_on=["start_time","end_time","beiwe","beacon","redcap"])
+            beacon_fitbit_summary.to_csv(f"{self.data_dir}data/processed/beacon_fitbit-ieq_and_sleep-{self.study_suffix}.csv",index=False)
 
     def get_complete_summary(self):
         """
@@ -496,6 +498,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
     for d in sleep['end_time']:
         end_dates.append(d.date())
     sleep['end_date'] = end_dates
+    sleep['end_date'] = pd.to_datetime(sleep["end_time"].dt.date) # should work
     # EMA data
     ema = pd.read_csv(f'{data_dir}data/processed/beiwe-morning_ema-{study_suffix}.csv',
                   index_col=0,parse_dates=True,infer_datetime_format=True)
@@ -506,7 +509,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
     info = pd.read_excel(f'{data_dir}data/raw/utx000/admin/id_crossover.xlsx',sheet_name='beacon',
                     parse_dates=[3,4,5,6])
 
-    partially_filtered_beacon = pd.DataFrame() # df restricted by fitbit and gps
+    beacon_nightly = pd.DataFrame() # df restricted by fitbit and gps
     for pt in sleep['beiwe'].unique():
         if pt in info['beiwe'].values: # only want beacon particiapnts
             # getting data per participant
@@ -518,70 +521,54 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
             long_pt1 = info_pt['long'].values[0]
             lat_pt2 = info_pt['lat2'].values[0]
             long_pt2 = info_pt['long2'].values[0]
-            print(f'Working for {pt} - Beacon', info_pt['beacon'])
+            ema_pt = ema[ema['beiwe'] == pt]
             # looping through sleep start and end times
-            print(f'\tNumber of nights of sleep:', len(sleep_pt['start_time']))
-            s = pd.to_datetime(np.nanmin(sleep_pt['end_time'])).date()
-            e = pd.to_datetime(np.nanmax(sleep_pt['end_time'])).date()
-            print(f'\tSpanning {s} to {e}')
             for start_time, end_time in zip(sleep_pt['start_time'],sleep_pt['end_time']):
-                gps_pt_night = gps_pt[start_time:end_time]
-                beacon_pt_night = beacon_pt[start_time:end_time]
-                # checking distances between pt GPS and home GPS
-                if len(gps_pt_night) > 0:
-                    coords_add_1 = (lat_pt1, long_pt1)
-                    coords_add_2 = (lat_pt2, long_pt2)
-                    coords_beiwe = (np.nanmean(gps_pt_night['lat']), np.nanmean(gps_pt_night['long']))
-                    d1 = geopy.distance.distance(coords_add_1, coords_beiwe).m
-                    try:
-                        d2 = geopy.distance.distance(coords_add_2, coords_beiwe).m
-                    except ValueError:
-                        d2 = radius + 1 # dummy value greater than radius
-                    if d1 < radius or d2 < radius:
-                        # resampling so beacon and gps data are on the same time steps
-                        gps_pt_night = gps_pt_night.resample('5T').mean()
-                        beacon_pt_night = beacon_pt_night.resample('5T').mean()
-                        nightly_temp = gps_pt_night.merge(right=beacon_pt_night,left_index=True,right_index=True,how='outer')
-                        nightly_temp['start_time'] = start_time
-                        nightly_temp['end_time'] = end_time
-                        nightly_temp['beiwe'] = pt
-
-                        partially_filtered_beacon = partially_filtered_beacon.append(nightly_temp)
-                        print(f'\tSUCCESS - added data for night {end_time.date()}')
+                if len(beacon_pt[start_time:end_time]) > 0:
+                    beacon_pt_night = beacon_pt[start_time:end_time]
+                    beacon_pt_night['start_time'] = start_time
+                    beacon_pt_night['end_time'] = end_time
+                    beacon_pt_night['beiwe'] = pt
+                    # gps flag
+                    gps_pt_night = gps_pt[start_time:end_time]
+                    if len(gps_pt_night) > 0:
+                        coords_add_1 = (lat_pt1, long_pt1)
+                        coords_add_2 = (lat_pt2, long_pt2)
+                        coords_beiwe = (np.nanmean(gps_pt_night['lat']), np.nanmean(gps_pt_night['long']))
+                        d1 = geopy.distance.distance(coords_add_1, coords_beiwe).m
+                        try:
+                            d2 = geopy.distance.distance(coords_add_2, coords_beiwe).m
+                        except ValueError:
+                            d2 = radius + 1 # dummy value greater than radius
+                        if d1 < radius or d2 < radius:
+                            beacon_pt_night["home"] = 1
+                        else:
+                            beacon_pt_night["home"] = 0
                     else:
-                        print(f'\tParticipant outside {radius} meters for night {end_time.date()}')
-                else:
-                    print(f'\tNo GPS data for night {end_time.date()}')
-        else:
-            print(f'{pt} did not receive a beacon')
+                        beacon_pt_night["home"] = -1
+                    # co2 increasing flag
+                    beacon_increase = beacon_pt_night.copy()
+                    beacon_increase["sma_co2"] = beacon_increase["co2"].rolling(window=60,center=True,min_periods=30).mean()
+                    beacon_increase["dC"] = beacon_increase[f"sma_co2"] - beacon_increase[f"sma_co2"].shift(1) # getting dC
+                    beacon_increase["sma_dC"] = beacon_increase["dC"].rolling(window=5,min_periods=3).mean() # getting moving average of increases
+                    inc = []
+                    for value in beacon_increase["sma_dC"]:
+                        if math.isnan(value):
+                            inc.append(np.nan)
+                        elif value > 0:
+                            inc.append(1)
+                        else:
+                            inc.append(0)
+                    beacon_pt_night["increasing_co2"] = np.nanmean(inc)
+                    # ema flag
+                    beacon_pt_night["ema"] = 1 if end_time.date() in ema_pt.index.date else 0
+
+                    beacon_nightly = beacon_nightly.append(beacon_pt_night)
 
     # Data filtered by fitbit nights only
-    partially_filtered_beacon.to_csv(f'{data_dir}data/processed/beacon-fb_and_gps_filtered-{study_suffix}.csv')
+    beacon_nightly.to_csv(f'{data_dir}data/processed/beacon_by_night-{study_suffix}.csv')
 
-    if restrict_by_ema == True:
-        # removing nights without emas the following morning 
-        fully_filtered_beacon = pd.DataFrame()
-        for pt in partially_filtered_beacon['beiwe'].unique():
-            # getting pt-specific dfs
-            evening_iaq_pt = partially_filtered_beacon[partially_filtered_beacon['beiwe'] == pt]
-            ema_pt = ema[ema['beiwe'] == pt]
-            survey_dates = ema_pt.index.date
-            survey_only_iaq = evening_iaq_pt[evening_iaq_pt['end_time'].dt.date.isin(survey_dates)]
-            
-            fully_filtered_beacon = fully_filtered_beacon.append(survey_only_iaq)
-            
-        fully_filtered_beacon.to_csv(f'{data_dir}data/processed/beacon-fb_ema_and_gps_filtered-{study_suffix}.csv')
-
-    # Including nights from CO2 occupancy detection
-    co2_and_gps_beacon = pd.DataFrame()
-    for pt in sleep['beiwe'].unique():
-        pt_occupancy = occupancy_detection.co2_increase(pt=pt,data_dir="../../",threshold=0.7)
-        co2_and_gps_beacon = co2_and_gps_beacon.append(pt_occupancy.fully_filtered)
-
-    co2_and_gps_beacon.drop(["sma_co2","dC","sma_dC","increasing"],axis="columns",inplace=True)
-    co2_and_gps_beacon.to_csv(f"{data_dir}data/processed/beacon-fb_co2_and_gps_filtered-{study_suffix}.csv")
-
-    return partially_filtered_beacon, fully_filtered_beacon, co2_and_gps_beacon
+    return beacon_nightly
             
 def main():
     get_restricted_beacon_datasets(data_dir='../../')
@@ -589,7 +576,7 @@ def main():
     fs = fitbit_sleep(data_dir='../../')
     fs.get_beiwe_summaries()
     fs.get_fitbit_summaries()
-    fs.get_beacon_summaries()
+    #fs.get_beacon_summaries()
     fs.get_complete_summary()
     fs.get_redcap_ee_survey_summary()
 
