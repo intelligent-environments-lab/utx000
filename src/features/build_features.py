@@ -2,12 +2,14 @@ from datetime import datetime, timedelta
 
 import os
 import sys
+sys.path.append('../../')
 import logging
 
 import pandas as pd
 import numpy as np
 from sklearn.feature_selection import mutual_info_regression, mutual_info_classif
 
+from src.analysis import occupancy_detection
 
 import geopy.distance
 import warnings
@@ -16,8 +18,6 @@ warnings.filterwarnings('ignore')
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
-import seaborn as sns
-import matplotlib.dates as mdates
 
 class beacon_statistics():
 
@@ -491,6 +491,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
     # fitbit sleep data
     sleep = pd.read_csv(f'{data_dir}data/processed/fitbit-sleep_daily-{study_suffix}.csv',
                     parse_dates=['date','start_time','end_time'],infer_datetime_format=True)
+    sleep = sleep[sleep["main_sleep"] == True] # removing naps and other non-main events
     end_dates = []
     for d in sleep['end_time']:
         end_dates.append(d.date())
@@ -571,7 +572,16 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
             
         fully_filtered_beacon.to_csv(f'{data_dir}data/processed/beacon-fb_ema_and_gps_filtered-{study_suffix}.csv')
 
-    return partially_filtered_beacon, fully_filtered_beacon
+    # Including nights from CO2 occupancy detection
+    co2_and_gps_beacon = pd.DataFrame()
+    for pt in sleep['beiwe'].unique():
+        pt_occupancy = occupancy_detection.co2_increase(pt=pt,data_dir="../../",threshold=0.7)
+        co2_and_gps_beacon = co2_and_gps_beacon.append(pt_occupancy.fully_filtered)
+
+    co2_and_gps_beacon.drop(["sma_co2","dC","sma_dC","increasing"],axis="columns",inplace=True)
+    co2_and_gps_beacon.to_csv(f"{data_dir}data/processed/beacon-fb_co2_and_gps_filtered-{study_suffix}.csv")
+
+    return partially_filtered_beacon, fully_filtered_beacon, co2_and_gps_beacon
             
 def main():
     get_restricted_beacon_datasets(data_dir='../../')
