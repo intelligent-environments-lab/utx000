@@ -580,7 +580,6 @@ def main():
     fs.get_complete_summary()
     fs.get_redcap_ee_survey_summary()
 
-
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     logging.basicConfig(filename='dataset.log', filemode='w', level=logging.DEBUG, format=log_fmt)
