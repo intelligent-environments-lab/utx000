@@ -562,6 +562,7 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
 
                     beacon_nightly = beacon_nightly.append(beacon_pt_night)
 
+    beacon_nightly.to_csv(f'{data_dir}data/processed/beacon_by_night-bad_nights_included-{study_suffix}.csv')
     # filtering out manually inspected nights
     nights_to_exclude = pd.read_csv(f"{data_dir}data/interim/bad_analysis_nights.csv")
     for column in nights_to_exclude.columns:
