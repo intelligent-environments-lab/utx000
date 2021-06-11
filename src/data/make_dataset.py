@@ -566,14 +566,14 @@ class utx000():
                     beacon_df[var] = beacon_df[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]
 
             # variables that should never have anything less than zero (setting to zero)
-            for var in ["tvoc","lux","co","no2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]:
+            for var in ["tvoc","lux","co","no2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass"]:
                 beacon_df[var].mask(beacon_df[var] < 0, 0, inplace=True)
             # (setting to nan)
             for var in ["temperature_c","rh"]:
                 beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
             
             # variables that should never be less than a certain limit
-            for var, threshold in zip(['co2'],[200]):
+            for var, threshold in zip(["co2","temperature_c","rh"],[200,15,20]):
                 beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
             
             # removing extreme values 
