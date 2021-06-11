@@ -370,45 +370,42 @@ class fitbit_sleep():
         """
         # Beacon Data During Sleep
         # ------------------------
-        print("\tGetting Beacon Data During Fitbit Sleep with GPS Confirmation")
-        for filename in ["beacon-fb_and_gps_filtered","beacon-fb_co2_and_gps_filtered"]:
-            data = pd.read_csv(f"{self.data_dir}data/processed/{filename}-{self.study_suffix}.csv",index_col="timestamp",parse_dates=["timestamp","start_time","end_time"],infer_datetime_format=True)
-            summarized_df = pd.DataFrame()
-            for s in ["mean","median","delta","delta_percent"]:
-                beacon_by_s = pd.DataFrame()
-                for pt in data["beiwe"].unique():
-                    data_by_pt = data[data["beiwe"] == pt]
-                    ids = data_by_pt[["end_time","beacon","beiwe","fitbit","redcap"]]
-                    data_by_pt.drop(["end_time","beacon","beiwe","fitbit","redcap"],axis=1,inplace=True)
-                    if s == "mean":
-                        data_s_by_pt = data_by_pt.groupby("start_time").mean()
-                    elif s == "median":
-                        data_s_by_pt = data_by_pt.groupby("start_time").median()
-                    elif s == "delta":
-                        little = data_by_pt.groupby("start_time").min()
-                        big = data_by_pt.groupby("start_time").max()
-                        data_s_by_pt = big - little
-                    else:
-                        little = data_by_pt.groupby("start_time").min()
-                        big = data_by_pt.groupby("start_time").max()
-                        data_s_by_pt = (big - little) / little * 100
+        print("\tGetting Beacon Data During Fitbit Sleep with GPS and/or CO2 Confirmation")
+        data = pd.read_csv(f"{self.data_dir}data/processed/beacon_by_night-{self.study_suffix}.csv",index_col="timestamp",parse_dates=["timestamp","start_time","end_time"],infer_datetime_format=True)
 
-                    data_s_by_pt = data_s_by_pt.add_suffix(f"_{s}")
-                    data_s_by_pt["end_time"] = ids["end_time"].unique()
-                    for col in ids.columns[1:]:
-                        data_s_by_pt[col] = ids[col][0]
-
-                    beacon_by_s = beacon_by_s.append(data_s_by_pt)
-
-                if len(summarized_df) == 0:
-                    summarized_df = beacon_by_s
+        summarized_df = pd.DataFrame()
+        for s in ["mean","median","delta","delta_percent"]:
+            beacon_by_s = pd.DataFrame()
+            for pt in data["beiwe"].unique():
+                data_by_pt = data[data["beiwe"] == pt]
+                ids = data_by_pt[["end_time","beacon","beiwe","fitbit","redcap"]]
+                data_by_pt.drop(["end_time","beacon","beiwe","fitbit","redcap"],axis=1,inplace=True)
+                if s == "mean":
+                    data_s_by_pt = data_by_pt.groupby("start_time").mean()
+                elif s == "median":
+                    data_s_by_pt = data_by_pt.groupby("start_time").median()
+                elif s == "delta":
+                    little = data_by_pt.groupby("start_time").min()
+                    big = data_by_pt.groupby("start_time").max()
+                    data_s_by_pt = big - little
                 else:
-                    summarized_df = summarized_df.merge(beacon_by_s,on=["start_time","end_time","beacon","beiwe","fitbit","redcap"])
+                    little = data_by_pt.groupby("start_time").min()
+                    big = data_by_pt.groupby("start_time").max()
+                    data_s_by_pt = (big - little) / little * 100
 
-            summarized_df.to_csv(f"{self.data_dir}data/processed/{filename}_summary-{self.study_suffix}.csv")
-            # combining fitbit data to the beacon summary
-            beacon_fitbit_summary = self.fb_sleep_summary.merge(summarized_df,left_on=["start_time","end_time","beiwe","beacon","redcap"],right_on=["start_time","end_time","beiwe","beacon","redcap"])
-            beacon_fitbit_summary.to_csv(f"{self.data_dir}data/processed/beacon_fitbit-ieq_and_sleep-{self.study_suffix}.csv",index=False)
+                data_s_by_pt = data_s_by_pt.add_suffix(f"_{s}")
+                data_s_by_pt["end_time"] = ids["end_time"].unique()
+                for col in ids.columns[1:]:
+                    data_s_by_pt[col] = ids[col][0]
+
+                beacon_by_s = beacon_by_s.append(data_s_by_pt)
+
+            if len(summarized_df) == 0:
+                summarized_df = beacon_by_s
+            else:
+                summarized_df = summarized_df.merge(beacon_by_s,on=["start_time","end_time","beacon","beiwe","fitbit","redcap"])
+
+            summarized_df.to_csv(f"{self.data_dir}data/processed/beacon_by_night-summary-{self.study_suffix}.csv")
 
     def get_complete_summary(self):
         """
@@ -565,10 +562,24 @@ def get_restricted_beacon_datasets(radius=1000,restrict_by_ema=True,data_dir='..
 
                     beacon_nightly = beacon_nightly.append(beacon_pt_night)
 
+    # filtering out manually inspected nights
+    nights_to_exclude = pd.read_csv(f"{data_dir}data/interim/bad_analysis_nights.csv")
+    for column in nights_to_exclude.columns:
+        nights_to_exclude[column] = pd.to_datetime(nights_to_exclude[column])
+        
+    data_to_save = pd.DataFrame()
+    for pt in beacon_nightly["beiwe"].unique():
+        bb_pt = beacon_nightly[beacon_nightly["beiwe"] == pt]
+        exclude_pt = nights_to_exclude.loc[:,pt]
+        if len(exclude_pt) != 0:
+            bb_pt = bb_pt[~bb_pt["start_time"].isin(exclude_pt)]
+            
+        data_to_save = data_to_save.append(bb_pt)
+        
     # Data filtered by fitbit nights only
-    beacon_nightly.to_csv(f'{data_dir}data/processed/beacon_by_night-{study_suffix}.csv')
+    data_to_save.to_csv(f'{data_dir}data/processed/beacon_by_night-{study_suffix}.csv')
 
-    return beacon_nightly
+    return data_to_save
             
 def main():
     get_restricted_beacon_datasets(data_dir='../../')
