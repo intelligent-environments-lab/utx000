@@ -38,6 +38,15 @@ class update():
         print("\n\tUpgrading Packages:")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo apt-get -y upgrade"')
 
+    def pull_from_git(self, beacon_no):
+        """
+        Pulls in updates from git,
+        """
+
+        print("\n\tUpdating from Git:")
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd bevo_iaq/ && git reset --hard && git pull"')
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=3  "sudo sh /home/pi/bevo_iaq/fix_number.sh {beacon_no}"')
+
     def run(self, fxns):
         """
         Runs the functions in fxns
@@ -85,9 +94,7 @@ class install(update):
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo pip3 install pandas"')
 
     def add_tailscale(self, beacon_no, auth_key="tskey-3a35f9a673f63fd83e6ef7ba"):
-        """
-        Adds tailscale vpn to beacons
-        """
+        """adds tailscale vpn to beacons"""
         # strings containing install isntructions 
         transport = "sudo apt-get install apt-transport-https" # install transport
         signing_key = "curl -fsSL https://pkgs.tailscale.com/stable/raspbian/buster.gpg | sudo apt-key add -"
@@ -95,9 +102,15 @@ class install(update):
         up = "sudo apt-get update"
         tailscale = "sudo apt-get install tailscale"
         auth = f"sudo tailscale up --authkey {auth_key}"
-        show_key = "ip addr show tailscale0"
+        show_key = "ip addr show tailscale"
 
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=3 "{transport} && {signing_key} && {repo} && {up} && {tailscale} && {auth} && {show_key}"')
+
+    def add_reboot(self, beacon_no):
+        """runs and adds reboot to crontab"""
+        print("\n\tAdding reboot functionality to crontab:")
+        print()
+        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=3 "sudo sh /home/pi/bevo_iaq/reboot_install.sh"')
 
 def main():
     up = input("Update and upgrade devices (y/n): ")
@@ -119,7 +132,7 @@ def main():
             installer = install(single=False)
         
         # edit with packages to install
-        installer.run([installer.add_tailscale])
+        installer.run([installer.pull_from_git,installer.add_reboot])
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
