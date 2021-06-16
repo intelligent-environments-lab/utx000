@@ -351,9 +351,12 @@ class Calibration():
                     if file[-1] == "v":
                         if verbose:
                             print("\t" + file)
-                        temp = pd.read_csv(f"{self.data_dir}raw/{self.study}/beacon/B{number}/DATA/{file}")
-                        if len(temp) > 0:
-                            data_by_beacon = data_by_beacon.append(temp)
+                        try:
+                            temp = pd.read_csv(f"{self.data_dir}raw/{self.study}/beacon/B{number}/DATA/{file}")
+                            if len(temp) > 0:
+                                data_by_beacon = data_by_beacon.append(temp)
+                        except Exception as e:
+                            print("Error with file", file+":", e)
                 if len(data_by_beacon) > 0:
                     data_by_beacon["Timestamp"] = pd.to_datetime(data_by_beacon["Timestamp"])
                     data_by_beacon = data_by_beacon.dropna(subset=["Timestamp"]).set_index("Timestamp").sort_index()[self.start_time:self.end_time].resample(f"{self.resample_rate}T").mean()
@@ -387,7 +390,7 @@ class Calibration():
             #remainder
             for loc in ["top","right","bottom"]:
                 ax.spines[loc].set_visible(False)
-            ax.set_title(beacon+1,y=1,pad=-6,loc="center",va="bottom")
+            ax.set_title(beacon,y=1,pad=-6,loc="center",va="bottom")
 
     def inspect_timeseries(self,species="co2",**kwargs):
         """
