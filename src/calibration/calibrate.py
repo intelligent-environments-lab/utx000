@@ -768,7 +768,7 @@ class Calibration():
             print("Error with data - returning (0,1)")
             return 0, 1, 0
 
-    def linear_regression(self,species,save_to_file=False,verbose=False):
+    def linear_regression(self,species,save_to_file=False,verbose=False,**kwargs):
         """generates a linear regression model"""
         coeffs = {"beacon":[],"constant":[],"coefficient":[],"score":[],"ts_shift":[]}
         ref_df = self.ref[species]
@@ -793,6 +793,14 @@ class Calibration():
                 for ts_shift in range(-5,6):
                     comb = ref_df.merge(right=beacon_by_bb.shift(ts_shift),left_index=True,right_index=True,how="inner")
                     comb.dropna(inplace=True)
+                    if "event" in kwargs.keys():
+                        event = kwargs["event"]
+                        data_before_event = comb[:event]
+                        baseline = np.nanmean(data_before_event[species])
+                        data_before_event = data_before_event[data_before_event[species] > baseline-np.nanstd(data_before_event[species])]
+                        data_after_event = comb[event:]
+                        data_after_event = data_after_event[data_after_event[species] > baseline+2*np.nanstd(data_before_event[species])]
+                        comb = pd.concat([data_before_event,data_after_event])
 
                     b, m, r2 = self.get_linear_model_params(comb,species,"concentration")
                     if r2 > best_params[2]:
