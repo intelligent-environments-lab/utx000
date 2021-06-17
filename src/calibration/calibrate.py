@@ -361,7 +361,7 @@ class Calibration():
                     data_by_beacon["Timestamp"] = pd.to_datetime(data_by_beacon["Timestamp"])
                     data_by_beacon = data_by_beacon.dropna(subset=["Timestamp"]).set_index("Timestamp").sort_index()[self.start_time:self.end_time].resample(f"{self.resample_rate}T").mean()
                     data_by_beacon["beacon"] = int(number)
-                    data = data.append(data_by_beacon)
+                    data = data.append(data_by_beacon)#.rolling(window=5,min_periods=1).mean().bfill())
             except FileNotFoundError:
                 print(f"No files found for beacon {beacon}.")
                 
@@ -510,8 +510,10 @@ class Calibration():
                 ax.plot(data_by_bb.index,data_by_bb[species],marker=visualize.get_marker(int(bb)),zorder=int(bb),label=bb)
             
         # x-axis
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H'))
         ax.xaxis.set_major_locator(mdates.HourLocator())
+        ax.xaxis.set_minor_locator(mdates.MinuteLocator(byminute=range(10,60,10)))
+        ax.xaxis.set_minor_formatter(mdates.DateFormatter('%M'))
         ax.set_xlim([self.start_time,self.end_time])
         # y_axis
         ax.set_ylabel("Concentration",fontsize=14)
@@ -558,7 +560,7 @@ class Calibration():
             else:
                 _, ax = plt.subplots(figsize=(8,8))
 
-            im = ax.scatter(comb["concentration"],comb[species],c=data_by_bb.index,cmap="Blues",edgecolor="black",s=50,label="Measured",zorder=2)
+            im = ax.scatter(comb["concentration"],comb[species],c=comb.index,cmap="Blues",edgecolor="black",s=50,label="Measured",zorder=2)
             #fig.colorbar(im,ax=ax,label="Minutes since Start")
             max_val = max(np.nanmax(comb["concentration"]),np.nanmax(comb[species]))
             if "min_val" in kwargs.keys():
@@ -589,19 +591,23 @@ class Calibration():
         """plots the original and corrected data against the reference for the given species"""
         for bb in self.beacon_data["beacon"].unique():
             beacon_by_bb = self.beacon_data[self.beacon_data["beacon"] == bb].set_index("timestamp")
-            _, axes = plt.subplots(1,4,figsize=(26,6),gridspec_kw={"wspace":0.2,"width_ratios":[0.25,0.25,0.25,0.25]})
-            self.compare_time_series(species,ax=axes[0],beacons=[bb])
-            # original data - scatter
-            self.compare_scatter(species,ax=axes[1],beacons=[bb],**kwargs)
-            # corrected data - timeseries
-            corrected_by_bb = beacon_by_bb.copy()
-            corrected_by_bb[species] = beacon_by_bb[species] * self.lms[species].loc[bb,"coefficient"] + self.lms[species].loc[bb,"constant"]
-            corrected_by_bb = corrected_by_bb.shift(self.lms[species].loc[bb,"ts_shift"])
-            self.compare_time_series(species,ax=axes[2],beacons=[bb],data=corrected_by_bb)
-            # corrected data - scatter
-            self.compare_scatter(species,ax=axes[3],beacons=[bb],data=corrected_by_bb,**kwargs)
-            plt.show()
-            plt.close()
+            try:
+                _, axes = plt.subplots(1,4,figsize=(26,6),gridspec_kw={"wspace":0.2,"width_ratios":[0.25,0.25,0.25,0.25]})
+                self.compare_time_series(species,ax=axes[0],beacons=[bb])
+                # original data - scatter
+                self.compare_scatter(species,ax=axes[1],beacons=[bb],**kwargs)
+                # corrected data - timeseries
+                corrected_by_bb = beacon_by_bb.copy()
+                corrected_by_bb[species] = beacon_by_bb[species] * self.lms[species].loc[bb,"coefficient"] + self.lms[species].loc[bb,"constant"]
+                corrected_by_bb = corrected_by_bb.shift(self.lms[species].loc[bb,"ts_shift"])[:len(self.ref[species])]
+                self.compare_time_series(species,ax=axes[2],beacons=[bb],data=corrected_by_bb)
+                # corrected data - scatter
+                self.compare_scatter(species,ax=axes[3],beacons=[bb],data=corrected_by_bb,**kwargs)
+                plt.show()
+                plt.close()
+            except ValueError as e:
+                print(e)
+                print(f"Length of data for Beacon {bb} is {len(beacon_by_bb[species].dropna())}")
         
     # deprecated
     def compare_histogram(self,ref_data,beacon_data,bins):
@@ -763,12 +769,7 @@ class Calibration():
             return 0, 1, 0
 
     def linear_regression(self,species,save_to_file=False,verbose=False):
-        """
-        Runs a linear regression model
-        
-        Inputs:
-        - show_plot: boolean to show the plot or not
-        """
+        """generates a linear regression model"""
         coeffs = {"beacon":[],"constant":[],"coefficient":[],"score":[],"ts_shift":[]}
         ref_df = self.ref[species]
         data = self.beacon_data[["timestamp",species,"beacon"]]
@@ -778,15 +779,15 @@ class Calibration():
                 print(f"Working for Beacon {bb}")
                 print(beacon_by_bb.head())
             if len(beacon_by_bb) > 1:
-                beacon_by_bb.drop(["beacon"],axis=1,inplace=True)
                 if len(ref_df) != len(beacon_by_bb):
                     # resizing arrays to include data from both modalities
                     max_start_date = max(ref_df.index[0],beacon_by_bb.index[0])
                     min_end_date = min(ref_df.index[-1],beacon_by_bb.index[-1])
                     ref_df = ref_df[max_start_date:min_end_date]
                     beacon_by_bb = beacon_by_bb[max_start_date:min_end_date]
-                    warnings.warn("Reference and beacon data are not the same length")
+                    print(f"Beacon {bb}: Reference and beacon data are not the same length")
 
+                beacon_by_bb.drop(["beacon"],axis=1,inplace=True)
                 # running linear models with shifted timestamps
                 best_params = [-math.inf,-math.inf,-math.inf, -math.inf] # b, m, r2, ts_shift
                 for ts_shift in range(-5,6):
