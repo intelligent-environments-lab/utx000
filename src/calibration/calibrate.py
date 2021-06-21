@@ -368,9 +368,9 @@ class Calibration():
         data['temperature_c'] = data[['T_CO','T_NO2']].mean(axis=1)
         data['rh'] = data[['RH_CO','RH_NO2']].mean(axis=1)
         data.drop(["eCO2","Visible","Infrared","Temperature [C]","Relative Humidity","PM_N_0p5","T_CO","T_NO2","RH_CO","RH_NO2"],axis="columns",inplace=True)
-        data = data[[column for column in data.columns if "1" not in column and "4" not in column]]
+        data = data[[column for column in data.columns if "4" not in column]]
         data.reset_index(inplace=True)
-        data.columns = ["timestamp","tvoc","lux","co","no2","pm2p5_number","pm2p5_mass","co2","beacon","temperature_c","rh"]
+        data.columns = ["timestamp","tvoc","lux","co","no2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","co2","beacon","temperature_c","rh"]
         data["co"] /= 1000
         self.beacon_data = data
 
