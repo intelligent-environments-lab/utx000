@@ -10,6 +10,8 @@ from numpy.core.numeric import Inf
 import pandas as pd
 import numpy as np
 from sklearn import linear_model
+from sklearn.model_selection import KFold
+import scipy
 # Plotting
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -67,7 +69,7 @@ class Calibration():
         if self.study == "utx000":
             self.set_utx000_beacon()
         else:
-            self.set_wcwh_beacon()
+            self.set_wcwh_beacon(**kwargs)
         ## calibration
         self.offsets = {}
         self.lms = {}
@@ -202,6 +204,7 @@ class Calibration():
         raw_data.set_index("timestamp",inplace=True)
         raw_data.index += self.t_offset# = df.shift(periods=3) 
         df = raw_data.resample(f"{self.resample_rate}T",closed="left").mean()
+        df = df.rolling(window=5).mean().bfill()
         self.ref["co2"] = df[self.start_time:self.end_time]
 
     def set_no2_ref(self):
@@ -338,7 +341,7 @@ class Calibration():
         #beacon_data.fillna(method="bfill",inplace=True)
         self.beacon_data = beacon_data
 
-    def set_wcwh_beacon(self, verbose=False):
+    def set_wcwh_beacon(self, verbose=False, **kwargs):
         """sets beacon data from wcwh pilot for calibration"""
         data = pd.DataFrame()
         for beacon in self.beacons:
@@ -361,7 +364,18 @@ class Calibration():
                     data_by_beacon["Timestamp"] = pd.to_datetime(data_by_beacon["Timestamp"])
                     data_by_beacon = data_by_beacon.dropna(subset=["Timestamp"]).set_index("Timestamp").sort_index()[self.start_time:self.end_time].resample(f"{self.resample_rate}T").mean()
                     data_by_beacon["beacon"] = int(number)
-                    data = data.append(data_by_beacon)#.rolling(window=5,min_periods=1).mean().bfill())
+                    # looking for any moving mean/median filters
+                    if "window" in kwargs.keys():
+                        window = kwargs["window"]
+                    else:
+                        window = 5 # defaults to window size of 5
+                    if "moving" in kwargs.keys():
+                        if kwargs["moving"] == "median":
+                            data = data.append(data_by_beacon.rolling(window=window,min_periods=1).median().bfill())
+                        else:
+                            data = data.append(data_by_beacon.rolling(window=window,min_periods=1).mean().bfill())
+                    else:
+                        data = data.append(data_by_beacon)
             except FileNotFoundError:
                 print(f"No files found for beacon {beacon}.")
                 
@@ -591,6 +605,7 @@ class Calibration():
         """plots the original and corrected data against the reference for the given species"""
         for bb in self.beacon_data["beacon"].unique():
             beacon_by_bb = self.beacon_data[self.beacon_data["beacon"] == bb].set_index("timestamp")
+            #beacon_by_bb = self.apply_laplacion_filter(beacon_by_bb,species)
             try:
                 _, axes = plt.subplots(1,4,figsize=(26,6),gridspec_kw={"wspace":0.2,"width_ratios":[0.25,0.25,0.25,0.25]})
                 self.compare_time_series(species,ax=axes[0],beacons=[bb])
@@ -755,20 +770,34 @@ class Calibration():
             plt.show()
             plt.close()
 
-    def get_linear_model_params(self,df,x_label,y_label):
+    def get_linear_model_params(self,df,x_label,y_label,**kwargs):
         """runs linear regression and returns intercept, slope, and r2"""
         x = df.loc[:,x_label].values
         y = df.loc[:,y_label].values
 
         regr = linear_model.LinearRegression()
         try:
-            regr.fit(x.reshape(-1, 1), y)
+            if "weights" in kwargs.keys():
+                weights = kwargs["weights"]
+            else:
+                weights= None
+            regr.fit(x.reshape(-1, 1), y, sample_weight=weights)
             return regr.intercept_, regr.coef_[0], regr.score(x.reshape(-1, 1),y)
         except ValueError:
             print("Error with data - returning (0,1)")
             return 0, 1, 0
 
-    def linear_regression(self,species,save_to_file=False,verbose=False,**kwargs):
+    def apply_laplacion_filter(self,data,var,threshold=0.25):
+        """applies laplacian filter to data and returns values with threshold limits"""
+        lap = scipy.ndimage.filters.laplace(data[var])
+        lap /= np.max(lap)
+        # filtering out high variability
+        data["lap"] = lap
+        data_filtered = data[(data["lap"] < threshold) & (data["lap"] > -1*threshold)]
+        data_filtered.drop("lap",axis="columns",inplace=True)
+        return data_filtered
+    
+    def linear_regression(self,species,weight=False,save_to_file=False,verbose=False,**kwargs):
         """generates a linear regression model"""
         coeffs = {"beacon":[],"constant":[],"coefficient":[],"score":[],"ts_shift":[]}
         ref_df = self.ref[species]
@@ -786,8 +815,13 @@ class Calibration():
                     ref_df = ref_df[max_start_date:min_end_date]
                     beacon_by_bb = beacon_by_bb[max_start_date:min_end_date]
                     print(f"Beacon {bb}: Reference and beacon data are not the same length")
-
+                
                 beacon_by_bb.drop(["beacon"],axis=1,inplace=True)
+                # applying laplacion filter
+                if "lap_filter" in kwargs.keys():
+                    if kwargs["lap_filter"] == True:
+                        beacon_by_bb = self.apply_laplacion_filter(beacon_by_bb,species)
+
                 # running linear models with shifted timestamps
                 best_params = [-math.inf,-math.inf,-math.inf, -math.inf] # b, m, r2, ts_shift
                 for ts_shift in range(-5,6):
@@ -802,7 +836,11 @@ class Calibration():
                         data_after_event = data_after_event[data_after_event[species] > baseline+2*np.nanstd(data_before_event[species])]
                         comb = pd.concat([data_before_event,data_after_event])
 
-                    b, m, r2 = self.get_linear_model_params(comb,species,"concentration")
+                    if weight:
+                        b, m, r2 = self.get_linear_model_params(comb,species,"concentration",weights=comb["concentration"])
+                    else:
+                        b, m, r2 = self.get_linear_model_params(comb,species,"concentration")
+
                     if r2 > best_params[2]:
                         best_params = [b, m, r2, ts_shift]
 
