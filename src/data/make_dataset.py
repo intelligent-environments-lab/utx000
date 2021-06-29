@@ -560,7 +560,7 @@ class utx000():
             
             # offsetting measurements with constant (CO and pm2p5) or linear model (others)
             for var in self.linear_model.keys():
-                if var in ["co","pm2p5_mass"]:
+                if var in ["co"]:#,"pm2p5_mass"]:
                     beacon_df[var] -= self.constant_model[var].loc[beacon,"correction"]
                 else:
                     beacon_df[var] = beacon_df[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]

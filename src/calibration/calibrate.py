@@ -57,7 +57,7 @@ class Calibration():
         if "beacons" in kwargs.keys():
             self.set_beacons(kwargs["beacons"])
         else:
-            self.set_beacons(np.arange(1,51,1))
+            self.set_beacons(kwargs["beacons"])
 
         # data
         ## refererence
@@ -67,7 +67,7 @@ class Calibration():
         ## beacon
         print("IMPORTING BEACON DATA")
         if self.study == "utx000":
-            self.set_utx000_beacon()
+            self.set_utx000_beacon(**kwargs)
         else:
             self.set_wcwh_beacon(**kwargs)
         ## calibration
@@ -246,7 +246,7 @@ class Calibration():
         """sets the beacon data attribute with given data"""
         self.beacon_data = data
 
-    def set_utx000_beacon(self,beacon_list=np.arange(0,51,1),verbose=False,**kwargs):
+    def set_utx000_beacon(self,verbose=False,**kwargs):
         """
         Sets beacon data from utx000 for calibration
 
@@ -255,13 +255,13 @@ class Calibration():
         - resample_rate: integer specifying the resample rate in minutes
         - verbose: boolean to have verbose mode on
         """
-        self.beacons = beacon_list
+        self.beacons = kwargs["beacons"]
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         beacons_folder=f"{self.data_dir}raw/{self.study}/beacon"
         # list of all beacons used in the study
         if verbose:
             print('Processing beacon data...\n\tReading for beacon:')
-        for beacon in beacon_list:
+        for beacon in self.beacons:
 
             # correcting the number since the values <10 have leading zero in directory
             number = f'{beacon:02}'
@@ -334,11 +334,12 @@ class Calibration():
                 # concatenating the data to the overall dataframe
                 beacon_df['beacon'] = beacon
                 beacon_data = pd.concat([beacon_data,beacon_df])
-
-        beacon_data.columns = ["light","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","beacon"]
+        beacon_data.reset_index(inplace=True)
+        beacon_data.columns = ["timestamp","light","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","beacon"]
         # filling in the gaps
         #beacon_data.interpolate(inplace=True)
         #beacon_data.fillna(method="bfill",inplace=True)
+        beacon_data = beacon_data[beacon_data["beacon"] != 0] # correcting for any mislabeled raw data
         self.beacon_data = beacon_data
 
     def set_wcwh_beacon(self, verbose=False, **kwargs):
@@ -623,7 +624,62 @@ class Calibration():
             except ValueError as e:
                 print(e)
                 print(f"Length of data for Beacon {bb} is {len(beacon_by_bb[species].dropna())}")
-        
+            except KeyError as e:
+                print(e)
+                print("No data for beacon", bb)
+
+    def show_comprehensive_calibration(self,**kwargs):
+        """shows the three figure panel of the calibration"""
+        for bb in self.beacon_data["beacon"].unique():
+            beacon_by_bb = self.beacon_data[self.beacon_data["beacon"] == bb].set_index("timestamp")
+            if "start_time" in kwargs.keys():
+                beacon_by_bb = beacon_by_bb[kwargs["start_time"]:]
+            if "end_time" in kwargs.keys():
+                beacon_by_bb = beacon_by_bb[:kwargs["end_time"]]
+
+            fig = plt.figure(constrained_layout=True)
+            gs = fig.add_gridspec(2, 2)
+            # top timeseries figure
+            ts = fig.add_subplot(gs[0,:])
+            # bottom left correlation plot
+            corr = fig.add_subplot(gs[1,0])
+            # bottom right difference plot
+            diff = fig.add_subplot(gs[1,1])
+
+    def show_comprehensive_linear_corr(self,r,c,species,**kwargs):
+        """shows a subplot of all the correlation beacons"""
+        fig, axes = plt.subplots(r,c,figsize=(c*4,r*4),sharex=True,sharey=True)
+        for bb, ax in zip(self.beacon_data["beacon"].unique(),axes.flat):
+            beacon_by_bb = self.beacon_data[self.beacon_data["beacon"] == bb].set_index("timestamp")
+            corrected_by_bb = beacon_by_bb.copy()
+            corrected_by_bb[species] = beacon_by_bb[species] * self.lms[species].loc[bb,"coefficient"] + self.lms[species].loc[bb,"constant"]
+            corrected_by_bb = corrected_by_bb.shift(self.lms[species].loc[bb,"ts_shift"])[:len(self.ref[species])]
+            ax.scatter(self.ref[species]["concentration"],corrected_by_bb[species],color="black",zorder=2)
+            max_val = max(np.nanmax(self.ref[species]["concentration"]),np.nanmax(corrected_by_bb[species]))
+            if "min_val" in kwargs.keys():
+                min_val = kwargs["min_val"]
+            else:
+                min_val = 0
+            # 1:1
+            ax.plot([min_val,max_val],[min_val,max_val],color="firebrick",linewidth=2,zorder=1)
+            # annotating
+            lm_bb = self.lms[species][self.lms[species].index == bb]
+            r2 = self.lms[species]
+            ax.set_title(f"  Device {bb}\n  r$^2$ = {round(lm_bb['score'].values[0],3)}\n  y = {round(lm_bb['coefficient'].values[0],1)}x + {round(lm_bb['constant'].values[0],1)}",
+                        y=0.85,pad=0,fontsize=13,loc="left",ha="left")
+            ax.axis('off')
+
+        axes[r-1,0].axis('on')
+        for loc in ["top","right"]:
+            axes[r-1,0].spines[loc].set_visible(False)
+        plt.setp(axes[r-1,0].get_xticklabels(), ha="center", rotation=0, fontsize=16)
+        plt.setp(axes[r-1,0].get_yticklabels(), ha="right", rotation=0, fontsize=16)
+        axes[1,0].text(-1,7.5,f'BEVO Beacon {visualize.get_pollutant_label(species)} ({visualize.get_pollutant_units(species)})',rotation=90,ha='center',va='center',fontsize=18)
+        axes[r-1,3].text(7.5,1,f'Reference {visualize.get_pollutant_label(species)} ({visualize.get_pollutant_units(species)})',ha='center',va='top',fontsize=18)
+
+        plt.show()
+        plt.close()
+                
     # deprecated
     def compare_histogram(self,ref_data,beacon_data,bins):
         """
@@ -783,8 +839,8 @@ class Calibration():
                 weights= None
             regr.fit(x.reshape(-1, 1), y, sample_weight=weights)
             return regr.intercept_, regr.coef_[0], regr.score(x.reshape(-1, 1),y)
-        except ValueError:
-            print("Error with data - returning (0,1)")
+        except ValueError as e:
+            print(f"Error with data ({e}) - returning (0,1)")
             return 0, 1, 0
 
     def apply_laplacion_filter(self,data,var,threshold=0.25):
