@@ -37,7 +37,10 @@ class Calibration():
         """
         self.set_start_time(start_time)
         self.set_end_time(end_time)
-        self.date = end_time.date().strftime("%m%d%Y")
+        if "ref_date" in kwargs.keys():
+            self.date = kwargs["ref_date"].date().strftime("%m%d%Y")
+        else:
+            self.date = end_time.date().strftime("%m%d%Y")
 
         self.data_dir = data_dir
         self.study = study
@@ -63,7 +66,7 @@ class Calibration():
         ## refererence
         print("IMPORTING REFERENCE DATA")
         self.ref = {}
-        self.set_ref()
+        self.set_ref(**kwargs)
         ## beacon
         print("IMPORTING BEACON DATA")
         if self.study == "utx000":
@@ -110,7 +113,7 @@ class Calibration():
         self.beacons = beacon_list
 
     # reference setters
-    def set_ref(self,ref_species=["pm_number","pm_mass","no2","no","co2","co"]):
+    def set_ref(self,ref_species=["pm_number","pm_mass","no2","no","co2","co"],**kwargs):
         """
         Sets the reference data
 
@@ -119,13 +122,13 @@ class Calibration():
         """
         for species in ref_species:
             if species in ["pm_number", "pm_mass"]:
-                self.set_pm_ref(species[3:])
+                self.set_pm_ref(species[3:],**kwargs)
             elif species == "no2":
-                self.set_no2_ref()
+                self.set_no2_ref(**kwargs)
             elif species == "co2":
-                self.set_co2_ref()
+                self.set_co2_ref(**kwargs)
             elif species == "no":
-                self.set_no_ref()
+                self.set_no_ref(**kwargs)
             else:
                 self.set_zero_baseline(species=species)
 
@@ -141,7 +144,7 @@ class Calibration():
         df.index.rename("timestamp",inplace=True)
         self.ref[species] = df
 
-    def set_pm_ref(self, concentration_type="mass"):
+    def set_pm_ref(self, concentration_type="mass",**kwargs):
         """
         Sets the reference PM data
 
@@ -192,7 +195,7 @@ class Calibration():
         for size in ["pm1","pm2p5","pm10"]:
             self.ref[f"{size}_{concentration_type}"] = pd.DataFrame(df_resampled[size]).rename(columns={size:"concentration"})
         
-    def set_co2_ref(self):
+    def set_co2_ref(self,**kwargs):
         """sets the reference CO2 data"""
         try:
             raw_data = pd.read_csv(f"{self.data_dir}calibration/co2_{self.date}.csv",usecols=[0,1],names=["timestamp","concentration"])
@@ -203,11 +206,14 @@ class Calibration():
         raw_data["timestamp"] = pd.to_datetime(raw_data["timestamp"],yearfirst=True)
         raw_data.set_index("timestamp",inplace=True)
         raw_data.index += self.t_offset# = df.shift(periods=3) 
-        df = raw_data.resample(f"{self.resample_rate}T",closed="left").mean()
-        df = df.rolling(window=5).mean().bfill()
+        if "window" in kwargs.keys():
+            window = kwargs["window"]
+        else:
+            window = 5 # defaults to window size of 5
+        df = raw_data.resample(f"{self.resample_rate}T",closed="left").mean().rolling(window=window,min_periods=1).mean().bfill()
         self.ref["co2"] = df[self.start_time:self.end_time]
 
-    def set_no2_ref(self):
+    def set_no2_ref(self,**kwargs):
         """sets the reference NO2 data"""
         try:
             raw_data = pd.read_csv(f"{self.data_dir}calibration/no2_{self.date}.csv",usecols=["IgorTime","Concentration"])
@@ -228,7 +234,7 @@ class Calibration():
         df.columns = ["concentration"]
         self.ref["no2"] = df[self.start_time:self.end_time]
 
-    def set_no_ref(self):
+    def set_no_ref(self,**kwargs):
         """sets the reference no data """
         try:
             raw_data = pd.read_csv(f"{self.data_dir}calibration/no_{self.date}.csv",names=["timestamp","concentration"],skiprows=1)
@@ -649,7 +655,7 @@ class Calibration():
     def show_comprehensive_linear_corr(self,r,c,species,**kwargs):
         """shows a subplot of all the correlation beacons"""
         fig, axes = plt.subplots(r,c,figsize=(c*4,r*4),sharex=True,sharey=True)
-        for bb, ax in zip(self.beacon_data["beacon"].unique(),axes.flat):
+        for bb, ax in zip(self.beacons,axes.flat):
             beacon_by_bb = self.beacon_data[self.beacon_data["beacon"] == bb].set_index("timestamp")
             corrected_by_bb = beacon_by_bb.copy()
             corrected_by_bb[species] = beacon_by_bb[species] * self.lms[species].loc[bb,"coefficient"] + self.lms[species].loc[bb,"constant"]
@@ -662,6 +668,8 @@ class Calibration():
                 min_val = 0
             # 1:1
             ax.plot([min_val,max_val],[min_val,max_val],color="firebrick",linewidth=2,zorder=1)
+            # axis
+
             # annotating
             lm_bb = self.lms[species][self.lms[species].index == bb]
             r2 = self.lms[species]
