@@ -63,16 +63,16 @@ class Calibration():
             self.set_beacons(kwargs["beacons"])
 
         # data
-        ## refererence
-        print("IMPORTING REFERENCE DATA")
-        self.ref = {}
-        self.set_ref(**kwargs)
         ## beacon
         print("IMPORTING BEACON DATA")
         if self.study == "utx000":
             self.set_utx000_beacon(**kwargs)
         else:
             self.set_wcwh_beacon(**kwargs)
+        ## refererence
+        print("IMPORTING REFERENCE DATA")
+        self.ref = {}
+        self.set_ref(**kwargs)
         ## calibration
         self.offsets = {}
         self.lms = {}
@@ -113,7 +113,7 @@ class Calibration():
         self.beacons = beacon_list
 
     # reference setters
-    def set_ref(self,ref_species=["pm_number","pm_mass","no2","no","co2","co"],**kwargs):
+    def set_ref(self,ref_species=["pm_number","pm_mass","no2","no","co2","tvoc","co"],**kwargs):
         """
         Sets the reference data
 
@@ -129,6 +129,8 @@ class Calibration():
                 self.set_co2_ref(**kwargs)
             elif species == "no":
                 self.set_no_ref(**kwargs)
+            elif species == "tvoc" and len(self.beacon_data) > 1:
+                self.set_tvoc_ref()
             else:
                 self.set_zero_baseline(species=species)
 
@@ -247,6 +249,11 @@ class Calibration():
         df = raw_data.resample(f"{self.resample_rate}T").mean()
         self.ref["no"] = df[self.start_time:self.end_time]
         
+    def set_tvoc_ref(self):
+        """sets the tvoc reference as the mean concentration at each timestamp"""
+        raw_data = self.beacon_data[["timestamp","tvoc","beacon"]].pivot(index="timestamp",columns="beacon",values="tvoc").dropna(axis=1)
+        raw_data["concentration"] = raw_data.mean(axis=1)
+        self.ref["tvoc"] = raw_data[["concentration"]]
     # beacon setters
     def set_beacon_data(self,data):
         """sets the beacon data attribute with given data"""
@@ -329,7 +336,7 @@ class Calibration():
                 else:
                     beacon_df = beacon_df[self.start_time:self.end_time]
 
-                beacon_df.drop(['TVOC','eCO2','Visible','Infrared',"T_CO","RH_CO","T_NO2","RH_NO2",'Temperature [C]','Relative Humidity','PM_N_0p5','PM_N_4','PM_C_4'],axis=1,inplace=True)
+                beacon_df.drop(['eCO2','Visible','Infrared',"T_CO","RH_CO","T_NO2","RH_NO2",'Temperature [C]','Relative Humidity','PM_N_0p5','PM_N_4','PM_C_4'],axis=1,inplace=True)
 
                 # removing extreme values
                 #for var in beacon_df.columns:
@@ -341,7 +348,7 @@ class Calibration():
                 beacon_df['beacon'] = beacon
                 beacon_data = pd.concat([beacon_data,beacon_df])
         beacon_data.reset_index(inplace=True)
-        beacon_data.columns = ["timestamp","light","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","beacon"]
+        beacon_data.columns = ["timestamp","tvoc","light","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","beacon"]
         # filling in the gaps
         #beacon_data.interpolate(inplace=True)
         #beacon_data.fillna(method="bfill",inplace=True)
