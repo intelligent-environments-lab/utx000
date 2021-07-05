@@ -190,7 +190,11 @@ class Calibration():
         df['pm10'] = df.iloc[:,:42].sum(axis=1)*factor
 
         # resample
-        df_resampled = df.resample(f"{self.resample_rate}T").mean()
+        if "window" in kwargs.keys():
+            window = kwargs["window"]
+        else:
+            window = 5 # defaults to window size of 5
+        df_resampled = df.resample(f"{self.resample_rate}T").mean().rolling(window=window,min_periods=1).mean().bfill()
         df_resampled = df_resampled[self.start_time:self.end_time]
 
         # setting
@@ -304,8 +308,11 @@ class Calibration():
                             # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
                             if verbose:
                                 print(f'\t\tIssue encountered while importing {csv_dir}/{file}, skipping...')
-
-                    df = pd.concat(df_list).resample(f'{self.resample_rate}T').mean() # resampling to 2 minute intervals=
+                    if "window" in kwargs.keys():
+                        window = kwargs["window"]
+                    else:
+                        window = 5 # defaults to window size of 5
+                    df = pd.concat(df_list).resample(f'{self.resample_rate}T').mean().rolling(window=window,min_periods=1).mean().bfill()
 
                     return df
 
@@ -338,20 +345,12 @@ class Calibration():
 
                 beacon_df.drop(['eCO2','Visible','Infrared',"T_CO","RH_CO","T_NO2","RH_NO2",'Temperature [C]','Relative Humidity','PM_N_0p5','PM_N_4','PM_C_4'],axis=1,inplace=True)
 
-                # removing extreme values
-                #for var in beacon_df.columns:
-                #    beacon_df['z'] = abs(beacon_df[var] - beacon_df[var].mean()) / beacon_df[var].std(ddof=0)
-                #    beacon_df.loc[beacon_df['z'] > 3.5, var] = np.nan
-
-                #beacon_df.drop(['z'],axis=1,inplace=True)
                 # concatenating the data to the overall dataframe
                 beacon_df['beacon'] = beacon
                 beacon_data = pd.concat([beacon_data,beacon_df])
         beacon_data.reset_index(inplace=True)
         beacon_data.columns = ["timestamp","tvoc","light","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","beacon"]
-        # filling in the gaps
-        #beacon_data.interpolate(inplace=True)
-        #beacon_data.fillna(method="bfill",inplace=True)
+        
         beacon_data = beacon_data[beacon_data["beacon"] != 0] # correcting for any mislabeled raw data
         self.beacon_data = beacon_data
 
