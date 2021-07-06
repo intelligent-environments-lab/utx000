@@ -142,7 +142,9 @@ class wcwh():
             beacon_df.drop(["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4"],axis=1,inplace=True)
 
             # renaming columns
-            beacon_df.columns = ["tvoc","lux","no2","co","co2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass","temperature_c","rh"]
+            beacon_df.rename(columns={"TVOC":"tvoc","Lux":"lux","NO2":"no2","CO":"co","CO2":"co2",
+                                    "PM_N_1":"pm1_number","PM_N_2p5":"pm2p5_number","PM_N_10":"pm10_number",
+                                    "PM_C_1":"pm1_mass","PM_C_2p5":"pm2p5_mass","PM_C_10":"pm10_mass"},inplace=True)
             beacon_df.index.rename("timestamp",inplace=True)
 
             # offsetting measurements with linear model
