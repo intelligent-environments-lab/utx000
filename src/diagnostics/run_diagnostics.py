@@ -77,7 +77,7 @@ class Diagnostics():
 
         print("\n\tUpdating from Git:")
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd bevo_iaq/ && git reset --hard && git pull"')
-        os.system(f'ssh -o ConnectTimeout=1 pi@iaq{beacon_no} "sh /home/pi/fix_number.sh {beacon_no}"')
+        os.system(f'ssh -o ConnectTimeout=1 pi@iaq{beacon_no} "sh /home/pi/bevo_iaq/fix_number.sh {beacon_no}"')
         
     def downloadData(self, beacon_no):
         """
