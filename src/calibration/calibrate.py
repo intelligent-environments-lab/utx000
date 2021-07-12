@@ -45,17 +45,13 @@ class Calibration():
         self.data_dir = data_dir
         self.study = study
         self.suffix = study_suffix
+        self.set_time_offset(**kwargs)
 
         # kwargs
         if "resample_rate" in kwargs.keys():
             self.set_resample_rate(kwargs["resample_rate"])
         else:
             self.set_resample_rate(1) # set to default
-
-        if "timestamp" in kwargs.keys():
-            self.set_time_offset(timestamp=kwargs["timestamp"])
-        else:
-            self.set_time_offset() # set to default
 
         if "beacons" in kwargs.keys():
             self.set_beacons(kwargs["beacons"])
@@ -97,12 +93,16 @@ class Calibration():
         Keyword Arguments:
         - timestamp: datetime specifying the start time as reported by the laptop
         """
+        if "version" in kwargs.keys():
+            v = kwargs["version"]
+        else:
+            v = ""
         if "timestamp" in kwargs.keys():
             self.t_offset = self.start_time - kwargs["timestamp"]
         else:
             try:
                 # attempting to read pm_mass file to get the starting timestamp recorded by the computer
-                temp = pd.read_csv(f"{self.data_dir}calibration/pm_mass_{self.date}.csv",skiprows=6,parse_dates={"timestamp": ["Date","Start Time"]},infer_datetime_format=True)
+                temp = pd.read_csv(f"{self.data_dir}calibration/pm_mass_{self.date}{v}.csv",skiprows=6,parse_dates={"timestamp": ["Date","Start Time"]},infer_datetime_format=True)
                 self.t_offset = self.start_time - temp["timestamp"].iloc[0]
             except FileNotFoundError:
                 print("No file found - try providing a `timestamp` argument instead")
@@ -156,10 +156,14 @@ class Calibration():
         Returns a dataframe with columns PM1, PM2.5, and PM10 indexed by timestamp
         """
         # import data and correct timestamp
+        if "version" in kwargs.keys():
+            v = kwargs["version"]
+        else:
+            v = ""
         try:
-            raw_data = pd.read_csv(f"{self.data_dir}calibration/pm_{concentration_type}_{self.date}.csv",skiprows=6)
+            raw_data = pd.read_csv(f"{self.data_dir}calibration/pm_{concentration_type}_{self.date}{v}.csv",skiprows=6)
         except FileNotFoundError:
-            print(f"File not found - {self.data_dir}calibration/pm_{concentration_type}_{self.date}.csv")
+            print(f"File not found - {self.data_dir}calibration/pm_{concentration_type}_{self.date}{v}.csv")
             return
 
         df = raw_data.drop(['Sample #','Aerodynamic Diameter'],axis=1)
@@ -203,10 +207,14 @@ class Calibration():
         
     def set_co2_ref(self,**kwargs):
         """sets the reference CO2 data"""
+        if "version" in kwargs.keys():
+            v = kwargs["version"]
+        else:
+            v = ""
         try:
-            raw_data = pd.read_csv(f"{self.data_dir}calibration/co2_{self.date}.csv",usecols=[0,1],names=["timestamp","concentration"])
+            raw_data = pd.read_csv(f"{self.data_dir}calibration/co2_{self.date}{v}.csv",usecols=[0,1],names=["timestamp","concentration"])
         except FileNotFoundError:
-            print(f"File not found - {self.data_dir}calibration/co2_{self.date}.csv")
+            print(f"File not found - {self.data_dir}calibration/co2_{self.date}{v}.csv")
             return 
 
         raw_data["timestamp"] = pd.to_datetime(raw_data["timestamp"],yearfirst=True)
@@ -221,10 +229,14 @@ class Calibration():
 
     def set_no2_ref(self,**kwargs):
         """sets the reference NO2 data"""
+        if "version" in kwargs.keys():
+            v = kwargs["version"]
+        else:
+            v = ""
         try:
-            raw_data = pd.read_csv(f"{self.data_dir}calibration/no2_{self.date}.csv",usecols=["IgorTime","Concentration"])
+            raw_data = pd.read_csv(f"{self.data_dir}calibration/no2_{self.date}{v}.csv",usecols=["IgorTime","Concentration"])
         except FileNotFoundError:
-            print(f"File not found - {self.data_dir}calibration/no2_{self.date}.csv")
+            print(f"File not found - {self.data_dir}calibration/no2_{self.date}{v}.csv")
             return 
 
         # Using igor time (time since Jan 1st, 1904) to get timestamp
