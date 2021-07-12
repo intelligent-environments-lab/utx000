@@ -69,7 +69,7 @@ def get_label(var):
     elif var.lower() == "nrem_percent":
         return "% nREM"
     elif var[0:8].lower() == "rem2nrem":
-        return "REM:nREM Ratio"
+        return "REM:nREM"
     elif var.endswith("count"):
         return "Number"
     elif var.endswith("minutes"):
