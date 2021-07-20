@@ -947,19 +947,77 @@ class Calibration():
             self.save_lms(species)
 
     # saving
-    def save_offsets(self,species):
+    def save_offsets(self,species,**kwargs):
         """saves offset results to file"""
+        if "version" in kwargs.keys():
+            v = "_" + kwargs["version"]
+        else:
+            v = ""
         try:
-            self.offsets[species].to_csv(f"{self.data_dir}interim/{species.lower()}-offset-{self.suffix}.csv")
+            self.offsets[species].to_csv(f"{self.data_dir}interim/{species.lower()}-offset{v}-{self.suffix}.csv")
         except KeyError:
             print("Offset has not been generated for species", species)
 
-    def save_lms(self, species):
+    def save_lms(self, species, **kwargs):
         """saves linear model results to file"""
+        if "version" in kwargs.keys():
+            v = "_" + kwargs["version"]
+        else:
+            v = ""
         try:
-            self.lms[species].to_csv(f"{self.data_dir}interim/{species.lower()}-linear_model-{self.suffix}.csv")
+            self.lms[species].to_csv(f"{self.data_dir}interim/{species.lower()}-linear_model{v}-{self.suffix}.csv")
         except KeyError:
             print("Linear model has not been generated for species", species)
+
+class Model_Comparison():
+
+    def __init__(self,model1_coeffs, model2_coeffs,label1="M1",label2="M2",model_type="linear",**kwargs):
+        self.model1_coeffs = model1_coeffs
+        self.label1 = label1
+        self.model2_coeffs = model2_coeffs
+        self.label2 = label2
+
+    def compare_coeffs(self,species="co2",save=False):
+        """Compares the coefficients from the two models"""
+        combined = self.model1_coeffs.merge(right=self.model2_coeffs,left_index=True,right_index=True,suffixes=("_1","_2"))
+        combined.reset_index(inplace=True)
+        for coeff in ["constant","coefficient"]:
+            # getting new metrics
+            combined[f"{coeff}_mean"] = combined[[f"{coeff}_1",f"{coeff}_2"]].mean(axis=1)
+            combined[f"{coeff}_diff"] = abs(combined[f"{coeff}_1"] - combined[f"{coeff}_2"])
+            combined[f"{coeff}_per_diff"] = round(abs(combined[f"{coeff}_diff"] / combined[f"{coeff}_mean"])*100,1)
+            combined.sort_values([f"{coeff}_mean"],inplace=True,ascending=True)
+            
+            y = np.arange(len(combined))  # the label locations
+            h = 0.4  # the width of the bars
+
+            fig, ax = plt.subplots(figsize=(5,8))
+            rects1 = ax.barh(y=y - h/2, width=combined[f"{coeff}_1"], height=h,
+                            edgecolor="black", color="firebrick", label=self.label1)
+            rects2 = ax.barh(y=y + h/2, width=combined[f"{coeff}_2"], height=h,
+                            edgecolor="black", color="cornflowerblue", label=self.label2)
+            
+            # x-axis
+            ax.set_xlabel(f"{coeff.title()} Value",fontsize=16)
+            ax.tick_params(axis="x",labelsize=14)
+
+            # y-axis
+            ax.set_ylabel('BEVO Beacon Number',fontsize=16)
+            ax.set_yticks(y)
+            ax.set_yticklabels(combined["beacon"],fontsize=14)
+            # remaining
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            ax.legend(loc="upper center", bbox_to_anchor=(0.5,-0.1),frameon=False,ncol=2,fontsize=14)
+            for beacon, (val1, val2, per) in enumerate(zip(combined[f"{coeff}_1"],combined[f"{coeff}_2"],combined[f"{coeff}_per_diff"])):
+                ax.text(max(max(combined[f"{coeff}_1"]),max(combined[f"{coeff}_2"])),beacon," " + str(per) + "%",ha="left",va="center",fontsize=12)
+                
+            
+            if save:
+                plt.savefig(f"../../reports/figures/beacon_summary/calibration_comparison-{coeff}-{species}.pdf",)
+
+            plt.show()
+            plt.close()
 
 def main():
     pass
