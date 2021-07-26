@@ -233,9 +233,9 @@ class wcwh():
                 # converting utc to cdt
                 participant_df['timestamp'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
                 participant_df.set_index('timestamp',inplace=True)
-                # rounding gps and taking the mode for every 5-minutes
+                # rounding gps and taking the mode for every 1-minutes
                 participant_df = round(participant_df,5)
-                participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
+                participant_df = participant_df.resample('1T').apply({lambda x: stats.mode(x)[0]})
                 # converting values to numeric and removing NaN datapoints
                 participant_df.columns = ['utc','lat','long','altitude','accuracy']
                 for col in ['lat','long','altitude','accuracy']:

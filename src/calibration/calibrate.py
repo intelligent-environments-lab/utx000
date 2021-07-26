@@ -10,6 +10,7 @@ from numpy.core.numeric import Inf
 import pandas as pd
 import numpy as np
 from sklearn import linear_model
+from sklearn.metrics import r2_score
 from sklearn.model_selection import KFold
 import scipy
 # Plotting
@@ -415,6 +416,11 @@ class Calibration():
                                     "PM_C_1":"pm1_mass","PM_C_2p5":"pm2p5_mass","PM_C_10":"pm10_mass"},inplace=True)
         data["co"] /= 1000
         self.beacon_data = data
+    
+    # beacon getters
+    def get_beacon(self,bb):
+        """gets beacon data"""
+        return self.beacon_data[self.beacon_data["beacon"] == bb]
 
     # visualizations
     def inspect_by_beacon_by_param(self, species="co2"):
@@ -777,7 +783,7 @@ class Calibration():
 
         Returns dataframe holding the average difference and standard deviation between the differences
         """
-        offsets = {"beacon":[],"mean_difference":[],"value_to_baseline":[],"correction":[]}
+        offsets = {"beacon":[],"mean_difference":[],"value_to_baseline":[],"constant":[]}
         ref_df = self.ref[species]
 
         for beacon in self.beacons:
@@ -786,8 +792,22 @@ class Calibration():
             beacon_df = self.beacon_data[self.beacon_data["beacon"] == beacon].set_index("timestamp")
             beacon_df.dropna(subset=[species],inplace=True)
             if len(beacon_df) > 1:
+                if len(ref_df) != len(beacon_df):
+                    # resizing arrays to include data from both modalities
+                    max_start_date = max(ref_df.index[0],beacon_df.index[0])
+                    min_end_date = min(ref_df.index[-1],beacon_df.index[-1])
+                    ref_df = ref_df[max_start_date:min_end_date]
+                    beacon_df = beacon_df[max_start_date:min_end_date]
+                    print(f"Beacon {beacon}: Reference and beacon data are not the same length")
                 # merging beacon and reference data to get difference
-                df = pd.merge(left=beacon_df,left_index=True,right=ref_df,right_index=True,how="inner")
+                for shift in range(4):
+                    temp_beacon = beacon_df.copy()
+                    temp_beacon.index += timedelta(minutes=shift)
+                    df = pd.merge(left=temp_beacon,left_index=True,right=ref_df,right_index=True,how="inner")
+                    if len(df) > 1:
+                        beacon_df.index += timedelta(minutes=shift)
+                        break
+
                 df["delta"] = df[species] - df["concentration"]
                 # adding data
                 mean_delta = np.nanmean(df["delta"])
@@ -795,14 +815,14 @@ class Calibration():
                 offsets["mean_difference"].append(mean_delta)
                 offsets["value_to_baseline"].append(val_to_base)
                 if np.nanmin(df[species]) - mean_delta < baseline:
-                    offsets["correction"].append(np.nanmin(df[species]) - baseline)
+                    offsets["constant"].append((np.nanmin(df[species]) - baseline)*1)
                 else:
-                    offsets["correction"].append(mean_delta)     
+                    offsets["correction"].append(mean_delta*-1)     
             else:
                 # adding zeros
                 offsets["mean_difference"].append(0)
                 offsets["value_to_baseline"].append(0)
-                offsets["correction"].append(0)
+                offsets["constant"].append(0)
 
         offset_df = pd.DataFrame(data=offsets)
         offset_df.set_index("beacon",inplace=True)
@@ -821,7 +841,7 @@ class Calibration():
                 if len(beacon_df) > 1:
                     axes.plot(ref_df.index,ref_df["concentration"],color="black")
 
-                    beacon_df[species] -= offset_df.loc[i,"correction"]
+                    beacon_df[species] -= offset_df.loc[i,"constant"]
                     axes.plot(beacon_df.index,beacon_df[species],color="seagreen")
                     axes.set_title(f"beacon {i}")  
                     for spine in ["top","right","bottom"]:
@@ -844,7 +864,7 @@ class Calibration():
                 beacon_df = self.beacon_data[self.beacon_data["beacon"] == bb]
                 beacon_df.dropna(subset=[species],inplace=True)
                 if len(beacon_df) > 1:
-                    beacon_df[species] -= offset_df.loc[bb,"correction"]
+                    beacon_df[species] -= offset_df.loc[bb,"constant"]
                     ax.plot(beacon_df.index,beacon_df[species],marker=self.get_marker(int(bb)),zorder=int(bb),label=bb)
             
             for spine in ["top","right"]:
@@ -954,7 +974,7 @@ class Calibration():
         else:
             v = ""
         try:
-            self.offsets[species].to_csv(f"{self.data_dir}interim/{species.lower()}-offset{v}-{self.suffix}.csv")
+            self.offsets[species].to_csv(f"{self.data_dir}interim/{species.lower()}-constant_model{v}-{self.suffix}.csv")
         except KeyError:
             print("Offset has not been generated for species", species)
 
@@ -968,6 +988,175 @@ class Calibration():
             self.lms[species].to_csv(f"{self.data_dir}interim/{species.lower()}-linear_model{v}-{self.suffix}.csv")
         except KeyError:
             print("Linear model has not been generated for species", species)
+
+class IntramodelComparison():
+    
+    def __init__(self,ieq_param="co2",env="chamber",model_type="linear",study_suffix="wcwh_s21"):
+        
+        self.ieq_param = ieq_param
+        self.env = env
+        self.model_type = model_type
+        self.study_suffix = study_suffix
+        
+        self.models = {}
+        for i in range(3):
+            try:
+                temp = pd.read_csv(f"../data/interim/{self.ieq_param}-{self.model_type}_model_{self.env}{i+1}-wcwh_s21.csv")
+                try:
+                    self.models[i+1] = temp[temp["score"] > 0]
+                except KeyError:
+                    pass # for linear model only
+                    self.models[i+1] = temp
+            except FileNotFoundError as e:
+                print(e)
+                
+    def intra_coeff_comparison(self,save=False):
+        """Compares the coefficients from the two models"""
+        if self.model_type == "linear":
+            params_to_consider = ["constant","coefficient"]
+        else:
+            params_to_consider = ["constant"]
+        for coeff in params_to_consider:
+            print(coeff)
+            h = 0.4  # the height of the bars
+
+            fig, ax = plt.subplots(figsize=(5,8))
+            for i, (model_name, color) in enumerate(zip(self.models.keys(),["firebrick","cornflowerblue","seagreen"])):
+                y = np.arange(len(self.models[model_name]))  # the label locations
+                rects = ax.barh(y=y - i * h/(len(self.models)-1), width=self.models[model_name][f"{coeff}"], height=h,
+                             edgecolor="black", color=color, label=model_name)
+
+            # x-axis
+            ax.set_xlabel(f"{coeff.title()} Value",fontsize=16)
+            ax.tick_params(axis="x",labelsize=14)
+
+            # y-axis
+            ax.set_ylabel('BEVO Beacon Number',fontsize=16)
+            ax.set_yticks(y)
+            ax.set_yticklabels(self.models[model_name]["beacon"],fontsize=14)
+            # remaining
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            ax.legend(title="Experiment Number",title_fontsize=14,loc="upper center", bbox_to_anchor=(0.5,-0.1),frameon=False,ncol=3,fontsize=14)
+
+            if save:
+                plt.savefig(f"../reports/figures/beacon_summary/calibration_comparison-{coeff}_{self.env}-{self.ieq_param}-{self.study_suffix}.pdf",)
+
+            plt.show()
+            plt.close()
+            
+    def get_coeff_table(self,save=False):
+        """gets a single dataframe with the model parameters from each experiment"""
+        if self.model_type == "linear":
+            tab = self.models[1][["beacon","constant","coefficient"]].merge(right=self.models[2][["beacon","constant","coefficient"]],on="beacon",suffixes=("","2")).merge(right=self.models[3][["beacon","constant","coefficient"]],on="beacon",suffixes=("1","3"))
+            tab.set_index("beacon",inplace=True)
+            tab = tab[["constant1","constant2","constant3","coefficient1","coefficient2","coefficient3"]]
+        else:
+            tab = pd.DataFrame(data={"beacon":self.models[1]["beacon"],
+                         "constant1":self.models[1]["constant"],
+                         "constant2":self.models[2]["constant"],
+                         "constant3":self.models[3]["constant"]})
+            tab.set_index("beacon",inplace=True)
+
+        if save:
+            tab.to_csv(f"../data/interim/{self.env}-calibration_model_params-{self.ieq_param}-{self.study_suffix}.csv")
+
+        return tab
+
+    def set_averaged_model_params(self,save=False):
+        """"""
+        x0 = (self.models[1]["constant"] + self.models[2]["constant"] + self.models[3]["constant"])/3
+        if self.model_type == "linear":
+            x1 = (self.models[1]["coefficient"] + self.models[2]["coefficient"] + self.models[3]["coefficient"])/3
+        else:
+            x1 = np.ones(len(self.models[1]))
+        df = pd.DataFrame(data={"beacon":self.models[1]["beacon"],"constant":x0,"coefficient":x1})
+        df.set_index("beacon",inplace=True)
+
+        if save:
+            df.to_csv(f"../data/interim/{self.ieq_param}-linear_model_{self.env}-{self.study_suffix}.csv")
+
+        self.model_params = df
+
+    def get_beacon_x0(self,bb):
+        """gets x0 for specified beacon"""
+        try:
+            return round(self.model_params.loc[bb,"constant"],2)
+        except AttributeError as e:
+            print(f"{e} - use set_averaged_model_params to set the model parameters")
+            return 0
+
+    def get_beacon_x1(self,bb):
+        """gets x1 for specified beacon"""
+        try:
+            return round(self.model_params.loc[bb,"coefficient"],2)
+        except AttributeError as e:
+            print(f"{e} - use set_averaged_model_params to set the model parameters")
+            return 1
+
+    def set_correction(self,test):
+        """Uses model parameters to correct the raw beacon data from a calibration experiment"""
+        self.corrected = pd.DataFrame()
+        for beacon in test["beacon"].unique():
+            test_bb = test[test["beacon"] == beacon]
+            test_bb[self.ieq_param] = test[self.ieq_param] * self.get_beacon_x1(beacon) + self.get_beacon_x0(beacon)
+            self.corrected = self.corrected.append(test_bb[["timestamp",self.ieq_param,"beacon"]].set_index("timestamp"))
+
+    def show_comprehensive_timeseries(self,ref,r=4,c=5,save=False,show_std=False,**kwargs):
+        """shows a subplot of all the correlation beacons"""
+        ref = ref.resample("1T").interpolate()
+        fig, axes = plt.subplots(r,c,figsize=(c*4,r*4),sharex=True,sharey=True,gridspec_kw={"wspace":0.1})
+        std = np.std(self.corrected[self.ieq_param])
+        for bb, ax in zip(self.corrected["beacon"].unique(),axes.flat):
+            beacon = self.corrected[self.corrected["beacon"] == bb]
+            beacon = beacon.resample("1T").interpolate()
+            merged = beacon.merge(right=ref,left_index=True,right_index=True)
+
+            t = (merged.index - merged.index[0]).total_seconds()/60
+            ax.plot(t,merged[self.ieq_param],color="firebrick",lw=2,zorder=20,label="Corrected")
+            ax.plot(t,merged["concentration"],color="black",lw=2,zorder=10, label="Reference")
+            if show_std:
+                ax.fill_between(t,merged[self.ieq_param]-0.95*std,merged[self.ieq_param]+0.95*std,color="grey",alpha=0.3,zorder=3)
+            if "min_val" in kwargs.keys():
+                min_val = kwargs["min_val"]
+            else:
+                min_val = 0
+
+            if "max_val" in kwargs.keys():
+                max_val = kwargs["max_val"]
+            else:
+                max_val = np.nanmax(ref["concentration"])*1.1
+                
+            ax.set_ylim([min_val,max_val])
+            
+            # annotating
+            if self.model_type == "linear":
+                r2 = r2_score(merged["concentration"],merged[self.ieq_param])
+                ax.set_title(f"  Device {int(bb)}\n  r$^2$ = {round(r2,3)}\n  y = {self.get_beacon_x1(bb)}x + {self.get_beacon_x0(bb)}",
+                        y=0.85,pad=0,fontsize=13,loc="left",ha="left")
+            else:
+                ax.set_title(f"  Device {int(bb)}\n  y = x + {self.get_beacon_x0(bb)}",
+                        y=0.85,pad=0,fontsize=13,loc="left",ha="left")
+                
+            ax.set_xticks(np.arange(0,125,30))
+            ax.axis('off')
+
+        axes[r-1,0].axis('on')
+        for loc in ["top","right"]:
+            axes[r-1,0].spines[loc].set_visible(False)
+        plt.setp(axes[r-1,0].get_xticklabels(), ha="center", rotation=0, fontsize=16)
+        plt.setp(axes[r-1,0].get_yticklabels(), ha="right", rotation=0, fontsize=16)
+        axes[r-1,0].legend(loc="upper center",bbox_to_anchor=(0.5,-0.1),ncol=2,frameon=False,fontsize=14)
+        fig.add_subplot(111, frame_on=False)
+        plt.tick_params(labelcolor="none", bottom=False, left=False)
+        plt.xlabel("Experiment Time (min)",fontsize=18)
+        plt.ylabel(f"{visualize.get_pollutant_label(self.ieq_param)} ({visualize.get_pollutant_units(self.ieq_param)})",fontsize=18)
+        
+        if save:
+            plt.savefig(f"../reports/figures/beacon_summary/calibration-{self.ieq_param}-timeseries_comparison-{self.study_suffix}.pdf",bbox_inches="tight")
+            
+        plt.show()
+        plt.close()
 
 class Model_Comparison():
 

@@ -561,7 +561,7 @@ class utx000():
             # offsetting measurements with constant (CO and pm2p5) or linear model (others)
             for var in self.linear_model.keys():
                 if var in ["co"]:#,"pm2p5_mass"]:
-                    beacon_df[var] -= self.constant_model[var].loc[beacon,"correction"]
+                    beacon_df[var] += self.constant_model[var].loc[beacon,"constant"]
                 else:
                     beacon_df[var] = beacon_df[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]
 
@@ -650,9 +650,9 @@ class utx000():
                 # converting utc to cdt
                 participant_df['timestamp'] = pd.to_datetime(participant_df['UTC time']) - timedelta(hours=5)
                 participant_df.set_index('timestamp',inplace=True)
-                # rounding gps and taking the mode for every 5-minutes
+                # rounding gps and taking the mode for every minute
                 participant_df = round(participant_df,5)
-                participant_df = participant_df.resample('5T').apply({lambda x: stats.mode(x)[0]})
+                participant_df = participant_df.resample('1T').apply({lambda x: stats.mode(x)[0]})
                 # converting values to numeric and removing NaN datapoints
                 participant_df.columns = ['utc','lat','long','altitude','accuracy']
                 for col in ['lat','long','altitude','accuracy']:

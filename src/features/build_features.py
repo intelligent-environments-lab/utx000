@@ -364,7 +364,7 @@ class fitbit_sleep():
         activity_and_sleep = fb_all_sleep.merge(right=activity,left_on=["date","beiwe"],right_on=["timestamp","beiwe"])
         activity_and_sleep.to_csv(f"{self.data_dir}data/processed/fitbit_fitbit-daily_activity_and_sleep-{self.study_suffix}.csv",index=False)
 
-    def get_beacon_summaries(self):
+    def get_beacon_home_and_asleep(self):
         """
         Gets various statistics for the beacon data when the participant is considered home and asleep
         """
@@ -406,6 +406,29 @@ class fitbit_sleep():
                 summarized_df = summarized_df.merge(beacon_by_s,on=["start_time","end_time","beacon","beiwe","fitbit","redcap"])
 
             summarized_df.to_csv(f"{self.data_dir}data/processed/beacon_by_night-summary-{self.study_suffix}.csv")
+
+    def get_beacon_gps_intersection(self, byid="beiwe", join_col="timestamp"):
+        """Creates and save intersection between gps and iaq data"""
+        # data import
+        gps = pd.read_csv("../data/processed/beiwe-gps-ux_s20.csv",parse_dates=["timestamp"],infer_datetime_format=True)
+        iaq = pd.read_csv("../data/processed/beacon-ux_s20.csv",parse_dates=["timestamp"],infer_datetime_format=True)
+
+        # resampling gps
+        gps_resampled = pd.DataFrame()
+        for pt in gps["beiwe"].unique():
+            gps_by_pt = gps[gps["beiwe"] == pt]
+            gps_by_pt.set_index("timestamp",inplace=True)
+            gps_by_pt = gps_by_pt.resample('2T').mean()
+            gps_by_pt.reset_index(inplace=True)
+            gps_by_pt.dropna(inplace=True)
+            gps_by_pt["beiwe"] = pt
+            gps_resampled = gps_resampled.append(gps_by_pt)
+
+        # merging dataframes
+        merged = gps_resampled.merge(right=iaq,on=[byid,join_col],how="inner")
+
+        # saving
+        merged.to_csv(f"{self.data_dir}data/processed/beacon_beiwe-ieq_gps_intersection-{self.study_suffix}.csv")
 
     def get_complete_summary(self):
         """
@@ -588,7 +611,7 @@ def main():
     fs = fitbit_sleep(data_dir='../../')
     fs.get_beiwe_summaries()
     fs.get_fitbit_summaries()
-    #fs.get_beacon_summaries()
+    #fs.get_beacon_home_and_asleep()
     fs.get_complete_summary()
     fs.get_redcap_ee_survey_summary()
 
