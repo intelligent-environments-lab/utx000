@@ -1251,7 +1251,7 @@ def main():
     elif ans == 3:
         processor = ut3000()
     elif ans == 4:
-        processor = bpeace()
+        processor = utx000()
     elif ans == 5:
         processor = utx000()
     elif ans == 6:
