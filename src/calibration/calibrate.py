@@ -1188,7 +1188,7 @@ class IntramodelComparison():
         plt.ylabel(f"{visualize.get_pollutant_label(self.ieq_param)} ({visualize.get_pollutant_units(self.ieq_param)})",fontsize=18)
         
         if save:
-            plt.savefig(f"../reports/figures/beacon_summary/calibration-{self.ieq_param}-timeseries_comparison-{self.study_suffix}.pdf",bbox_inches="tight")
+            plt.savefig(f"../reports/figures/beacon_summary/calibration-{self.ieq_param}-{self.env}-timeseries_comparison-{self.study_suffix}.pdf",bbox_inches="tight")
             
         plt.show()
         plt.close()
