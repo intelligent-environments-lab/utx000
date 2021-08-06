@@ -1143,6 +1143,8 @@ class IntramodelComparison():
             beacon = self.corrected[self.corrected["beacon"] == bb]
             beacon = beacon.resample("1T").interpolate()
             merged = beacon.merge(right=ref,left_index=True,right_index=True)
+            if "resample_rate" in kwargs.keys():
+                merged = merged.resample(f"{kwargs['resample_rate']}T").mean()
 
             t = (merged.index - merged.index[0]).total_seconds()/60
             ax.plot(t,merged[self.ieq_param],color="firebrick",lw=2,zorder=20,label="Corrected")
@@ -1158,6 +1160,8 @@ class IntramodelComparison():
                 max_val = kwargs["max_val"]
             else:
                 max_val = np.nanmax(ref["concentration"])*1.1
+            if "zero_line" in kwargs.keys():
+                ax.axhline(0,color="gray",lw=2,ls="dashed",alpha=0.5)
                 
             ax.set_ylim([min_val,max_val])
 
@@ -1198,7 +1202,8 @@ class IntramodelComparison():
         
         Keyword Arguments:
             - data_path: String specifying the path to (but not including) the "data" dir in the utx000 project
-            - 
+            - study_suffix: String specifying the study suffix to use, defaults to object study
+            - env: String to specify the environment, otherwise is left off
         """
         tab = self.get_coeff_table(save=False)
         df_to_save = pd.DataFrame()
