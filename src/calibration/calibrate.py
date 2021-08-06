@@ -1040,7 +1040,7 @@ class IntramodelComparison():
             except FileNotFoundError as e:
                 print(e)
                 
-    def intra_coeff_comparison(self,save=False):
+    def intra_coeff_comparison(self,save=False,):
         """Compares the coefficients from the two models"""
         params = self.get_coeff_table() # combined parameter table
         if self.model_type == "linear":
@@ -1078,7 +1078,7 @@ class IntramodelComparison():
             plt.show()
             plt.close()
             
-    def get_coeff_table(self,save=False):
+    def get_coeff_table(self,save=False,latex=False):
         """gets a single dataframe with the model parameters from each experiment"""
         if self.model_type == "linear":
             tab = self.models[1][["beacon","constant","coefficient"]].merge(right=self.models[2][["beacon","constant","coefficient"]],on="beacon",suffixes=("","2")).merge(right=self.models[3][["beacon","constant","coefficient"]],on="beacon",suffixes=("1","3"))
@@ -1093,6 +1093,13 @@ class IntramodelComparison():
 
         if save:
             tab.to_csv(f"../data/interim/{self.env}-calibration_model_params-{self.ieq_param}-{self.study_suffix}.csv")
+
+        if latex:
+            tab = tab[tab.sum(axis=1) != 3]
+            tab.replace([0,1],"--",inplace=True)
+            tab = tab.round(decimals=1)
+            tab.reset_index(inplace=True)
+            print(tab.to_latex(index=False))
 
         return tab
 
