@@ -1096,20 +1096,17 @@ class IntramodelComparison():
 
         return tab
 
-    def set_averaged_model_params(self,save=False):
+    def set_averaged_model_params(self):
         """"""
-        x0 = (self.models[1]["constant"] + self.models[2]["constant"] + self.models[3]["constant"])/3
-        if self.model_type == "linear":
-            x1 = (self.models[1]["coefficient"] + self.models[2]["coefficient"] + self.models[3]["coefficient"])/3
-        else:
-            x1 = np.ones(len(self.models[1]))
-        df = pd.DataFrame(data={"beacon":self.models[1]["beacon"],"constant":x0,"coefficient":x1})
-        df.set_index("beacon",inplace=True)
-
-        if save:
-            df.to_csv(f"../data/interim/{self.ieq_param}-linear_model_{self.env}-{self.study_suffix}.csv")
-
-        self.model_params = df
+        tab = self.get_coeff_table(save=False)
+        tab = tab.replace([0,1], np.nan)
+        
+        df_to_save = pd.DataFrame()
+        for x, val_to_replace in zip(["constant","coefficient"],[0,1]):
+            df_to_save[x] = tab[[col for col in tab.columns if col.startswith(x)]].mean(axis=1)
+            df_to_save[x].replace(np.nan,val_to_replace,inplace=True)
+        
+        self.model_params = df_to_save
 
     def get_beacon_x0(self,bb):
         """gets x0 for specified beacon"""
@@ -1206,8 +1203,7 @@ class IntramodelComparison():
             - study_suffix: String specifying the study suffix to use, defaults to object study
             - env: String to specify the environment, otherwise is left off
         """
-        tab = self.get_coeff_table(save=False)
-        df_to_save = pd.DataFrame()
+
         # setting parameters for the save filename
         if "data_path" in kwargs.keys():
             save_dir = kwargs["data_path"]
@@ -1221,10 +1217,9 @@ class IntramodelComparison():
             env = "_" + kwargs["env"]
         else:
             env = ""
-        for x in ["constant","coefficient"]:
-            df_to_save[x] = tab[[col for col in tab.columns if col.startswith(x)]].sum(axis=1)/3
+    
+        self.model_params.to_csv(f"{save_dir}/data/interim/{self.ieq_param}-{self.model_type}_model{env}-{study_suffix}.csv")
 
-        df_to_save.to_csv(f"{save_dir}/data/interim/{self.ieq_param}-{self.model_type}_model{env}-{study_suffix}.csv")
 class Model_Comparison():
 
     def __init__(self,model1_coeffs, model2_coeffs,label1="M1",label2="M2",model_type="linear",**kwargs):
