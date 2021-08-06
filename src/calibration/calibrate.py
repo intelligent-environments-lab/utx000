@@ -1196,9 +1196,15 @@ class IntramodelComparison():
         plt.xlabel("Experiment Time (min)",fontsize=18)
         plt.ylabel(f"{visualize.get_pollutant_label(self.ieq_param)} ({visualize.get_pollutant_units(self.ieq_param)})",fontsize=18)
         
+        # removing any empty axes
+        if len(self.corrected["beacon"].unique()) < r*c:
+            for i in range(r*c-len(self.corrected["beacon"].unique())):
+                axes.flat[-1*(i+1)].axis("off")
+
         if save:
             plt.savefig(f"../reports/figures/beacon_summary/calibration-{self.ieq_param}-{self.env}-timeseries_comparison-{self.study_suffix}.pdf",bbox_inches="tight")
-            
+
+         
         plt.show()
         plt.close()
 
