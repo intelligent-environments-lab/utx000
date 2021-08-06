@@ -114,7 +114,7 @@ class Calibration():
         self.beacons = beacon_list
 
     # reference setters
-    def set_ref(self,ref_species=["pm_number","pm_mass","no2","no","co2","tvoc","co"],**kwargs):
+    def set_ref(self,ref_species=["pm_number","pm_mass","no2","no","co2","tvoc","co","t","rh"],**kwargs):
         """
         Sets the reference data
 
@@ -132,6 +132,8 @@ class Calibration():
                 self.set_no_ref(**kwargs)
             elif species == "tvoc" and len(self.beacon_data) > 1:
                 self.set_tvoc_ref()
+            elif species == "t" or species == "rh":
+                self.set_trh_ref(**kwargs)
             else:
                 self.set_zero_baseline(species=species)
 
@@ -227,6 +229,38 @@ class Calibration():
             window = 5 # defaults to window size of 5
         df = raw_data.resample(f"{self.resample_rate}T",closed="left").mean().rolling(window=window,min_periods=1).mean().bfill()
         self.ref["co2"] = df[self.start_time:self.end_time]
+
+    def set_trh_ref(self,**kwargs):
+        "sets the reference temperature and relative humidity"
+        if "version" in kwargs.keys():
+            v = kwargs["version"]
+        else:
+            v = ""
+        try:
+            raw_data = pd.read_csv(f"../data/calibration/trh_{self.date}{v}.csv",skiprows=11,
+                  usecols=["Date","Time","Temp","%RH"],parse_dates=[["Date","Time"]],infer_datetime_format=True)
+        except FileNotFoundError:
+            print(f"File not found - {self.data_dir}calibration/trh_{self.date}{v}.csv")
+            return 
+
+        raw_data.columns = ["timestamp","t_c","rh"]
+        raw_data.dropna(inplace=True)
+        raw_data["timestamp"] = pd.to_datetime(raw_data["timestamp"],yearfirst=False,dayfirst=True)
+        raw_data.set_index("timestamp",inplace=True)
+        if "window" in kwargs.keys():
+            window = kwargs["window"]
+        else:
+            window = 3 # defaults to window size of 3
+        df = raw_data.resample(f"{self.resample_rate}T",closed="left").mean().rolling(window=window,min_periods=1).mean().bfill()
+        df = df[self.start_time:self.end_time]
+        df_t = pd.DataFrame(df["t_c"])
+        df_rh = pd.DataFrame(df["rh"])
+        # renamining to match other reference data
+        df_t.columns = ["concentration"]
+        df_rh.columns = ["concentration"]
+        # saving to ref dict
+        self.ref["temperature_c"] = df_t
+        self.ref["rh"] = df_rh
 
     def set_no2_ref(self,**kwargs):
         """sets the reference NO2 data"""
@@ -786,7 +820,7 @@ class Calibration():
         offsets = {"beacon":[],"mean_difference":[],"value_to_baseline":[],"constant":[]}
         ref_df = self.ref[species]
 
-        for beacon in self.beacons:
+        for beacon in np.arange(1,51):
             offsets["beacon"].append(beacon)
             # getting relevant data
             beacon_df = self.beacon_data[self.beacon_data["beacon"] == beacon].set_index("timestamp")
@@ -1002,11 +1036,7 @@ class IntramodelComparison():
         for i in range(3):
             try:
                 temp = pd.read_csv(f"../data/interim/{self.ieq_param}-{self.model_type}_model_{self.env}{i+1}-wcwh_s21.csv")
-                try:
-                    self.models[i+1] = temp[temp["score"] > 0]
-                except KeyError:
-                    pass # for linear model only
-                    self.models[i+1] = temp
+                self.models[i+1] = temp
             except FileNotFoundError as e:
                 print(e)
                 
@@ -1020,10 +1050,12 @@ class IntramodelComparison():
             print(coeff)
             h = 0.4  # the height of the bars
 
-            fig, ax = plt.subplots(figsize=(5,8))
+            _, ax = plt.subplots(figsize=(5,8))
             for i, (model_name, color) in enumerate(zip(self.models.keys(),["firebrick","cornflowerblue","seagreen"])):
-                y = np.arange(len(self.models[model_name]))  # the label locations
-                rects = ax.barh(y=y - i * h/(len(self.models)-1), width=self.models[model_name][f"{coeff}"], height=h,
+                data = self.models[model_name]
+                data = data[data["constant"] != 0]
+                y = np.arange(len(data))  # the label locations
+                rects = ax.barh(y=y - i * h/(len(self.models)-1), width=data[f"{coeff}"], height=h,
                              edgecolor="black", color=color, label=model_name)
 
             # x-axis
@@ -1033,7 +1065,7 @@ class IntramodelComparison():
             # y-axis
             ax.set_ylabel('BEVO Beacon Number',fontsize=16)
             ax.set_yticks(y)
-            ax.set_yticklabels(self.models[model_name]["beacon"],fontsize=14)
+            ax.set_yticklabels(data["beacon"],fontsize=14)
             # remaining
             for loc in ["top","right"]:
                 ax.spines[loc].set_visible(False)
@@ -1128,10 +1160,13 @@ class IntramodelComparison():
                 max_val = np.nanmax(ref["concentration"])*1.1
                 
             ax.set_ylim([min_val,max_val])
-            
+
             # annotating
             if self.model_type == "linear":
-                r2 = r2_score(merged["concentration"],merged[self.ieq_param])
+                try:
+                    r2 = r2_score(merged["concentration"],merged[self.ieq_param])
+                except ValueError:
+                    return merged
                 ax.set_title(f"  Device {int(bb)}\n  r$^2$ = {round(r2,3)}\n  y = {self.get_beacon_x1(bb)}x + {self.get_beacon_x0(bb)}",
                         y=0.85,pad=0,fontsize=13,loc="left",ha="left")
             else:
@@ -1158,6 +1193,32 @@ class IntramodelComparison():
         plt.show()
         plt.close()
 
+    def save_params(self,**kwargs):
+        """Saves the averaged model params
+        
+        Keyword Arguments:
+            - data_path: String specifying the path to (but not including) the "data" dir in the utx000 project
+            - 
+        """
+        tab = self.get_coeff_table(save=False)
+        df_to_save = pd.DataFrame()
+        # setting parameters for the save filename
+        if "data_path" in kwargs.keys():
+            save_dir = kwargs["data_path"]
+        else:
+            save_dir = "../"
+        if "study_suffix" in kwargs.keys():
+            study_suffix = kwargs["study_suffix"]
+        else:
+            study_suffix = self.study_suffix
+        if "env" in kwargs.keys():
+            env = "_" + kwargs["env"]
+        else:
+            env = ""
+        for x in ["constant","coefficient"]:
+            df_to_save[x] = tab[[col for col in tab.columns if col.startswith(x)]].sum(axis=1)/3
+
+        df_to_save.to_csv(f"{save_dir}/data/interim/{self.ieq_param}-{self.model_type}_model{env}-{study_suffix}.csv")
 class Model_Comparison():
 
     def __init__(self,model1_coeffs, model2_coeffs,label1="M1",label2="M2",model_type="linear",**kwargs):
