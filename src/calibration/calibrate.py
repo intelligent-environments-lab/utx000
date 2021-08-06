@@ -936,7 +936,7 @@ class Calibration():
         data_filtered.drop("lap",axis="columns",inplace=True)
         return data_filtered
     
-    def linear_regression(self,species,weight=False,save_to_file=False,verbose=False,**kwargs):
+    def linear_regression(self,species,weight=False,save_to_file=False,verbose=False,**kwargs): 
         """generates a linear regression model"""
         coeffs = {"beacon":[],"constant":[],"coefficient":[],"score":[],"ts_shift":[]}
         ref_df = self.ref[species]
@@ -963,7 +963,7 @@ class Calibration():
 
                 # running linear models with shifted timestamps
                 best_params = [-math.inf,-math.inf,-math.inf, -math.inf] # b, m, r2, ts_shift
-                for ts_shift in range(-5,6):
+                for ts_shift in range(-3,4):
                     comb = ref_df.merge(right=beacon_by_bb.shift(ts_shift),left_index=True,right_index=True,how="inner")
                     comb.dropna(inplace=True)
                     if "event" in kwargs.keys():
@@ -1042,20 +1042,21 @@ class IntramodelComparison():
                 
     def intra_coeff_comparison(self,save=False):
         """Compares the coefficients from the two models"""
+        params = self.get_coeff_table() # combined parameter table
         if self.model_type == "linear":
             params_to_consider = ["constant","coefficient"]
+            params = params[abs(params.sum(axis=1)) != 3] # removing values where the coefficients sum to 3 (default)
         else:
             params_to_consider = ["constant"]
+            params = params[abs(params.sum(axis=1)) != 0] # removing values where the constants sum to 0 (default)
         for coeff in params_to_consider:
-            print(coeff)
             h = 0.4  # the height of the bars
-
+            
+            
             _, ax = plt.subplots(figsize=(5,8))
             for i, (model_name, color) in enumerate(zip(self.models.keys(),["firebrick","cornflowerblue","seagreen"])):
-                data = self.models[model_name]
-                data = data[data["constant"] != 0]
-                y = np.arange(len(data))  # the label locations
-                rects = ax.barh(y=y - i * h/(len(self.models)-1), width=data[f"{coeff}"], height=h,
+                y = np.arange(len(params))  # the label locations
+                ax.barh(y=y - i * h/(len(self.models)-1), width=params[f"{coeff}{i+1}"], height=h,
                              edgecolor="black", color=color, label=model_name)
 
             # x-axis
@@ -1065,7 +1066,7 @@ class IntramodelComparison():
             # y-axis
             ax.set_ylabel('BEVO Beacon Number',fontsize=16)
             ax.set_yticks(y)
-            ax.set_yticklabels(data["beacon"],fontsize=14)
+            ax.set_yticklabels(params.index,fontsize=14)
             # remaining
             for loc in ["top","right"]:
                 ax.spines[loc].set_visible(False)
