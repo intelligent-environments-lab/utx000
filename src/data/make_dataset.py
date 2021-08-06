@@ -413,18 +413,18 @@ class utx000():
                     try:
                         self.linear_model[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
                     except FileNotFoundError:
-                        print(f"Missing offset for {file_info[0]}")
+                        print(f"Missing linear model for {file_info[0]}")
                         self.linear_model[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
 
         self.constant_model = {}
         for file in os.listdir(f"{self.data_dir}/interim/"):
             file_info = file.split("-")
             if len(file_info) == 3:
-                if file_info[1] == "offset" and file_info[-1] == self.suffix+".csv":
+                if file_info[1] == "constant_model" and file_info[-1] == self.suffix+".csv":
                     try:
                         self.constant_model[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
                     except FileNotFoundError:
-                        print(f"Missing offset for {file_info[0]}")
+                        print(f"Missing constant model for {file_info[0]}")
                         self.constant_model[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"correction":np.zeros(51)}).set_index("beacon")
 
         # EMA Attributes
@@ -480,7 +480,6 @@ class utx000():
             # getting other ids
             beacon_crossover_info = self.id_crossover.loc[self.id_crossover['beacon']==beacon].reset_index(drop=True)
             beiwe = beacon_crossover_info['beiwe'][0]
-            fitbit = beacon_crossover_info['fitbit'][0]
             redcap = beacon_crossover_info['redcap'][0]
             del beacon_crossover_info
 
