@@ -494,6 +494,8 @@ class Calibration():
             ax.set_xlim(left=self.start_time,right=self.end_time)
             ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+            ax.xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+            ax.xaxis.set_minor_formatter(mdates.DateFormatter("%H"))
 
             ax.set_ylabel(visualize.get_pollutant_label(species) + " (" + visualize.get_pollutant_units(species) +")",fontsize=14)
             if "ylimits" in kwargs.keys():
