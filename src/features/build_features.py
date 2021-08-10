@@ -611,7 +611,7 @@ def main():
     fs = fitbit_sleep(data_dir='../../')
     fs.get_beiwe_summaries()
     fs.get_fitbit_summaries()
-    #fs.get_beacon_home_and_asleep()
+    fs.get_beacon_home_and_asleep()
     fs.get_complete_summary()
     fs.get_redcap_ee_survey_summary()
 

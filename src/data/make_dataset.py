@@ -480,6 +480,7 @@ class utx000():
             # getting other ids
             beacon_crossover_info = self.id_crossover.loc[self.id_crossover['beacon']==beacon].reset_index(drop=True)
             beiwe = beacon_crossover_info['beiwe'][0]
+            fitbit = beacon_crossover_info['fitbit'][0]
             redcap = beacon_crossover_info['redcap'][0]
             del beacon_crossover_info
 
@@ -603,6 +604,7 @@ class utx000():
             # adding columns for the pt details
             beacon_df['beacon'] = beacon
             beacon_df['beiwe'] = beiwe
+            beacon_df["fitbit"] = fitbit
             beacon_df['redcap'] = redcap
             
             # adding to overall df

@@ -851,9 +851,9 @@ class Calibration():
                 offsets["mean_difference"].append(mean_delta)
                 offsets["value_to_baseline"].append(val_to_base)
                 if np.nanmin(df[species]) - mean_delta < baseline:
-                    offsets["constant"].append((np.nanmin(df[species]) - baseline)*1)
+                    offsets["constant"].append((np.nanmin(df[species]) - baseline)*-1)
                 else:
-                    offsets["correction"].append(mean_delta*-1)     
+                    offsets["constant"].append(mean_delta*1)     
             else:
                 # adding zeros
                 offsets["mean_difference"].append(0)
