@@ -30,7 +30,7 @@ There were two experiments conducted with 6 Beacons in total in the 5L canister 
 
 #### Experiment 1
 
-![Screen Shot 2021-08-09 at 4.13.02 PM](/Users/hagenfritz/Library/Application Support/typora-user-images/Screen Shot 2021-08-09 at 4.13.02 PM.png)
+##### ![Screen Shot 2021-08-09 at 4.13.02 PM](/Users/hagenfritz/Library/Application Support/typora-user-images/Screen Shot 2021-08-09 at 4.13.02 PM.png)
 
 #### Experiment 2
 
