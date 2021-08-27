@@ -38,7 +38,7 @@ class ImportProcessing():
         for df in self.dfs:
             self.replace_str(df)
             self.convert_to_numeric(df,[c for c in df.columns if c.endswith("_e") or c.endswith("_m")])
-            self.drop_columns(df,["beacon"])
+            self.drop_columns(df,["beacon","timestamp_e","timestamp_m"])
 
     def replace_str(self, df):
         """
@@ -227,7 +227,7 @@ class Inspection():
 class Model():
 
     def __init__(self):
-        self.models = {
+        self.model_params = {
             "random_forest": {
                 "model":RandomForestClassifier(random_state=42),
                 "params": {
@@ -235,21 +235,6 @@ class Model():
                     "max_depth":[1,2,3,4,5],
                     "min_samples_split":[2,4],
                     "min_samples_leaf":[1,2],
-                }
-            },
-            "naive_bayes": {
-                "model":GaussianNB(),
-                "params": {
-                    
-                }
-            },
-            "k-nearest_neighbor": {
-                "model":KNeighborsClassifier(),
-                "params": {
-                    "n_neighbors":[3,5,7],
-                    "weights":["uniform","distance"],
-                    "metric":["euclidean","manhattan","minkowski","jaccard","matching"],
-                    "p":[1,2],
                 }
             },
             "svc": {
@@ -276,7 +261,7 @@ class Model():
             },
         }
 
-    def get_x_and_y(self, df_in, mood="content", include_evening=False):
+    def get_x_and_y(self, df_in, mood="content", include_evening=False, additional_features=[]):
         """
         Gets the feature and target datasets corresponding to the target
         
@@ -301,22 +286,24 @@ class Model():
         df = df_in.copy()
         # removing NaN
         df.dropna(subset=[f"{mood}_e"],axis="rows",inplace=True)
-        df.dropna(subset=[col for col in df.columns if col.endswith("_m") and col[:4] != "time"],axis="rows",inplace=True)
+        features = [col for col in df.columns if col.endswith("_m")] + additional_features
+        df.dropna(subset=features,axis="rows",inplace=True)
         # getting features and targets
         if include_evening:
             df.dropna(subset=[col for col in df.columns if col.endswith("_e")],axis="rows",inplace=True)
-            X = df[[col for col in df.columns if (col.endswith("_m") or col.endswith("_e")) and col[:4] != "time"]]
+            features += [col for col in df.columns if col.endswith("_e")]
+            X = df[features]
             X.drop(f"{mood}_e",axis="columns",inplace=True)
         else:
-            X = df[[col for col in df.columns if col.endswith("_m") and col[:4] != "time"]]
+            X = df[features]
         y = df[f"{mood}_e"].values
         # getting groups
         groups = df["beiwe"]
         return X.values, y, groups
 
-    def binarize(self, df_in, moods=["content","stress","lonely","sad","energy"]):
+    def binarize_mood(self, df_in, moods=["content","stress","lonely","sad","energy"],binarize_features=True):
         """
-        Binarizes the features and targets
+        Binarizes mood targets and/or features
         
         Parameters
         ----------
@@ -324,6 +311,8 @@ class Model():
             Original data with columns corresponding to the provided moods
         moods : list-like, default ["content","stress","lonely","sad","energy"]
             Strings of the moods to consider - must be columns in df_in
+        binarize_features : boolean, default True
+            Whether or not to binarize features in addition to targets
         
         Returns
         -------
@@ -331,8 +320,12 @@ class Model():
             original dataframe with mood scores replace with binary values
         """
         df = df_in.copy()
+        if binarize_features:
+            timings = ["m","e"]
+        else:
+            timings = ["e"]
         for mood in moods:
-            for timing in ["m","e"]:
+            for timing in timings:
                 if mood in ["content","energy"]:
                     df[f"{mood}_{timing}"] = [0 if score < 2 else 1 for score in df[f"{mood}_{timing}"]]
                 else:
@@ -340,7 +333,22 @@ class Model():
         
         return df
 
-    def optimize_models(self, df,params,moods=["content","stress","lonely","sad","energy"]):
+    def binarize_steps(self,df_in,step_goal=10000):
+        """
+        Converts steps metrics to binary values
+        """
+        df = df_in.copy()
+        if {"steps","active_percent"}.issubset(df.columns):
+            df = df[df["active_percent"] > 0.5]
+            df["steps"] = df["steps"] / df["active_percent"]
+            df.drop("active_percent",axis="columns",inplace=True)
+            df["step_goal"] = [1 if steps > step_goal else 0 for steps in df["steps"]]
+        else:
+            print("Returning orignal dataframe - missing necessary column(s)")
+
+        return df
+
+    def optimize_models(self, df,params,moods=["content","stress","lonely","sad","energy"],additional_features=[]):
         """
         Runs GridSearch to determine the best hyperparameters for the given models
         
@@ -364,7 +372,7 @@ class Model():
                 s = datetime.now()
                 print(f"\t{model_name.replace('_',' ').title()}")
                 clf = GridSearchCV(mp["model"],mp["params"],cv=5,return_train_score=False)
-                X, y, _ = self.get_x_and_y(df,mood=mood)
+                X, y, _ = self.get_x_and_y(df,mood=mood,additional_features=additional_features)
                 clf.fit(X, y)
                 scores.append({
                     "mood":mood,
@@ -377,7 +385,7 @@ class Model():
 
         return pd.DataFrame(scores,columns=["mood","model","best_score","best_params"])
 
-    def cross_validate(self, df,models,cv_label="skf",moods=["content","stress","lonely","sad","energy"],n_splits=5,verbose=False):
+    def cross_validate(self, df,models,cv_label="skf",moods=["content","stress","lonely","sad","energy"],n_splits=5,verbose=False,additional_features=[]):
         """
         Runs various cross-validation techniques on the provided models
         
@@ -411,7 +419,7 @@ class Model():
             res = {key: [] for key in ["mood","model"] + [f"split_{i+1}" for i in range(n_splits)] + ["mean"]}
         elif cv_label == "logo":
             cv = LeaveOneGroupOut()
-            X,y,groups = self.get_x_and_y(df)
+            X,y,groups = self.get_x_and_y(df,additional_features=additional_features)
             if verbose:
                 for train_index, test_index in cv.split(X, y, groups):
                     print("TRAIN:", train_index, "TEST:", test_index)
@@ -423,7 +431,7 @@ class Model():
             
         for mood in moods:
             for model in models.keys():
-                X, y, groups = self.get_x_and_y(df,mood=mood)
+                X, y, groups = self.get_x_and_y(df,mood=mood,additional_features=additional_features)
                 clf = models[model]
                 scores = cross_val_score(clf, X, y, cv=cv, groups=groups)
                 values = [mood,model]+list(scores)+[np.mean(scores)]
@@ -431,6 +439,18 @@ class Model():
                     res[key].append(value)
                     
         return pd.DataFrame(data=res)
+
+    def set_tuned_models(self,dict):
+        """
+        Sets the tuned models based on the modeling analysis
+        """
+        self.tuned_models = dict
+
+    def set_tuned_models_bi(self,dict):
+        """
+        Sets the tuned models based on the modeling analysis for the binary outcome
+        """
+        self.tuned_models_bi = dict
 
 class Prediction():
 
