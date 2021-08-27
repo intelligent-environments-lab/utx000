@@ -32,6 +32,7 @@ class ImportProcessing():
             parse_dates=["timestamp_e","timestamp_m","date"],infer_datetime_format=True)
         self.mood_and_activity = pd.read_csv(f"{self.data_dir}interim/mood_prediction/fitbit-beiwe-beiwe-activity-ema_morning-ema_evening.csv",index_col=0,
             parse_dates=["timestamp_e","timestamp_m","date"],infer_datetime_format=True)
+        
 
         self.dfs = (self.mood_only,self.mood_and_activity)
         # Cleaning
