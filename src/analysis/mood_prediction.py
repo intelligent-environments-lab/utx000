@@ -40,6 +40,7 @@ class ImportProcessing():
             self.replace_str(df)
             self.convert_to_numeric(df,[c for c in df.columns if c.endswith("_e") or c.endswith("_m")])
             self.drop_columns(df,["beacon","timestamp_e","timestamp_m"])
+            self.get_discontent(df)
 
     def replace_str(self, df):
         """
@@ -72,6 +73,13 @@ class ImportProcessing():
         df = df_in.copy()
         df = df[df[by_id] != pt]
         return df
+
+    def get_discontent(self,df):
+        """
+        Gets discontent values from content
+        """
+        df["discontent_m"] = 3 - df["content_m"]
+        df["discontent_e"] = 3 - df["content_e"]
 
 class Inspection():
 
@@ -302,7 +310,7 @@ class Model():
         groups = df["beiwe"]
         return X.values, y, groups
 
-    def binarize_mood(self, df_in, moods=["content","stress","lonely","sad","energy"],binarize_features=True):
+    def binarize_mood(self, df_in, moods=["discontent","content","stress","lonely","sad","energy"],binarize_features=True):
         """
         Binarizes mood targets and/or features
         
@@ -339,10 +347,7 @@ class Model():
         Converts steps metrics to binary values
         """
         df = df_in.copy()
-        if {"steps","active_percent"}.issubset(df.columns):
-            df = df[df["active_percent"] > 0.5]
-            df["steps"] = df["steps"] / df["active_percent"]
-            df.drop("active_percent",axis="columns",inplace=True)
+        if {"steps"}.issubset(df.columns):
             df["step_goal"] = [1 if steps > step_goal else 0 for steps in df["steps"]]
         else:
             print("Returning orignal dataframe - missing necessary column(s)")
@@ -458,12 +463,13 @@ class Prediction():
     def __init__(self):
         pass
 
-    def get_predictions(self,df,mood,model,probability=False, include_evening=False):
+    def get_predictions(self,df,mood,model,probability=False, include_evening=False, additional_features=[]):
         """
         Gets the predictions for the given mood
         
         """
-        X, y, _ = Model.get_x_and_y(df,mood,include_evening=include_evening)
+        modeling = Model()
+        X, y, _ = modeling.get_x_and_y(df,mood,include_evening=include_evening,additional_features=additional_features)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
         clf = model.fit(X_train,y_train)
         
@@ -512,15 +518,16 @@ class Evaluation():
         
         return cm
 
-    def get_scoring_metrics(self,df_in,model,binary=False,moods=["content","stress","lonely","sad","energy"],include_evening=False):
+    def get_scoring_metrics(self,df_in,model,binary=False,moods=["content","stress","lonely","sad","energy"],include_evening=False,additional_features=[]):
         """
         Gets the various scoring metrics
         """
         df = df_in.copy()
         res = {"mood":[],"accuracy":[],"precision":[],"recall":[],"roc_auc":[],"f1":[],"kappa":[],"log-loss":[]}
+        predictor = Prediction()
         for mood in moods:
-            y_true, y_pred = Prediction.get_predictions(df,mood,model,include_evening=include_evening)
-            _, y_pred_prob = Prediction.get_predictions(df,mood,model,probability=True,include_evening=include_evening)
+            y_true, y_pred = predictor.get_predictions(df,mood,model,include_evening=include_evening,additional_features=additional_features)
+            _, y_pred_prob = predictor.get_predictions(df,mood,model,probability=True,include_evening=include_evening,additional_features=additional_features)
             res["mood"].append(mood)
             res["accuracy"].append(accuracy_score(y_true,y_pred))
             res["precision"].append(precision_score(y_true,y_pred, average="weighted"))
