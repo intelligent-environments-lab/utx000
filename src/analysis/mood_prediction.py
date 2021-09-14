@@ -272,6 +272,21 @@ class Model():
             },
         }
 
+    def set_model_params(self,d):
+        """
+        Sets the model params to consider for the optimization
+
+        Parameters
+        ----------
+        d : dict
+            sklearn models with the parameters to test provided
+
+        Returns
+        -------
+        void
+        """
+        self.model_params = d
+
     def get_x_and_y(self, df_in, mood="content", include_evening=False, additional_features=[]):
         """
         Gets the feature and target datasets corresponding to the target
@@ -486,7 +501,7 @@ class Evaluation():
     def __init__(self):
         pass
 
-    def get_cm(self,y_true,y_pred,plot=False):
+    def get_cm(self,y_true,y_pred,plot=False,**kwargs):
         """
         Returns confusion matrix
         
@@ -515,6 +530,8 @@ class Evaluation():
             ax.set_xlabel("Predicted Value",fontsize=14)
             ax.set_yticklabels(np.arange(len(np.unique(y_true))),fontsize=12,rotation=0)
             ax.set_ylabel("True Value",fontsize=14)
+            if "title" in kwargs.keys():
+                ax.set_title(kwargs["title"],fontsize=16)
             plt.show()
             plt.close()
         
@@ -525,23 +542,25 @@ class Evaluation():
         Gets the various scoring metrics
         """
         df = df_in.copy()
-        res = {"mood":[],"accuracy":[],"precision":[],"recall":[],"roc_auc":[],"f1":[],"kappa":[],"log-loss":[]}
+        res = {"mood":[],"accuracy":[],"precision":[],"recall":[],"roc_auc":[],"f1":[]}
         predictor = Prediction()
+        modeling = Model()
         for mood in moods:
-            y_true, y_pred = predictor.get_predictions(df,mood,model,include_evening=include_evening,additional_features=additional_features)
-            _, y_pred_prob = predictor.get_predictions(df,mood,model,probability=True,include_evening=include_evening,additional_features=additional_features)
+            #y_true, y_pred = predictor.get_predictions(df,mood,model,include_evening=include_evening,additional_features=additional_features)
+            #_, y_pred_prob = predictor.get_predictions(df,mood,model,probability=True,include_evening=include_evening,additional_features=additional_features)
+            X, y, _ = modeling.get_x_and_y(df,mood,include_evening=include_evening,additional_features=additional_features)
             res["mood"].append(mood)
-            res["accuracy"].append(accuracy_score(y_true,y_pred))
-            res["precision"].append(precision_score(y_true,y_pred, average="weighted"))
-            res["recall"].append(recall_score(y_true,y_pred, average="weighted"))
-            res["f1"].append(f1_score(y_true,y_pred, average="weighted"))
-            res["kappa"].append(cohen_kappa_score(y_true,y_pred))
+            res["accuracy"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="balanced_accuracy")))
             if binary:
-                res["log-loss"].append(log_loss(y_true,y_pred_prob[:, 1]))
-                res["roc_auc"].append(roc_auc_score(y_true, y_pred_prob[:, 1], multi_class="ovr", average="weighted"))
+                res["roc_auc"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="roc_auc")))
+                res["precisiorounn"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="precision")))
+                res["recall"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="recall")))
+                res["f1"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="f1")))
             else:
-                res["log-loss"].append(log_loss(y_true,y_pred_prob))
-                res["roc_auc"].append(roc_auc_score(y_true, y_pred_prob, multi_class="ovr", average="weighted"))
+                res["roc_auc"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="roc_auc_ovr_weighted")))
+                res["precision"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="precision_weighted")))
+                res["recall"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="recall_weighted")))
+                res["f1"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="f1_weighted")))
             
         return pd.DataFrame(res)
 
@@ -550,6 +569,13 @@ class Evaluation():
         Gets the classification report and prints it
         
         """
-        y_true, y_pred = Prediction.get_predictions(df,mood,model)
+        predictor = Prediction()
+        y_true, y_pred = predictor.get_predictions(df,mood,model)
         print(mood)
         print(classification_report(y_true, y_pred))
+
+    def get_feature_importance(self,model):
+        """
+        Gets the feature importance
+        """
+        
