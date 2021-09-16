@@ -1,5 +1,11 @@
+# Data Science
 import pandas as pd
 import numpy as np
+
+# User Defined
+import sys
+sys.path.append('../')
+from src.visualization import visualize
 
 # Graphing
 import matplotlib.pyplot as plt
@@ -14,7 +20,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 
 # ML Supporting
-from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold, GroupKFold, LeaveOneGroupOut, cross_val_score, cross_val_predict
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold, GroupKFold, LeaveOneGroupOut, cross_val_score, cross_val_predict, cross_validate
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, precision_score, recall_score, roc_auc_score, f1_score, cohen_kappa_score,log_loss
 
 # Supporting
@@ -30,18 +36,20 @@ class ImportProcessing():
         # DataFrames
         self.mood_only = pd.read_csv(f"{self.data_dir}interim/mood_prediction/beiwe-beiwe-ema_morning-ema_evening.csv",index_col=0,
             parse_dates=["timestamp_e","timestamp_m","date"],infer_datetime_format=True)
+        self.morning_only = pd.read_csv(f"{self.data_dir}processed/beiwe-morning_ema-ux_s20.csv",
+            parse_dates=["timestamp"],infer_datetime_format=True)
         self.mood_and_activity = pd.read_csv(f"{self.data_dir}interim/mood_prediction/fitbit-beiwe-beiwe-activity-ema_morning-ema_evening.csv",index_col=0,
             parse_dates=["timestamp_e","timestamp_m","date"],infer_datetime_format=True)
         self.ieq_at_home = pd.read_csv(f"{self.data_dir}interim/beiwe-beacon-evening_ema_home-ieq_summary_home.csv",index_col=0,
             parse_dates=["timestamp"],infer_datetime_format=True)
         self.ieq_at_home.dropna(inplace=True)
 
-        self.dfs = (self.mood_only,self.mood_and_activity)
+        self.dfs = (self.mood_only,self.mood_and_activity,self.morning_only)
         # Cleaning
         for df in self.dfs:
             self.replace_str(df)
-            self.convert_to_numeric(df,[c for c in df.columns if c.endswith("_e") or c.endswith("_m")])
-            self.drop_columns(df,["beacon","timestamp_e","timestamp_m"])
+            self.convert_to_numeric(df,[c for c in df.columns if c[:3] in ["sad","lon","str","ene","con"]])
+            self.drop_columns(df,["beacon","timestamp_e","timestamp_m","timestamp"])
             self.get_discontent(df)
 
     def replace_str(self, df):
@@ -80,8 +88,11 @@ class ImportProcessing():
         """
         Gets discontent values from content
         """
-        df["discontent_m"] = 3 - df["content_m"]
-        df["discontent_e"] = 3 - df["content_e"]
+        for timing in ["","_m","_e"]:
+            try:
+                df[f"discontent{timing}"] = 3 - df[f"content{timing}"]
+            except KeyError:
+                pass
 
 class Inspection():
 
@@ -537,27 +548,27 @@ class Evaluation():
         
         return cm
 
-    def get_scoring_metrics(self,df_in,model,binary=False,moods=["content","stress","lonely","sad","energy"],include_evening=False,additional_features=[]):
+    def get_scoring_metrics(self,df_in,model,binary=False,moods=["discontent","stress","lonely","sad","energy"],include_evening=False,additional_features=[]):
         """
         Gets the various scoring metrics
         """
         df = df_in.copy()
-        res = {"mood":[],"accuracy":[],"precision":[],"recall":[],"roc_auc":[],"f1":[]}
+        res = {"mood":[],"accuracy":[],"precision":[],"recall":[],"f1":[]}
         predictor = Prediction()
         modeling = Model()
         for mood in moods:
             #y_true, y_pred = predictor.get_predictions(df,mood,model,include_evening=include_evening,additional_features=additional_features)
             #_, y_pred_prob = predictor.get_predictions(df,mood,model,probability=True,include_evening=include_evening,additional_features=additional_features)
             X, y, _ = modeling.get_x_and_y(df,mood,include_evening=include_evening,additional_features=additional_features)
-            res["mood"].append(mood)
+            res["mood"].append(mood.title())
             res["accuracy"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="balanced_accuracy")))
             if binary:
-                res["roc_auc"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="roc_auc")))
-                res["precisiorounn"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="precision")))
+                #res["roc_auc"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="roc_auc")))
+                res["precision"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="precision")))
                 res["recall"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="recall")))
                 res["f1"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="f1")))
             else:
-                res["roc_auc"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="roc_auc_ovr_weighted")))
+                #res["roc_auc"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="roc_auc_ovr_weighted")))
                 res["precision"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="precision_weighted")))
                 res["recall"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="recall_weighted")))
                 res["f1"].append(np.mean(cross_val_score(model,X,y,cv=5,scoring="f1_weighted")))
@@ -574,8 +585,57 @@ class Evaluation():
         print(mood)
         print(classification_report(y_true, y_pred))
 
-    def get_feature_importance(self,model):
+    def get_feature_importances(self,df_in,model,features=["tst","sol","restful","naw"],target_list=["discontent","sad","lonely","stress","energy"],save=False,verbose=False):
         """
-        Gets the feature importance
+        determines which of the features are most important for the random forest classifier
         """
-        
+        df = df_in.copy()
+        res = {feature: [] for feature in features}
+        res["mood"] = []
+        fig, axes = plt.subplots(len(target_list),1,figsize=(4,2*len(target_list)),sharex=True)
+        for target, ax in zip(target_list,axes):
+            targets = [f"{target}_e"]
+            data_to_use = df[features + targets].dropna()
+            X = data_to_use[features]
+            y = data_to_use[targets]
+            clf = model
+            output = cross_validate(clf, X, y, cv=5, scoring='accuracy', return_estimator=True)
+            li =[]
+            for idx,estimator in enumerate(output['estimator']):
+                if verbose:
+                    print("Features sorted by their score for estimator {}:".format(idx))
+                    feature_importances = pd.DataFrame(estimator.feature_importances_,
+                                                    index = X.columns,
+                                                        columns=['importance']).sort_values('importance', ascending=False)
+                    print(feature_importances)
+                li.append(estimator.feature_importances_)
+                
+            res["mood"].append(target)
+            for key, value in zip(features,pd.DataFrame(li).mean()):
+                res[key].append(value)
+            
+            ax.stem(X.columns,estimator.feature_importances_,
+                linefmt="k-",markerfmt="ko",basefmt="white")
+            ax.set_ylim([0,1])
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+                
+            ax.tick_params(labelsize=13)
+            ax.set_title(" " + target.title(),fontsize=13,pad=0,loc="left",ha="left")
+            
+        xticks = []
+        for ft in features:
+            xticks.append(visualize.get_label(ft))
+        ax.set_xticklabels(xticks,rotation=-30,ha="left")
+        fig.add_subplot(111, frameon=False)
+        # hide tick and tick label of the big axes
+        plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        plt.grid(False)
+        #plt.xlabel("Morning Mood Features",fontsize=16)
+        plt.ylabel("Mean Decrease in Impurity",fontsize=16)
+        if save:
+            plt.savefig("../reports/figures/ema_summary/feature_importance-mood_on_mood-bar-ux_s20.pdf",bbox_inches="tight")
+        plt.show()
+        plt.close()
+                
+        return pd.DataFrame(res)
