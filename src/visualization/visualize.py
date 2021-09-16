@@ -55,15 +55,17 @@ def get_label(var):
     elif var == "lux":
         return "Light Level"
     elif var[0:3].lower() == "tst":
-        return "TST (h)"
+        return "TST"
     elif var.lower() == "sol":
-        return "SOL (minutes)"
+        return "SOL"
+    elif var.lower() == "restful":
+        return "Restful"
     elif var.lower() == "waso":
-        return "WASO (minutes)"
+        return "WASO"
     elif var.lower() == "naw":
         return "NAW"
     elif var.lower() == "efficiency":
-        return "SE (%)"
+        return "SE"
     elif var.lower() == "rem_percent":
         return "% REM"
     elif var.lower() == "nrem_percent":
@@ -78,6 +80,18 @@ def get_label(var):
         return "Activity"
     elif var == "steps":
         return "Steps"
+    elif var[:3] == "sad":
+        return "Sad"
+    elif var[:3] == "con":
+        return "Content"
+    elif var[:3] == "dis":
+        return "Discontent"
+    elif var[:3] == "lon":
+        return "Lonely"
+    elif var[:3] == "str":
+        return "Stress"
+    elif var[:3] == "ene":
+        return "Energy"
     else:
         return ""
 
