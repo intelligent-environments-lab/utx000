@@ -1,11 +1,20 @@
 
+from numpy.lib.scimath import sqrt
 import pandas as pd
+import numpy as np
+from pandas.core import frame
 
 # Iterative Imputer for MICE
 from sklearn.experimental import enable_iterative_imputer 
 from sklearn.impute import IterativeImputer
 # Random Forest Regressor
 from sklearn.ensemble import RandomForestRegressor
+
+# Evaluation Metrics
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+# Plotting
+import matplotlib.pyplot as plt
 
 class TestData:
 
@@ -44,7 +53,7 @@ class TestData:
 
 class Impute:
 
-    def __init__(self,pt,data_dir,consecutive=False):
+    def __init__(self,pt,data_dir,consecutive=False,prompt=False):
         # Class Vars
         # ----------
         self.pt = pt
@@ -52,17 +61,17 @@ class Impute:
         # Loading Data
         # ------------
         # Missing Data
-        percent = input("Percent: ") # common to both
-        if consecutive:
-            param = input("Parameter: ")
-            period = input("Period (in minutes): ")
-            self.load_data_consecutive_random(param,percent,period)
-        else:
-            self.load_data_random(percent)
+        if prompt:
+            percent = input("Percent: ") # common to both
+            if consecutive:
+                param = input("Parameter: ")
+                period = input("Period (in minutes): ")
+                self.load_data_consecutive_random(param,percent,period)
+            else:
+                self.load_data_random(percent)
         # Base Data
         self.base = pd.read_csv(f"{self.data_dir}data/interim/imputation/beacon-example-{pt}-ux_s20.csv",
                                 index_col="timestamp",infer_datetime_format=True)
-        self.base = self.base[[col for col in self.missing.columns]]
 
     def load_data_random(self,percent):
         """
@@ -89,25 +98,199 @@ class Impute:
             print(f"missing_data-random_all-p{percent}-{self.pt}.csv")
             print(f"Check the parameters:\n\tparam:\t{param}\n\tpercent:\t{percent}\n\tperiod:\t{period}")
 
-    def mice(self,estimator=None):
+    def mice(self,estimator=None,set_for_class=False):
         """
         Imputes missing data with Mutiple Iterations of Chained Equations (MICE)
+        
+        Parameters
+        ----------
+        estimator : sklearn estimator, default None (Bayesion Ridge)
+            estimator to use for IterativeImputer - see https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html?highlight=iterative%20imputer#sklearn.impute.IterativeImputer
+        set_for_class : boolean, default False
+            sets the imputed class variable to the results from this method
+
+        Returns
+        -------
+        <void>
         """
-            
         imp = IterativeImputer(estimator=estimator,max_iter=30,tol=1e-5,imputation_order="ascending")
         imp.fit(self.missing)
-        self.mice_imputed = pd.DataFrame(imp.transform(self.missing),index=self.base.index,columns=self.base.columns)
+        self.mice_imputed = pd.DataFrame(imp.transform(self.missing),index=self.missing.index,columns=self.missing.columns)
+        
+        if set_for_class:
+            self.set_imputed(self.mice_imputed)
 
-    def miss_forest(self):
+    def miss_forest(self,set_for_class=False):
         """
         Imputes missing data with missForest
+
+        Parameters
+        ----------
+        set_for_class : boolean, default False
+            sets the imputed class variable to the results from this method
+
+        Returns
+        -------
+        <void>
         """
         imp = IterativeImputer(estimator=RandomForestRegressor(n_estimators=10),max_iter=10,tol=1e-5,imputation_order="ascending")
         imp.fit(self.missing)
-        self.rf_imputed = pd.DataFrame(imp.transform(self.missing),index=self.base.index,columns=self.base.columns)
+        self.rf_imputed = pd.DataFrame(imp.transform(self.missing),index=self.missing.index,columns=self.missing.columns)
 
-    def gans(self):
+        if set_for_class:
+            self.set_imputed(self.rf_imputed)
+
+    def gan(self,set_for_class=False):
         """
         Imputes missing data with Generative Adversarial Networks (GANs)
         """
+        self.gan_imputed = pd.DataFrame()
+        if set_for_class:
+                self.set_imputed(self.gan_imputed)
+
+    def set_imputed(self,imputed):
+        """
+        Sets the class imputed variable to the given data
+        """
+        self.imputed = imputed
+
+    def evaluate(self,imputed,param):
+        """
+        Evaluates the imputed data to the base data using the following metrics:
+        - correlation coefficient: simple and easy to understand
+        - mean absolute error: typical metric used in ML domain
+        - root mean square error: another typical metrics used in the ML domain
+        - index of agreement: less used metric to measure reliability vs validity
+
+        Parameters
+        ----------
+        imputed : DataFrame
+            imputed data - should be same length as base data
+        param : str
+            name of column to compare values to
+
+        Returns
+        -------
+        r2 : float
+            pearson correlation coefficient
+        mae : float
+            mean absolute error
+        rmse : float
+            root mean square error
+        ia : float
+            index of agreement
+        """
+        # placeholders for true/base and imputed values
+        y_true = self.base[param].values
+        y_pred = imputed[param].values
+        # Metrics
+        # -------
+        r2 = r2_score(y_true=y_true,y_pred=y_pred)
+        mae = mean_absolute_error(y_true=y_true,y_pred=y_pred)
+        rmse = sqrt(mean_squared_error(y_true=y_true,y_pred=y_pred))
+        # looping through values for index of agreement
+        num = 0
+        den = 0
+        for obs, pred in zip(y_true,y_pred):
+            num += (pred - obs)**2
+            den += (abs(pred - np.mean(y_true)) + abs(obs - np.mean(y_true)))**2
+        ia = 1 - num/den
+
+        return r2, mae, rmse, ia
+
+    def run_at_random(self,param,percents=[5,10,15,20,25,30,35,40,45,50]):
+        """
+        Evaluates and compares the imputation models
+
+        Parameters
+        ----------
+        param : str
+            name of column to compare
+        percents : range or list, default [5,10,15,20,25,30,35,40,45,50]
+            percents to consider - must have an accompanying data file
+
+        Returns
+        -------
+        res : dictionary
+            metric results for each method
+        """
+        res = {}
+        for method, label in zip([self.mice, self.miss_forest],["MICE","missForest"]):
+            method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
+            for p in percents:
+                self.load_data_random(percent=p)
+                method(set_for_class=True)
+                for metric, val in zip(method_res.keys(),(p,) + self.evaluate(self.imputed,param)):
+                    method_res[metric].append(val)
+                    
+            res[label] = method_res
+
+        return res
+
+    def run_periods_at_random(self,param):
+        """
+        Evaluates and compares imputation models on the consecutive missing observations datasets
+
+        Parameters
+        ----------
+        param : str
+            name of column to compare
+
+        Returns
+        -------
+        res : dictionary
+            metric results for each method
+        """
         pass
+
+    def compare_methods(self,results,save=False,annot=""):
+        """
+        Compares the metrics from multiple imputation methods
+        
+        Parameters
+        ----------
+        results : dictionary
+            containts metric results for each method from run
+        save : boolean, default False
+            whether or not to save the figure
+        
+        Returns
+        -------
+        
+        """
+        fig, axes = plt.subplots(1,4,figsize=(18,4),gridspec_kw={"wspace":0.5})
+        for metric, ax in zip(["Pearson Correlation","MAE","RMSE","Index of Agreement"],axes):
+            for method,color in zip(results.keys(),["cornflowerblue","seagreen","firebrick"]):
+                method_res = results[method]
+                ax.plot(method_res["Percent"],method_res[metric],
+                        lw=2,color=color,label=method)
+                # Formatting
+                # ----------
+                # x-axis
+                ax.set_xlim([0,50])
+                ax.set_xticks(np.arange(0,55,5))
+                # y-axis
+                if metric in ["Pearson Correlation","Index of Agreement"]:
+                    ax.set_ylim([0.9,1.0])
+                else:
+                    ax.set_ylim(bottom=0)
+                # remainder
+                ax.tick_params(labelsize=12)
+                ax.set_title(metric,fontsize=16)
+                for loc in ["top","right"]:
+                    ax.spines[loc].set_visible(False)
+                
+        # legend
+        lines, labels = fig.axes[-1].get_legend_handles_labels()
+        fig.legend(lines,labels,loc="upper center",bbox_to_anchor=(0.5,0),frameon=False,ncol=3,fontsize=14)
+        # common x-axis
+        fig.add_subplot(111, frame_on=False)
+        plt.tick_params(labelcolor="none", bottom=False, left=False)
+        plt.xlabel("Percent Missing Data",labelpad=8,fontsize=14)
+            
+        if save:
+            if annot != "":
+                annot = "-" + annot
+            plt.savefig(f"{self.data_dir}reports/figures/imputation/remove_at_random-method_metric_comparision{annot}.pdf",bbox_inches="tight")
+        plt.show()
+        plt.close()
