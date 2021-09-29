@@ -1234,6 +1234,7 @@ class IntramodelComparison():
             env = ""
     
         self.model_params.to_csv(f"{save_dir}/data/interim/{self.ieq_param}-{self.model_type}_model{env}-{study_suffix}.csv")
+        print("Saved file to:",f"{save_dir}/data/interim/{self.ieq_param}-{self.model_type}_model{env}-{study_suffix}.csv")
 
 class Model_Comparison():
 
