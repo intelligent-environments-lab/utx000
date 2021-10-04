@@ -84,12 +84,12 @@ class Diagnostics():
         Downloads data from specified beacon
         """
         print("\n\tDownloading Data:")
-        os.system(f'scp -r -o ConnectTimeout=3 pi@iaq{beacon_no}:/home/pi/DATA/adafruit/ {self.save_dir}B{beacon_no}/')
-        os.system(f'scp -r -o ConnectTimeout=3 pi@iaq{beacon_no}:/home/pi/DATA/sensirion/ {self.save_dir}B{beacon_no}/')
+        #os.system(f'scp -r -o ConnectTimeout=3 pi@iaq{beacon_no}:/home/pi/DATA/adafruit/ {self.save_dir}B{beacon_no}/')
+        #os.system(f'scp -r -o ConnectTimeout=3 pi@iaq{beacon_no}:/home/pi/DATA/sensirion/ {self.save_dir}B{beacon_no}/')
         os.system(f'scp -r -o ConnectTimeout=3 pi@iaq{beacon_no}:/home/pi/DATA/ {self.save_dir}B{beacon_no}/')
 
-        print("\n\tRemoving Bad Data:")
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo rm DATA/*/b00*"')
+        #print("\n\tRemoving Bad Data:")
+        #os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "sudo rm DATA/*/b00*"')
 
     def checkSensors(self, beacon_no):
         """
@@ -104,7 +104,7 @@ class Diagnostics():
         """
         print("\n\tDeleting Data...")
         #os.system('tput setaf 1; echo REMOVING LOG2/LOG3 DATA; tput sgr 0')
-        os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd DATA/adafruit/ && sudo rm *.csv && cd ../sensirion/ && sudo rm *.csv"')
+        #os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd DATA/adafruit/ && sudo rm *.csv && cd ../sensirion/ && sudo rm *.csv"')
         os.system(f'ssh pi@iaq{beacon_no} -o ConnectTimeout=1 "cd DATA/ && sudo rm *.csv"')
 
     def reboot(self,beacon_no):
