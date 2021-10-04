@@ -560,6 +560,7 @@ class Calibration():
             else:
                 sns.heatmap(df.T,vmin=np.nanmin(df),vmax=np.nanmax(df),ax=ax)
 
+    # visuals
     def compare_time_series(self,species,**kwargs):
         """
         Plots reference and beacon data as a time series
@@ -715,7 +716,7 @@ class Calibration():
             # bottom right difference plot
             diff = fig.add_subplot(gs[1,1])
 
-    def show_comprehensive_linear_corr(self,r,c,species,**kwargs):
+    def show_comprehensive_linear_corr(self,species,r,c,**kwargs):
         """shows a subplot of all the correlation beacons"""
         fig, axes = plt.subplots(r,c,figsize=(c*4,r*4),sharex=True,sharey=True)
         for bb, ax in zip(self.beacons,axes.flat):
@@ -750,7 +751,48 @@ class Calibration():
 
         plt.show()
         plt.close()
-                
+
+    def show_comprehensive_ts(self,species,r,c,beacons_to_exclude=[],save=False,**kwargs):
+        """Plots comprehensive time series of the species against the min and max values"""
+        data = self.beacon_data[~self.beacon_data["beacon"].isin(beacons_to_exclude)]
+        temp = data[["timestamp",species,"beacon"]].pivot(index="timestamp",columns="beacon",values=species)#.dropna(axis=1)
+        for col in temp.columns:
+            offset = self.offsets[species][self.offsets[species].index == col]
+            temp[col] += offset["constant"].values
+
+        temp["mean"] = temp.mean(axis=1)
+        temp["min"] = temp.min(axis=1)
+        temp["max"] = temp.max(axis=1)
+        temp["t"] = (temp.index - temp.index[0]).total_seconds()/60
+        fig, axes = plt.subplots(r,c,figsize=(c*4,r*4),sharex=True,sharey=True)
+        for bb, ax in zip(self.beacons,axes.flat):
+            try:
+                ax.plot(temp["t"],temp[bb],color="black",linewidth=2,zorder=2)
+                ax.fill_between(temp["t"],temp["min"],temp["max"],alpha=0.5,color="grey",zorder=1)
+            except KeyError:
+                pass
+            ax.set_title(f"  Device {int(bb)}",y=0.85,pad=0,fontsize=13,loc="left",ha="left")
+            ax.axis("off")
+            if "limits" in kwargs.keys():
+                #ax.set_xlim(kwargs["limits"])
+                ax.set_ylim(kwargs["limits"])
+        
+        axes[r-1,0].axis('on')
+        for loc in ["top","right"]:
+            axes[r-1,0].spines[loc].set_visible(False)
+        ax.set_xticks(np.arange(0,125,30))
+        plt.setp(axes[r-1,0].get_xticklabels(), ha="center", rotation=0, fontsize=16)
+        plt.setp(axes[r-1,0].get_yticklabels(), ha="right", rotation=0, fontsize=16)
+        axes[1,0].text(-2,7.5,f"Concentration ({visualize.get_pollutant_units(species)})",rotation=90,ha='right',va='center',fontsize=24)
+        axes[r-1,int(c/2)].text(7.5,-2,f'Experiment Time (minutes)',ha='center',va='top',fontsize=24)
+        if save:
+            if "study" in kwargs.keys():
+                study = "-"+kwargs["study"]
+            else:
+                study = ""
+            plt.savefig(f"../reports/figures/beacon_summary/calibration-{species}-comprehensive_ts{study}.pdf",bbox_inches="tight")
+        plt.show()
+        plt.close()
     # deprecated
     def compare_histogram(self,ref_data,beacon_data,bins):
         """
