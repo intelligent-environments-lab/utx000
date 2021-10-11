@@ -9,8 +9,9 @@ from numpy.core.numeric import Inf
 # Data Science
 import pandas as pd
 import numpy as np
+from scipy.sparse import base
 from sklearn import linear_model
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.model_selection import KFold
 import scipy
 # Plotting
@@ -752,6 +753,70 @@ class Calibration():
         plt.show()
         plt.close()
 
+    def show_step_offset(self,species="co",base_vals=[0,1,2,4],step_length=2):
+        """
+        Visualizes results from step calibration offset
+
+        Parameters
+        ----------
+        species : str
+            Variable of interest
+        base_vals : list of int/float, default [0,1,2,4]
+            List of base values at each step
+        step_length : int or float, default 2
+            Length of each step in the experiment in hours
+
+        Returns
+        -------
+        <void>
+        """
+        ref_index = pd.date_range(start=self.beacon_data["timestamp"].iloc[0],
+                                end=self.beacon_data["timestamp"].iloc[0]+timedelta(hours=step_length*len(base_vals)),
+                                freq=f"{self.resample_rate}T",closed="right")
+        ref_vals = []
+        for val in base_vals:
+            ref_vals += [val]*int(step_length*60/self.resample_rate)
+
+        _, ax = plt.subplots(figsize=(16,4))
+        ax.plot(ref_index,ref_vals,lw=2,color="black",label="Reference")
+        for bb in self.beacon_data["beacon"].unique():
+            data_bb = self.beacon_data[self.beacon_data["beacon"] == bb]
+            offset_val = self.offsets[species].loc[bb,"constant"]
+            ax.plot(data_bb["timestamp"],data_bb[species]-offset_val,lw=1,marker=visualize.get_marker(int(bb)),zorder=int(bb),label=bb)
+        
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+        ax.legend()
+
+        plt.show()
+        plt.close()
+        #return pd.DataFrame(data=ref_vals,index=ref_index,columns=["concentration"])
+
+    def show_step_linear(self,species="co",base_vals=[0,1,2,4],step_length=2):
+        """
+        Shows the results from the linear correction on the step calibration
+        """
+        ref_index = pd.date_range(start=self.beacon_data["timestamp"].iloc[0],
+                                end=self.beacon_data["timestamp"].iloc[0]+timedelta(hours=step_length*len(base_vals)),
+                                freq=f"{self.resample_rate}T",closed="right")
+        ref_vals = []
+        for val in base_vals:
+            ref_vals += [val]*int(step_length*60/self.resample_rate)
+
+        _, ax = plt.subplots(figsize=(16,4))
+        ax.plot(ref_index,ref_vals,lw=2,color="black",label="Reference")
+        for bb in self.beacon_data["beacon"].unique():
+            data_bb = self.beacon_data[self.beacon_data["beacon"] == bb]
+            y = data_bb[species] * self.lms[species].loc[bb,"coefficient"] + self.lms[species].loc[bb,"constant"]
+            ax.plot(data_bb["timestamp"],y,lw=1,marker=visualize.get_marker(int(bb)),zorder=int(bb),label=bb)
+        
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+        ax.legend()
+
+        plt.show()
+        plt.close()
+
     def show_comprehensive_ts(self,species,r,c,beacons_to_exclude=[],save=False,**kwargs):
         """Plots comprehensive time series of the species against the min and max values"""
         data = self.beacon_data[~self.beacon_data["beacon"].isin(beacons_to_exclude)]
@@ -953,8 +1018,103 @@ class Calibration():
             plt.show()
             plt.close()
 
+    def step_calibration_offset(self,species="co",base_vals=[0,1,2,4],step_length=2,trim=0.25):
+        """
+        Gets offset values based on step calibration
+
+        Parameters
+        ----------
+        species : str
+            Variable of interest
+        base_vals : list of int/float, default [0,1,2,4]
+            List of base values at each step
+        step_length : int or float, default 2
+            Length of each step in the experiment in hours
+        trim : float, default 0.25
+            Fraction of step_length to trim from beginning and end
+
+        Returns
+        -------
+        offsets : dict
+            List of offsets corresponding to each reference base level
+        """
+        offsets = {base: [] for base in base_vals}
+        offsets["beacon"] = []
+        for bb in self.beacon_data["beacon"].unique():
+            offsets["beacon"].append(bb)
+            data_bb = self.beacon_data[self.beacon_data["beacon"] == bb]
+            data_bb.set_index("timestamp",inplace=True)
+            start_time = data_bb.index[0]
+            for step in range(len(base_vals)):
+                step_start = start_time+timedelta(hours=step_length*(step))+timedelta(hours=step_length*trim)
+                step_end = start_time+timedelta(hours=step_length*(step+1))-timedelta(hours=step_length*trim)
+                data_bb_step = data_bb[step_start:step_end]
+                offsets[base_vals[step]].append(np.nanmean(data_bb_step[species]) - base_vals[step])
+
+        exp_offsets = pd.DataFrame(offsets)
+        exp_offsets.set_index("beacon",inplace=True)
+        temp_offsets = {"beacon":[],"mean_difference":[],"value_to_baseline":[],"constant":[]}
+        for key,val in zip(temp_offsets.keys(),[offsets["beacon"],exp_offsets.mean(axis=1).values,exp_offsets.mean(axis=1).values,exp_offsets.mean(axis=1).values]):
+            temp_offsets[key] = val
+
+        self.offsets[species] = pd.DataFrame(temp_offsets).set_index("beacon")
+        return exp_offsets
+
+    def step_calibration_linear(self,species="co",base_vals=[0,1,2,4],step_length=2,trim=0.25):
+        """
+        Gets linear fit from step calibration
+
+        Parameters
+        ----------
+        species : str
+            Variable of interest
+        base_vals : list of int/float, default [0,1,2,4]
+            List of base values at each step
+        step_length : int or float, default 2
+            Length of each step in the experiment in hours
+        trim : float, default 0.25
+            Fraction of step_length to trim from beginning and end
+
+        Returns
+        -------
+        params : dict
+            List of offsets corresponding to each reference base level
+        """
+        n = len(self.beacon_data["beacon"].unique())
+        _, axes = plt.subplots(1,n,figsize=(4*n,4))
+        coeffs = {"beacon":[],"constant":[],"coefficient":[],"score":[],"ts_shift":[]}
+        for bb,ax in zip(self.beacon_data["beacon"].unique(),axes.flat):
+            coeffs["beacon"].append(bb)
+            data_bb = self.beacon_data[self.beacon_data["beacon"] == bb]
+            data_bb.set_index("timestamp",inplace=True)
+            start_time = data_bb.index[0]
+            x = []
+            for step in range(len(base_vals)):
+                step_start = start_time+timedelta(hours=step_length*(step))+timedelta(hours=step_length*trim)
+                step_end = start_time+timedelta(hours=step_length*(step+1))-timedelta(hours=step_length*trim)
+                data_bb_step = data_bb[step_start:step_end]
+                x.append(np.nanmean(data_bb_step[species]))
+
+            x = np.array(x)
+            regr = linear_model.LinearRegression()
+            regr.fit(x.reshape(-1, 1), base_vals)
+            for param, label in zip([regr.intercept_, regr.coef_[0], regr.score(x.reshape(-1, 1),base_vals),0], ["constant","coefficient","score","ts_shift"]):
+                coeffs[label].append(param)
+            
+            ax.scatter(base_vals,x,color="black",s=10)
+            x_vals = np.linspace(0,max(base_vals),100)
+            ax.plot(base_vals,regr.intercept_+x*regr.coef_[0],color="firebrick",lw=2)
+
+        plt.show()
+        plt.close()
+        coeff_df = pd.DataFrame(coeffs)
+        coeff_df.set_index("beacon",inplace=True)
+        self.lms[species] = coeff_df
+
+        return coeffs
+
     def get_linear_model_params(self,df,x_label,y_label,**kwargs):
-        """runs linear regression and returns intercept, slope, and r2"""
+        """runs linear regression and returns intercept, slope, r2, and mae"""
         x = df.loc[:,x_label].values
         y = df.loc[:,y_label].values
 
@@ -965,10 +1125,11 @@ class Calibration():
             else:
                 weights= None
             regr.fit(x.reshape(-1, 1), y, sample_weight=weights)
-            return regr.intercept_, regr.coef_[0], regr.score(x.reshape(-1, 1),y)
+            y_pred = regr.intercept_ + x * regr.coef_[0]
+            return regr.intercept_, regr.coef_[0], regr.score(x.reshape(-1, 1),y), mean_absolute_error(y_true=y,y_pred=y_pred)
         except ValueError as e:
             print(f"Error with data ({e}) - returning (0,1)")
-            return 0, 1, 0
+            return 0, 1, 0, np.nan
 
     def apply_laplacion_filter(self,data,var,threshold=0.25):
         """applies laplacian filter to data and returns values with threshold limits"""
@@ -982,7 +1143,7 @@ class Calibration():
     
     def linear_regression(self,species,weight=False,save_to_file=False,verbose=False,**kwargs): 
         """generates a linear regression model"""
-        coeffs = {"beacon":[],"constant":[],"coefficient":[],"score":[],"ts_shift":[]}
+        coeffs = {"beacon":[],"constant":[],"coefficient":[],"score":[],"mae":[],"ts_shift":[]}
         ref_df = self.ref[species]
         data = self.beacon_data[["timestamp",species,"beacon"]]
         for bb in np.arange(1,51):
@@ -1020,22 +1181,22 @@ class Calibration():
                         comb = pd.concat([data_before_event,data_after_event])
 
                     if weight:
-                        b, m, r2 = self.get_linear_model_params(comb,species,"concentration",weights=comb["concentration"])
+                        b, m, r2, mae = self.get_linear_model_params(comb,species,"concentration",weights=comb["concentration"])
                     else:
-                        b, m, r2 = self.get_linear_model_params(comb,species,"concentration")
+                        b, m, r2, mae = self.get_linear_model_params(comb,species,"concentration")
 
                     if r2 > best_params[2]:
-                        best_params = [b, m, r2, ts_shift]
+                        best_params = [b, m, r2, mae, ts_shift]
 
                 # adding data
                 coeffs["beacon"].append(bb)
-                for param, label in zip(best_params, ["constant","coefficient","score","ts_shift"]):
+                for param, label in zip(best_params, ["constant","coefficient","score","mae","ts_shift"]):
                     coeffs[label].append(param)
 
             else:
                 # adding base values
                 coeffs["beacon"].append(bb)
-                for param, label in zip([0,1,0,0], ["constant","coefficient","score","ts_shift"]):
+                for param, label in zip([0,1,0,np.nan,0], ["constant","coefficient","score","mae","ts_shift"]):
                     coeffs[label].append(param)
 
         coeff_df = pd.DataFrame(coeffs)
@@ -1183,6 +1344,12 @@ class IntramodelComparison():
             test_bb[self.ieq_param] = test[self.ieq_param] * self.get_beacon_x1(beacon) + self.get_beacon_x0(beacon)
             self.corrected = self.corrected.append(test_bb[["timestamp",self.ieq_param,"beacon"]].set_index("timestamp"))
 
+    def set_ref(self,ref):
+        """
+        Sets the reference
+        """
+        self.ref=ref
+
     def show_comprehensive_timeseries(self,ref,r=4,c=5,save=False,show_std=False,**kwargs):
         """shows a subplot of all the correlation beacons"""
         ref = ref.resample("1T").interpolate()
@@ -1219,7 +1386,7 @@ class IntramodelComparison():
                 try:
                     r2 = r2_score(merged["concentration"],merged[self.ieq_param])
                 except ValueError:
-                    return merged
+                    r2 = 0
                 ax.set_title(f"  Device {int(bb)}\n  r$^2$ = {round(r2,3)}\n  y = {self.get_beacon_x1(bb)}x + {self.get_beacon_x0(bb)}",
                         y=0.85,pad=0,fontsize=13,loc="left",ha="left")
             else:
@@ -1248,9 +1415,32 @@ class IntramodelComparison():
         if save:
             plt.savefig(f"../reports/figures/beacon_summary/calibration-{self.ieq_param}-{self.env}-timeseries_comparison-{self.study_suffix}.pdf",bbox_inches="tight")
 
-         
         plt.show()
         plt.close()
+
+    def get_scores(self):
+        """
+        Gets the r2 and mae
+        """
+        res = {"beacon":[],"r2":[],"mae":[]}
+        for bb in self.corrected["beacon"].unique():
+            beacon = self.corrected[self.corrected["beacon"] == bb]
+            beacon = beacon.resample("1T").interpolate()
+            merged = beacon.merge(right=self.ref,left_index=True,right_index=True)
+            try:
+                r2 = r2_score(merged["concentration"],merged[self.ieq_param])
+            except ValueError:
+                r2 = 0
+
+            try:
+                mae = mean_absolute_error(y_true=merged["concentration"],y_pred=merged[self.ieq_param])
+            except ValueError:
+                mae = np.nan
+
+            for key, val in zip(res.keys(),[bb,r2,mae]):
+                res[key].append(val)
+
+        return pd.DataFrame(res).set_index("beacon")
 
     def save_params(self,**kwargs):
         """Saves the averaged model params
