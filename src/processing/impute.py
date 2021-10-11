@@ -9,6 +9,8 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 # Random Forest Regressor
 from sklearn.ensemble import RandomForestRegressor
+# ARIMA
+from statsmodels.tsa.arima.model import ARIMA
 
 # Evaluation Metrics
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
@@ -53,50 +55,57 @@ class TestData:
 
 class Impute:
 
-    def __init__(self,pt,data_dir,consecutive=False,prompt=False):
+    def __init__(self,pt,data_dir,freq="2T",consecutive=False,prompt=False):
+        """
+        Impute class for BEVO Beacon data
+
+        Parameters
+        ----------
+
+        """
         # Class Vars
         # ----------
         self.pt = pt
         self.data_dir = data_dir
+        self.freq = freq
         # Loading Data
         # ------------
         # Missing Data
         if prompt:
             percent = input("Percent: ") # common to both
+            self.param = input("Parameter: ")
             if consecutive:
-                param = input("Parameter: ")
                 period = input("Period (in minutes): ")
-                self.load_data_consecutive_random(param,percent,period)
+                self.load_data_consecutive_random(percent,period)
             else:
                 self.load_data_random(percent)
         # Base Data
-        self.base = pd.read_csv(f"{self.data_dir}data/interim/imputation/beacon-example-{pt}-ux_s20.csv",
-                                index_col="timestamp",infer_datetime_format=True)
+        self.base = pd.read_csv(f"{self.data_dir}data/interim/imputation/beacon-example-{pt}-ux_s20.csv",parse_dates=["timestamp"],
+                                index_col="timestamp",infer_datetime_format=True).asfreq(freq=self.freq)
 
     def load_data_random(self,percent):
         """
         Loads in the randomly removed data
         """
         try:
-            self.missing = pd.read_csv(f"{self.data_dir}data/interim/imputation/missing_data-random_all-p{percent}-{self.pt}.csv",parse_dates=["timestamp"],
-                                    index_col="timestamp",infer_datetime_format=True)
+            self.missing = pd.read_csv(f"{self.data_dir}data/interim/imputation/missing_data-random_all-{self.param}-p{percent}-{self.pt}.csv",parse_dates=["timestamp"],
+                                    index_col="timestamp",infer_datetime_format=True).asfreq(freq=self.freq)
         except FileNotFoundError as e:
-            print(e)
             print("Could not find file: ",end="")
-            print(f"missing_data-random_all-p{percent}-{self.pt}.csv")
-            print(f"Check the parameters:\n\tpercent:\t{percent}")
+            print(f"missing_data-random_all-{self.param}-p{percent}-{self.pt}.csv")
+            print(f"Check the parameters:\n\tparam:\t{self.param}\n\tpercent:\t{percent}")
 
-    def load_data_consecutive_random(self,param,percent,period):
+    def load_data_consecutive_random(self,percent,period):
         """
-        Loads in the randomly removed, consecutive data for param
+        Loads in the randomly removed, consecutive data for class param
         """
         try:
-            self.missing = pd.read_csv(f"{self.data_dir}data/interim/imputation/missing_data-random_periods_all-{param}-p{percent}-{period}mins-{self.pt}.csv",
-                                    parse_dates=["timestamp"],index_col="timestamp",infer_datetime_format=True)
+            self.missing = pd.read_csv(f"{self.data_dir}data/interim/imputation/missing_data-random_periods_all-{self.param}-p{percent}-{period}mins-{self.pt}.csv",
+                                    parse_dates=["timestamp"],index_col="timestamp",infer_datetime_format=True).asfreq(freq=self.freq)
         except FileNotFoundError:
             print("Could not find file: ",end="")
             print(f"missing_data-random_all-p{percent}-{self.pt}.csv")
-            print(f"Check the parameters:\n\tparam:\t{param}\n\tpercent:\t{percent}\n\tperiod:\t{period}")
+            print(f"Check the parameters:\n\tparam:\t{self.param}\n\tpercent:\t{percent}\n\tperiod:\t{period}")
 
     def mice(self,estimator=None,set_for_class=False):
         """
@@ -140,13 +149,33 @@ class Impute:
         if set_for_class:
             self.set_imputed(self.rf_imputed)
 
-    def gan(self,set_for_class=False):
+    def arima(self,order=(2,1,2),set_for_class=False):
         """
-        Imputes missing data with Generative Adversarial Networks (GANs)
+        Imputes missing data with Auto-Regressive Integrated Moving Average 
+
+        Parameters
+        ----------
+        order : tuple of three values
+            order for (p, d, q)
+        set_for_class : boolean, default False
+            sets the imputed class variable to the results from this method
+
+        Returns
+        -------
+        <void>
         """
-        self.gan_imputed = pd.DataFrame()
+        imp = ARIMA(self.missing[self.param], order=order, freq=self.freq)
+        self.arima_imputed = self.missing.copy()
+        self.arima_imputed[self.param] = imp.fit().predict()
+        self.arima_imputed[self.param].replace(0,np.nanmean(self.arima_imputed[self.param]),inplace=True)
         if set_for_class:
-                self.set_imputed(self.gan_imputed)
+                self.set_imputed(self.arima_imputed)
+
+    def set_base(self,base):
+        """
+        Sets the class base data
+        """
+        self.base = base
 
     def set_imputed(self,imputed):
         """
@@ -154,7 +183,13 @@ class Impute:
         """
         self.imputed = imputed
 
-    def evaluate(self,imputed,param):
+    def set_param(self,param):
+        """
+        Sets the class param
+        """
+        self.param = param
+
+    def evaluate(self,imputed,plot=False):
         """
         Evaluates the imputed data to the base data using the following metrics:
         - correlation coefficient: simple and easy to understand
@@ -166,8 +201,6 @@ class Impute:
         ----------
         imputed : DataFrame
             imputed data - should be same length as base data
-        param : str
-            name of column to compare values to
 
         Returns
         -------
@@ -181,8 +214,8 @@ class Impute:
             index of agreement
         """
         # placeholders for true/base and imputed values
-        y_true = self.base[param].values
-        y_pred = imputed[param].values
+        y_true = self.base.loc[self.missing[self.missing[self.param].isnull()].index.values,:][self.param].values
+        y_pred = imputed.loc[self.missing[self.missing[self.param].isnull()].index.values,:][self.param].values
         # Metrics
         # -------
         r2 = r2_score(y_true=y_true,y_pred=y_pred)
@@ -196,16 +229,41 @@ class Impute:
             den += (abs(pred - np.mean(y_true)) + abs(obs - np.mean(y_true)))**2
         ia = 1 - num/den
 
+        if plot:
+            _, ax = plt.subplots(figsize=(5,5))
+            ax.scatter(y_true,y_pred,color="black",s=5)
+
+            ax.set_xlabel("Actual")
+            ax.set_ylabel("Predicted")
+
+            ax.text(0.1,0.9,f"n={len(y_pred)}",transform=ax.transAxes)
+
+            plt.show()
+            plt.close()
+
         return r2, mae, rmse, ia
 
-    def run_at_random(self,param,percents=[5,10,15,20,25,30,35,40,45,50]):
+    def compare_ts(self,imputed):
+        """
+        Compares the imputed values to the base
+        """
+        _, ax = plt.subplots(figsize=(25,5))
+        ax.plot(self.base.index,self.base[self.param],lw=10,color="black",label="Actual")
+        ax.plot(self.missing.index,self.missing[self.param],lw=5,color="firebrick",label="Missing")
+        ax.plot(imputed.index,imputed[self.param],lw=2,color="goldenrod",label="Predicted")
+        
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+        
+        plt.show()
+        plt.close()
+
+    def run_at_random(self,percents=[5,10,15,20,25,30,35,40,45,50]):
         """
         Evaluates and compares the imputation models
 
         Parameters
         ----------
-        param : str
-            name of column to compare
         percents : range or list, default [5,10,15,20,25,30,35,40,45,50]
             percents to consider - must have an accompanying data file
 
@@ -215,26 +273,24 @@ class Impute:
             metric results for each method
         """
         res = {}
-        for method, label in zip([self.mice, self.miss_forest],["MICE","missForest"]):
+        for method, label in zip([self.mice, self.miss_forest, self.arima],["MICE","missForest","ARIMA"]):
             method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
             for p in percents:
                 self.load_data_random(percent=p)
                 method(set_for_class=True)
-                for metric, val in zip(method_res.keys(),(p,) + self.evaluate(self.imputed,param)):
+                for metric, val in zip(method_res.keys(),(p,) + self.evaluate(self.imputed)):
                     method_res[metric].append(val)
                     
             res[label] = method_res
 
         return res
 
-    def run_periods_at_random(self,param):
+    def run_periods_at_random(self):
         """
         Evaluates and compares imputation models on the consecutive missing observations datasets
 
         Parameters
         ----------
-        param : str
-            name of column to compare
 
         Returns
         -------
