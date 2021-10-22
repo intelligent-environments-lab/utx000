@@ -315,7 +315,7 @@ class Impute:
         plt.close()
 
 # runners
-    def run_at_random(self,percents=[5,10,15,20,25,30,35,40,45,50]):
+    def run_at_random(self,param="co2",percents=[5,10,15,20,25,30,35,40,45,50]):
         """
         Evaluates and compares the imputation models
 
@@ -323,12 +323,15 @@ class Impute:
         ----------
         percents : range or list, default [5,10,15,20,25,30,35,40,45,50]
             percents to consider - must have an accompanying data file
+        param : str, default "co2"
+            specifies which parameter to run the analysis for
 
         Returns
         -------
         res : dictionary
             metric results for each method
         """
+        self.param = param
         res = {}
         for method, label in zip([self.mice, self.miss_forest, self.arima],["MICE","missForest","ARIMA"]):
             method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
@@ -342,12 +345,14 @@ class Impute:
 
         return res
 
-    def run_periods_at_random(self, percents=[5,10,15,20,30,35,40,45,50],period=60):
+    def run_periods_at_random(self, param="co2", percents=[5,10,15,20,30,35,40,45,50],period=60):
         """
         Evaluates and compares imputation models on the consecutive missing observations datasets
 
         Parameters
         ----------
+        param : str, default "co2"
+            specifies which parameter to run the analysis for
         percents : range or list, default [5,10,15,20,25,30,35,40,45,50]
             percents to consider - must have an accompanying data file
         period : int, default 60
@@ -358,6 +363,7 @@ class Impute:
         res : dictionary
             metric results for each method
         """
+        self.param = param
         res = {}
         for method, label in zip([self.mice, self.miss_forest, self.arima],["MICE","missForest","ARIMA"]):
             method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
