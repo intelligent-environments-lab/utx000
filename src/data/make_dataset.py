@@ -406,12 +406,14 @@ class utx000():
 
         # Beacon Attributes
         self.linear_model = {}
+        print("Using linear correction for:")
         for file in os.listdir(f"{self.data_dir}/interim/"):
             file_info = file.split("-")
             if len(file_info) == 3:
                 if file_info[1] == "linear_model" and file_info[-1] == self.suffix+".csv":
                     try:
                         self.linear_model[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
+                        print(f"\t{file_info[0]}")
                     except FileNotFoundError:
                         print(f"Missing linear model for {file_info[0]}")
                         self.linear_model[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
@@ -427,6 +429,8 @@ class utx000():
                         print(f"Missing constant model for {file_info[0]}")
                         self.constant_model[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"correction":np.zeros(51)}).set_index("beacon")
 
+        print(self.linear_model.keys())
+        print(self.constant_model.keys())
         # EMA Attributes
         self.ema_start = datetime(2020,5,13)
         self.ema_end = datetime(2020,9,2)
@@ -560,10 +564,10 @@ class utx000():
             
             # offsetting measurements with constant (CO and pm2p5) or linear model (others)
             for var in self.linear_model.keys():
-                if var in ["co"]:#,"pm2p5_mass"]:
-                    beacon_df[var] += self.constant_model[var].loc[beacon,"constant"]
-                else:
-                    beacon_df[var] = beacon_df[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]
+                #if var in ["co"]:#,"pm2p5_mass"]:
+                #    beacon_df[var] += self.constant_model[var].loc[beacon,"constant"]
+                #else:
+                beacon_df[var] = beacon_df[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]
 
             # variables that should never have anything less than zero (setting to zero)
             for var in ["tvoc","lux","co","no2","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm2p5_mass","pm10_mass"]:
