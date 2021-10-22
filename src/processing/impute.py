@@ -83,6 +83,7 @@ class Impute:
         self.base = pd.read_csv(f"{self.data_dir}data/interim/imputation/beacon-example-{pt}-ux_s20.csv",parse_dates=["timestamp"],
                                 index_col="timestamp",infer_datetime_format=True).asfreq(freq=self.freq)
 
+# methods for loading data
     def load_data_random(self,percent):
         """
         Loads in the randomly removed data
@@ -107,6 +108,7 @@ class Impute:
             print(f"missing_data-random_all-p{percent}-{self.pt}.csv")
             print(f"Check the parameters:\n\tparam:\t{self.param}\n\tpercent:\t{percent}\n\tperiod:\t{period}")
 
+# methods for imputing
     def mice(self,estimator=None,set_for_class=False):
         """
         Imputes missing data with Mutiple Iterations of Chained Equations (MICE)
@@ -169,8 +171,9 @@ class Impute:
         self.arima_imputed[self.param] = imp.fit().predict()
         self.arima_imputed[self.param].replace(0,np.nanmean(self.arima_imputed[self.param]),inplace=True)
         if set_for_class:
-                self.set_imputed(self.arima_imputed)
+            self.set_imputed(self.arima_imputed)
 
+# setters
     def set_base(self,base):
         """
         Sets the class base data
@@ -189,6 +192,7 @@ class Impute:
         """
         self.param = param
 
+# methods for evaluating
     def evaluate(self,imputed,plot=False):
         """
         Evaluates the imputed data to the base data using the following metrics:
@@ -258,6 +262,59 @@ class Impute:
         plt.show()
         plt.close()
 
+    def compare_methods(self,results,save=False,annot=""):
+        """
+        Compares the metrics from multiple imputation methods
+        
+        Parameters
+        ----------
+        results : dictionary
+            containts metric results for each method from run
+        save : boolean, default False
+            whether or not to save the figure
+        
+        Returns
+        -------
+        <void>
+        """
+        fig, axes = plt.subplots(1,4,figsize=(18,4),gridspec_kw={"wspace":0.5})
+        for metric, ax in zip(["Pearson Correlation","MAE","RMSE","Index of Agreement"],axes):
+            for method,color in zip(results.keys(),["cornflowerblue","seagreen","firebrick"]):
+                method_res = results[method]
+                ax.plot(method_res["Percent"],method_res[metric],
+                        lw=2,color=color,label=method)
+                # Formatting
+                # ----------
+                # x-axis
+                ax.set_xlim([0,50])
+                ax.set_xticks(np.arange(0,55,5))
+                # y-axis
+                if metric in ["Pearson Correlation","Index of Agreement"]:
+                    ax.set_ylim([0.3,1.0])
+                else:
+                    ax.set_ylim(bottom=0)
+                # remainder
+                ax.tick_params(labelsize=12)
+                ax.set_title(metric,fontsize=16)
+                for loc in ["top","right"]:
+                    ax.spines[loc].set_visible(False)
+                
+        # legend
+        lines, labels = fig.axes[-1].get_legend_handles_labels()
+        fig.legend(lines,labels,loc="upper center",bbox_to_anchor=(0.5,0),frameon=False,ncol=3,fontsize=14)
+        # common x-axis
+        fig.add_subplot(111, frame_on=False)
+        plt.tick_params(labelcolor="none", bottom=False, left=False)
+        plt.xlabel("Percent Missing Data",labelpad=8,fontsize=14)
+            
+        if save:
+            if annot != "":
+                annot = "-" + annot
+            plt.savefig(f"{self.data_dir}reports/figures/imputation/remove_at_random-method_metric_comparision{annot}.pdf",bbox_inches="tight")
+        plt.show()
+        plt.close()
+
+# runners
     def run_at_random(self,percents=[5,10,15,20,25,30,35,40,45,50]):
         """
         Evaluates and compares the imputation models
@@ -285,68 +342,31 @@ class Impute:
 
         return res
 
-    def run_periods_at_random(self):
+    def run_periods_at_random(self, percents=[5,10,15,20,30,35,40,45,50],period=60):
         """
         Evaluates and compares imputation models on the consecutive missing observations datasets
 
         Parameters
         ----------
+        percents : range or list, default [5,10,15,20,25,30,35,40,45,50]
+            percents to consider - must have an accompanying data file
+        period : int, default 60
+            length in minutes of the periods that have been removed
 
         Returns
         -------
         res : dictionary
             metric results for each method
         """
-        pass
+        res = {}
+        for method, label in zip([self.mice, self.miss_forest, self.arima],["MICE","missForest","ARIMA"]):
+            method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
+            for p in percents:
+                self.load_data_consecutive_random(percent=p,period=period)
+                method(set_for_class=True)
+                for metric, val in zip(method_res.keys(),(p,) + self.evaluate(self.imputed)):
+                    method_res[metric].append(val)
+                    
+            res[label] = method_res
 
-    def compare_methods(self,results,save=False,annot=""):
-        """
-        Compares the metrics from multiple imputation methods
-        
-        Parameters
-        ----------
-        results : dictionary
-            containts metric results for each method from run
-        save : boolean, default False
-            whether or not to save the figure
-        
-        Returns
-        -------
-        
-        """
-        fig, axes = plt.subplots(1,4,figsize=(18,4),gridspec_kw={"wspace":0.5})
-        for metric, ax in zip(["Pearson Correlation","MAE","RMSE","Index of Agreement"],axes):
-            for method,color in zip(results.keys(),["cornflowerblue","seagreen","firebrick"]):
-                method_res = results[method]
-                ax.plot(method_res["Percent"],method_res[metric],
-                        lw=2,color=color,label=method)
-                # Formatting
-                # ----------
-                # x-axis
-                ax.set_xlim([0,50])
-                ax.set_xticks(np.arange(0,55,5))
-                # y-axis
-                if metric in ["Pearson Correlation","Index of Agreement"]:
-                    ax.set_ylim([0.9,1.0])
-                else:
-                    ax.set_ylim(bottom=0)
-                # remainder
-                ax.tick_params(labelsize=12)
-                ax.set_title(metric,fontsize=16)
-                for loc in ["top","right"]:
-                    ax.spines[loc].set_visible(False)
-                
-        # legend
-        lines, labels = fig.axes[-1].get_legend_handles_labels()
-        fig.legend(lines,labels,loc="upper center",bbox_to_anchor=(0.5,0),frameon=False,ncol=3,fontsize=14)
-        # common x-axis
-        fig.add_subplot(111, frame_on=False)
-        plt.tick_params(labelcolor="none", bottom=False, left=False)
-        plt.xlabel("Percent Missing Data",labelpad=8,fontsize=14)
-            
-        if save:
-            if annot != "":
-                annot = "-" + annot
-            plt.savefig(f"{self.data_dir}reports/figures/imputation/remove_at_random-method_metric_comparision{annot}.pdf",bbox_inches="tight")
-        plt.show()
-        plt.close()
+        return res
