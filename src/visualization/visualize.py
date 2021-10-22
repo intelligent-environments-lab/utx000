@@ -95,6 +95,37 @@ def get_label(var):
     else:
         return ""
 
+def get_units(pollutant):
+    """Gets the formated label for the pollutant"""
+    if pollutant == "co2":
+        return "ppm"
+    elif pollutant == "co":
+        return "ppb"
+    elif pollutant == "pm2p5_mass":
+        return "$\mu$g/m$^3$"
+    elif pollutant == "pm2p5_number":
+        return "#/dL"
+    elif pollutant == "no2":
+        return "ppb"
+    elif pollutant == "tvoc":
+        return "ppb"
+    elif pollutant == "temperature_c":
+        return "$^\circ$C"
+    elif pollutant == "rh":
+        return "%"
+    elif pollutant == "lux":
+        return "lux"
+    elif pollutant == "tst" or pollutant == "tst_fb":
+        return "hours"
+    elif pollutant == "se":
+        return ""
+    elif pollutant == "sol":
+        return "mins"
+    elif pollutant == "naw":
+        return ""
+    else:
+        return ""
+
 def get_pollutant_label(pollutant):
     """Gets the formated label for the pollutant"""
     if pollutant == "co2":
