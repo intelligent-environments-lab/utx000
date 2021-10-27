@@ -3,6 +3,8 @@ from numpy.lib.scimath import sqrt
 import pandas as pd
 import numpy as np
 from pandas.core import frame
+import random
+import missingno as msno
 
 # Iterative Imputer for MICE
 from sklearn.experimental import enable_iterative_imputer 
@@ -20,14 +22,14 @@ import matplotlib.pyplot as plt
 
 class TestData:
 
-    def __init__(self,pt,data_dir,params=["co2","pm2p5_mass","tvoc","temperature_c","rh"]):
+    def __init__(self,pt,data_dir="../",params=["co2","pm2p5_mass","tvoc","temperature_c"]):
         self.pt = pt
         self.data_dir = data_dir
         self.params = params
 
         self.data = self.import_example_data(self.pt,self.data_dir,self.params)
 
-    def import_example_data(self,pt,data_dir="../",params=["co2","pm2p5_mass","tvoc","temperature_c","rh"]):
+    def import_example_data(self,pt,data_dir="../",params=["co2","pm2p5_mass","tvoc","temperature_c"]):
         """
         Imports example data
         
@@ -37,11 +39,12 @@ class TestData:
             id of the participant to import for
         data_dir : str
             path to the "data" directory in the utx000 project
+        params : list, default ["co2","pm2p5_mass","tvoc","temperature_c"]
             
         Returns
         -------
         data : DataFrame
-            exemplary ieq data from participant
+            exemplary iaq data from participant
         """
         
         try:
@@ -52,6 +55,161 @@ class TestData:
             return pd.DataFrame()
         
         return data[params]
+
+    def remove_at_random(self,df,percent=10):
+        """
+        Removes random rows from the dataset
+        
+        Parameters
+        ----------
+        df : DataFrame
+            original data
+        percent : int or float, default 10
+            percent of data to remove
+            
+        Returns
+        -------
+        df_subset : DataFrame
+            original data with rows removed
+        """
+        remove_n = int(percent/100*len(df))
+        drop_indices = np.random.choice(df.index, remove_n, replace=False)
+        df_subset = df.drop(drop_indices)
+        
+        return df_subset
+
+    def remove_at_random_all(self,df_in,percent=10,params=["co2","pm2p5_mass","tvoc","temperature_c"]):
+        """
+        Removes the given percentage of data individually across all parameters
+        
+        Parameters
+        ----------
+        df_in : DataFrame
+            original data
+        percent : int or float, default 10
+            percent of data to remove
+        params : list of str, default ["co2","pm2p5_mass","tvoc","temperature_c"]
+            parameters to remove data from
+            
+        Returns
+        -------
+        df : DataFrame
+            original data with observations removed
+        """
+        df = df_in.copy()
+        true_percent = percent / len(params)
+        for param in params:
+            df_param = self.remove_at_random(df_in,percent=true_percent)
+            df[param] = df_param[param]
+            
+        return df
+
+    def get_n_consecutive_ixs(self,ixs,n=5,perc=10):
+        """
+        Gets n-consecutive indices at random (Kingsley)
+        
+        Parameters
+        ----------
+        ixs : list
+            consecutive indices from DataFrame
+        n : int, default 5
+            number of consecutive rows to remove in a single instance
+        percent : int or float, default 10
+            determines the number of instances to remove
+            
+        Returns
+        -------
+        ixs : list
+            new indices after removing consecutive values
+        """
+        ixs_count = len(ixs)*perc/100
+        set_count = int(ixs_count/n)
+        choice_ixs = [ix for ix in range(0,len(ixs)-(n+1),n)]
+        choice_ixs = random.choices(choice_ixs,k=set_count)
+        ixs_sets = [[ix + i for i in range(n)] for ix in choice_ixs]
+        ixs = [ix for ixs in ixs_sets for ix in ixs]
+        
+        return ixs
+
+    def remove_n_consecutive_with_other_missing(self,df_in,n,percent_all,percent_one,params,target):
+        """
+        Removes random periods of data from the dataset
+        
+        Parameters
+        ----------
+        df_in : DataFrame
+            original dataset
+        n : int
+            number of consecutive rows to remove in a single instance
+        percent : int or float
+            determines the number of instances to remove
+            
+        Return
+        ------
+        <subset> : DataFrame
+            original dataframe with the missing data
+        """
+        # remove data at random from all other columns
+        df_missing = self.remove_at_random_all(df_in,percent=percent_all,params=params)
+        
+        # remove the consecutive observations 
+        df = df_in.reset_index()
+        drop_indices = self.get_n_consecutive_ixs(df.index,n=n,perc=percent_one)
+        df_consecutive_missing = df.drop(drop_indices)
+        
+        # merge missing at random with missing observations for target and return
+        comb = df_missing.drop(target,axis="columns").reset_index().merge(right=df_consecutive_missing[["timestamp",target]],on="timestamp",how="left")
+        return comb
+
+    # Evaluating
+    def check_missing(self, df, save=False):
+        """
+        Checks the missing data from the given df
+        """
+        print("Percent of Missing Data:",round(df.isnull().sum().sum()/len(df)*100,3))
+        print("From each column:")
+        for param in df.columns:
+            print(f"\t{param}:",round(df[param].isnull().sum()/len(df)*100,3))
+
+        _, ax = plt.subplots()
+        msno.matrix(df, ax=ax)
+
+        if save:
+            plt.savefig("/Users/hagenfritz/Desktop/missing_check.pdf",bbox_inches="tight")
+
+        plt.show()
+        plt.close()
+
+    def visualize(self, df, param="co2", **kwargs):
+        """
+        Provides a timeseries of the given parameter in df
+        """
+        # checking for datetime index
+        if not isinstance(df.index, pd.DatetimeIndex):
+            print("Index is not datetime")
+            return 
+
+        # plotting
+        _, ax = plt.subplots(figsize=(12,4))
+        ax.plot(df.index,df[param],lw=2,color="black")
+        # x-axis
+        if "start_time" in kwargs.keys():
+            ax.set_xlim(left=kwargs["start_time"])
+        if "end_time" in kwargs.keys():
+            ax.set_xlim(right=kwargs["end_time"])
+        # remainder
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+
+        plt.show()
+        plt.close()
+
+    # setters
+    def restrict_data(self,start_time,end_time):
+        """
+        Restricts the class data to a certain time interval
+        """
+        self.data = self.data[start_time:end_time]
 
 class Impute:
 
@@ -180,6 +338,12 @@ class Impute:
         """
         self.base = base
 
+    def set_missing(self,missing):
+        """
+        Sets the class missing data
+        """
+        self.missing = missing
+
     def set_imputed(self,imputed):
         """
         Sets the class imputed variable to the given data
@@ -235,12 +399,15 @@ class Impute:
 
         if plot:
             _, ax = plt.subplots(figsize=(5,5))
-            ax.scatter(y_true,y_pred,color="black",s=5)
+            ax.scatter(y_true,y_pred,color="black",s=7,alpha=0.2)
 
             ax.set_xlabel("Actual")
             ax.set_ylabel("Predicted")
 
             ax.text(0.1,0.9,f"n={len(y_pred)}",transform=ax.transAxes)
+
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
 
             plt.show()
             plt.close()
@@ -256,13 +423,15 @@ class Impute:
         ax.plot(self.missing.index,self.missing[self.param],lw=5,color="firebrick",label="Missing")
         ax.plot(imputed.index,imputed[self.param],lw=2,color="goldenrod",label="Predicted")
         
+        # formatting
         for loc in ["top","right"]:
             ax.spines[loc].set_visible(False)
+        ax.legend(frameon=False)
         
         plt.show()
         plt.close()
 
-    def compare_methods(self,results,save=False,annot=""):
+    def compare_methods(self,results,save=False,annot="",**kwargs):
         """
         Compares the metrics from multiple imputation methods
         
@@ -286,13 +455,14 @@ class Impute:
                 # Formatting
                 # ----------
                 # x-axis
-                ax.set_xlim([0,50])
-                ax.set_xticks(np.arange(0,55,5))
+                if "xlim" in kwargs.keys():
+                    ax.set_xlim(kwargs["xlim"])
+                else: #default
+                    ax.set_xlim([0,50])
+                    ax.set_xticks(np.arange(0,55,5))
                 # y-axis
                 if metric in ["Pearson Correlation","Index of Agreement"]:
-                    ax.set_ylim([0.3,1.0])
-                else:
-                    ax.set_ylim(bottom=0)
+                    ax.set_ylim([0,1.0])
                 # remainder
                 ax.tick_params(labelsize=12)
                 ax.set_title(metric,fontsize=16)
@@ -345,7 +515,7 @@ class Impute:
 
         return res
 
-    def run_periods_at_random(self, param="co2", percents=[5,10,15,20,30,35,40,45,50],period=60):
+    def run_periods_at_random(self, param="co2", percents=[5,10,15,20,30,35,40,45,50],period=60,verbose=False):
         """
         Evaluates and compares imputation models on the consecutive missing observations datasets
 
@@ -371,6 +541,65 @@ class Impute:
                 self.load_data_consecutive_random(percent=p,period=period)
                 method(set_for_class=True)
                 for metric, val in zip(method_res.keys(),(p,) + self.evaluate(self.imputed)):
+                    method_res[metric].append(val)
+                    
+                if verbose:
+                    print(f"Method: {label} - Period: {period} - Percent: {p}")
+                    self.evaluate(self.imputed,plot=True)
+                    self.compare_ts(self.imputed)
+            res[label] = method_res
+
+        return res
+
+# analysis
+    def find_max_period(self, start_time, end_time, param="co2",percent=10,periods=[30,60,90,120,150,180],verbose=False):
+        """
+        Evaluates and compares imputation models on the consecutive missing observations datasets
+
+        Parameters
+        ----------
+        param : str, default "co2"
+            specifies which parameter to run the analysis for
+        percent : int, default 10
+            percents to consider - must have an accompanying data file
+        periods : range or list, default [60,120,180,240,300,360]
+            length in minutes of the periods that have been removed
+
+        Returns
+        -------
+        res : dictionary
+            metric results for each method
+        """
+        res = {} # final results
+        # missing data generator class
+        missing_gen = TestData(pt=self.pt)
+        missing_gen.restrict_data(start_time,end_time)
+        self.set_base(missing_gen.data) # setting the base to the restricted data
+        # defining the parameters 
+        param_list = list(missing_gen.data.columns.values).copy()
+        param_list.remove(param)
+        # getting results from each of the methods
+        for method, label in zip([self.mice, self.miss_forest, self.arima],["MICE","missForest","ARIMA"]):
+            method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
+            for period in periods: # looping through the various period lengths
+                raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
+                for _ in range(3): # iterating 3 times for each period to get an average evaluation
+                    missing = missing_gen.remove_n_consecutive_with_other_missing(missing_gen.data,period,10,percent,param_list,param)
+                    missing.set_index("timestamp",inplace=True)
+                    self.set_missing(missing)
+                    method(set_for_class=True)
+                    for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
+                        raw_res[metric].append(val)
+
+                if verbose:
+                    print(f"Method: {label} - Period: {period}")
+                    #self.evaluate(self.imputed,plot=True)
+                    self.compare_ts(self.imputed)
+                # averaging results from iterations
+                avg_res = list(pd.DataFrame(raw_res).mean().values)
+                avg_res.insert(0,period*2)
+                # appending average results to overall results
+                for metric, val in zip(method_res.keys(),avg_res):
                     method_res[metric].append(val)
                     
             res[label] = method_res
