@@ -267,7 +267,7 @@ class Impute:
             print(f"Check the parameters:\n\tparam:\t{self.param}\n\tpercent:\t{percent}\n\tperiod:\t{period}")
 
 # methods for imputing
-    def mice(self,estimator=None,set_for_class=False):
+    def mice(self,estimator=None,max_iter=30,set_for_class=False):
         """
         Imputes missing data with Mutiple Iterations of Chained Equations (MICE)
         
@@ -275,6 +275,8 @@ class Impute:
         ----------
         estimator : sklearn estimator, default None (Bayesion Ridge)
             estimator to use for IterativeImputer - see https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html?highlight=iterative%20imputer#sklearn.impute.IterativeImputer
+        max_iter : int, default 30
+            max number of iterations 
         set_for_class : boolean, default False
             sets the imputed class variable to the results from this method
 
@@ -282,19 +284,25 @@ class Impute:
         -------
         <void>
         """
-        imp = IterativeImputer(estimator=estimator,max_iter=30,tol=1e-5,imputation_order="ascending")
+        imp = IterativeImputer(estimator=estimator,max_iter=max_iter,tol=1e-5,imputation_order="ascending")
         imp.fit(self.missing)
         self.mice_imputed = pd.DataFrame(imp.transform(self.missing),index=self.missing.index,columns=self.missing.columns)
         
         if set_for_class:
             self.set_imputed(self.mice_imputed)
 
-    def miss_forest(self,set_for_class=False):
+    def miss_forest(self,n_estimators=10,max_depth=3,max_iter=30,set_for_class=False):
         """
         Imputes missing data with missForest
 
         Parameters
         ----------
+        n_estimators : int, default 10
+            number of trees in the forest
+        max_depth : int, default 3
+            max number of levels in the tree
+        max_iter : int, default 30
+            max number of iterations 
         set_for_class : boolean, default False
             sets the imputed class variable to the results from this method
 
@@ -302,7 +310,8 @@ class Impute:
         -------
         <void>
         """
-        imp = IterativeImputer(estimator=RandomForestRegressor(n_estimators=10),max_iter=10,tol=1e-5,imputation_order="ascending")
+        imp = IterativeImputer(estimator=RandomForestRegressor(n_estimators=n_estimators,max_depth=max_depth,random_state=42),
+                                                                max_iter=max_iter,tol=1e-5,imputation_order="ascending")
         imp.fit(self.missing)
         self.rf_imputed = pd.DataFrame(imp.transform(self.missing),index=self.missing.index,columns=self.missing.columns)
 
@@ -324,12 +333,15 @@ class Impute:
         -------
         <void>
         """
-        imp = ARIMA(self.missing[self.param], order=order, freq=self.freq)
+        imp = ARIMA(self.missing[self.param], order=order, freq=self.freq, enforce_stationarity=False)
         self.arima_imputed = self.missing.copy()
-        self.arima_imputed[self.param] = imp.fit().predict()
-        self.arima_imputed[self.param].replace(0,np.nanmean(self.arima_imputed[self.param]),inplace=True)
-        if set_for_class:
-            self.set_imputed(self.arima_imputed)
+        try:
+            self.arima_imputed[self.param] = imp.fit().predict()
+            self.arima_imputed[self.param].replace(0,np.nanmean(self.arima_imputed[self.param]),inplace=True)
+            if set_for_class:
+                self.set_imputed(self.arima_imputed)
+        except Exception as e:
+            print(e)
 
 # setters
     def set_base(self,base):
@@ -485,7 +497,7 @@ class Impute:
         plt.close()
 
 # runners
-    def run_at_random(self,param="co2",percents=[5,10,15,20,25,30,35,40,45,50]):
+    def run_at_random(self,param="co2",percents=[5,10,15,20,25,30,35,40,45,50],n_cv=3,verbose=False):
         """
         Evaluates and compares the imputation models
 
@@ -495,6 +507,10 @@ class Impute:
             percents to consider - must have an accompanying data file
         param : str, default "co2"
             specifies which parameter to run the analysis for
+        n_cv : int, default 3
+            number of cross-validation iterations
+        verbose : boolean, default False
+            whether or not to display output at each method iteration
 
         Returns
         -------
@@ -508,14 +524,33 @@ class Impute:
             for p in percents:
                 self.load_data_random(percent=p)
                 method(set_for_class=True)
-                for metric, val in zip(method_res.keys(),(p,) + self.evaluate(self.imputed)):
+                raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
+                for _ in range(n_cv):
+                    method(set_for_class=True)
+                    try:
+                        for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
+                            raw_res[metric].append(val)
+                    except Exception as e:
+                        print(f"{param} - {p}")
+                        print(e)
+
+                # averaging results from iterations
+                avg_res = list(pd.DataFrame(raw_res).mean().values)
+                avg_res.insert(0,p)
+                # appending average results to overall results
+                for metric, val in zip(method_res.keys(),avg_res):
                     method_res[metric].append(val)
                     
+                if verbose:
+                    print(f"Method: {label} - Percent: {p}")
+                    self.evaluate(self.imputed,plot=True)
+                    self.compare_ts(self.imputed)
+
             res[label] = method_res
 
         return res
 
-    def run_periods_at_random(self, param="co2", percents=[5,10,15,20,30,35,40,45,50],period=60,verbose=False):
+    def run_periods_at_random(self, param="co2", percents=[5,10,15,20,30,35,40,45,50],period=60,n_cv=3,verbose=False):
         """
         Evaluates and compares imputation models on the consecutive missing observations datasets
 
@@ -527,6 +562,10 @@ class Impute:
             percents to consider - must have an accompanying data file
         period : int, default 60
             length in minutes of the periods that have been removed
+        n_cv : int, default 3
+            number of cross-validation iterations
+        verbose : boolean, default False
+            whether or not to display output at each method iteration
 
         Returns
         -------
@@ -539,14 +578,28 @@ class Impute:
             method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
             for p in percents:
                 self.load_data_consecutive_random(percent=p,period=period)
-                method(set_for_class=True)
-                for metric, val in zip(method_res.keys(),(p,) + self.evaluate(self.imputed)):
+                raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
+                for _ in range(n_cv):
+                    method(set_for_class=True)
+                    try:
+                        for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
+                            raw_res[metric].append(val)
+                    except Exception as e:
+                        print(f"{param} - {period} - {p}")
+                        print(e)
+
+                # averaging results from iterations
+                avg_res = list(pd.DataFrame(raw_res).mean().values)
+                avg_res.insert(0,p)
+                # appending average results to overall results
+                for metric, val in zip(method_res.keys(),avg_res):
                     method_res[metric].append(val)
                     
                 if verbose:
                     print(f"Method: {label} - Period: {period} - Percent: {p}")
                     self.evaluate(self.imputed,plot=True)
                     self.compare_ts(self.imputed)
+
             res[label] = method_res
 
         return res
@@ -584,12 +637,17 @@ class Impute:
             for period in periods: # looping through the various period lengths
                 raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
                 for _ in range(3): # iterating 3 times for each period to get an average evaluation
+                    # creating missing dataset
                     missing = missing_gen.remove_n_consecutive_with_other_missing(missing_gen.data,period,10,percent,param_list,param)
                     missing.set_index("timestamp",inplace=True)
                     self.set_missing(missing)
                     method(set_for_class=True)
-                    for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
-                        raw_res[metric].append(val)
+                    try:
+                        for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
+                            raw_res[metric].append(val)
+                    except Exception as e:
+                        print(f"{param} - {period} - {percent}")
+                        print(e)
 
                 if verbose:
                     print(f"Method: {label} - Period: {period}")
@@ -605,3 +663,146 @@ class Impute:
             res[label] = method_res
 
         return res
+
+    def optimize_rf(self,param="co2",percents=[10,20,30],n_estimators=[10,20,50,100],max_depths=[2,3,4],**kwargs):
+        """
+        Runs a gridsearch to determine the optimal RF model parameters
+
+        Parameters
+        ----------
+        param : str, default "co2"
+            which parameter to run the analysis for
+        percents : list of int or float, default [10,20,30]
+            percents to consider removing at random from the given parameter
+        n_estimators : list of int, default [10,20,50,100]
+            number of trees to consider in the random forest models
+        max_depths : list of int, default [2,3,4]
+            max depths to consider in the random forest models
+        kwargs
+            start_time : datetime
+                to restrict the dataset
+            end_time : datetime
+                to restrict the dataset
+
+        Returns
+        -------
+        res : DataFrame
+            tabulated results from the gridsearch
+        """
+        # missing data generator class
+        missing_gen = TestData(pt=self.pt)
+        # getting start and stop time from kwargs if available
+        if "start_time" in kwargs.keys():
+            start_time = kwargs["start_time"]
+        else:
+            start_time = missing_gen.data.index[0]
+        if "end_time" in kwargs.keys():
+            end_time = kwargs["end_time"]
+        else:
+            end_time = missing_gen.data.index[-1]
+        missing_gen.restrict_data(start_time,end_time)
+
+        self.set_base(missing_gen.data) # setting the base to the restricted data
+
+        # defining the parameters 
+        param_list = list(missing_gen.data.columns.values).copy()
+        param_list.remove(param)
+        # getting results for each model param
+        res = {"Percent":[],"Estimators":[],"Depth":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
+        for percent in percents: # looping through the various period lengths
+            for estimators in n_estimators:
+                for max_depth in max_depths:
+                    raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
+                    for _ in range(3): # iterating 3 times for each period to get an average evaluation
+                        # creating missing dataset
+                        some_missing = missing_gen.remove_at_random_all(missing_gen.data,percent=10,params=param_list) # removing fixed number from all but one param
+                        missing = missing_gen.remove_at_random_all(some_missing,percent=percent,params=[param]) # removing the given percentage from the select param
+                        self.set_missing(missing)
+
+                        self.miss_forest(n_estimators=estimators,max_depth=max_depth,set_for_class=True)
+                        
+                        for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
+                            raw_res[metric].append(val)
+
+                    # averaging results from iterations
+                    avg_res = list(pd.DataFrame(raw_res).mean().values)
+                    for i, val in enumerate([percent,estimators,max_depth]):
+                        avg_res.insert(i,val)
+                    # appending average results to overall results
+                    for metric, val in zip(res.keys(),avg_res):
+                        res[metric].append(val)
+
+        return pd.DataFrame(res)
+        
+    def optimize_arima(self,param="co2",percents=[10,20,30],ps=[0,1,2],ds=[0,1,2],qs=[0,1,2],**kwargs):
+        """
+        Runs a gridsearch to determine the optimal RF model parameters
+
+        Parameters
+        ----------
+        param : str, default "co2"
+            which parameter to run the analysis for
+        percents : list of int or float, default [10,20,30]
+            percents to consider removing at random from the given parameter
+        ps : list of int, default [0,1,2]
+            options for historic data points to consider
+        ds : list of int, default [0,1,2]
+            options for differencing order
+        qs : list of int, default [0,1,2]
+            options for moving average 
+        kwargs
+            start_time : datetime
+                to restrict the dataset
+            end_time : datetime
+                to restrict the dataset
+
+        Returns
+        -------
+        res : DataFrame
+            tabulated results from the gridsearch
+        """
+        # missing data generator class
+        missing_gen = TestData(pt=self.pt)
+        # getting start and stop time from kwargs if available
+        if "start_time" in kwargs.keys():
+            start_time = kwargs["start_time"]
+        else:
+            start_time = missing_gen.data.index[0]
+        if "end_time" in kwargs.keys():
+            end_time = kwargs["end_time"]
+        else:
+            end_time = missing_gen.data.index[-1]
+        missing_gen.restrict_data(start_time,end_time)
+
+        self.set_base(missing_gen.data) # setting the base to the restricted data
+
+        # defining the parameters 
+        param_list = list(missing_gen.data.columns.values).copy()
+        param_list.remove(param)
+        # getting results for each model param
+        res = {"Percent":[],"P":[],"D":[],"Q":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
+        for percent in percents: # looping through the various period lengths
+            for p in ps:
+                for d in ds:
+                    for q in qs:
+                        raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
+                        for _ in range(3): # iterating 3 times for each period to get an average evaluation
+                            # creating missing dataset
+                            some_missing = missing_gen.remove_at_random_all(missing_gen.data,percent=10,params=param_list) # removing fixed number from all but one param
+                            missing = missing_gen.remove_at_random_all(some_missing,percent=percent,params=[param]) # removing the given percentage from the select param
+                            self.set_missing(missing)
+
+                            self.arima(order=(p,d,q),set_for_class=True)
+                            
+                            for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
+                                raw_res[metric].append(val)
+
+                        # averaging results from iterations
+                        avg_res = list(pd.DataFrame(raw_res).mean().values)
+                        for i, val in enumerate([p,d,q]):
+                            avg_res.insert(i,val)
+                        # appending average results to overall results
+                        for metric, val in zip(res.keys(),avg_res):
+                            res[metric].append(val)
+
+        return pd.DataFrame(res)
