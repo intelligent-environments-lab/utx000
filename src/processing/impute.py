@@ -5,6 +5,7 @@ import numpy as np
 from pandas.core import frame
 import random
 import missingno as msno
+from datetime import datetime
 
 # Iterative Imputer for MICE
 from sklearn.experimental import enable_iterative_imputer 
@@ -22,14 +23,14 @@ import matplotlib.pyplot as plt
 
 class TestData:
 
-    def __init__(self,pt,data_dir="../",params=["co2","pm2p5_mass","tvoc","temperature_c"]):
+    def __init__(self,pt,data_dir="../",params=["co2","pm2p5_mass","tvoc","temperature_c","co"]):
         self.pt = pt
         self.data_dir = data_dir
         self.params = params
 
         self.data = self.import_example_data(self.pt,self.data_dir,self.params)
 
-    def import_example_data(self,pt,data_dir="../",params=["co2","pm2p5_mass","tvoc","temperature_c"]):
+    def import_example_data(self,pt,data_dir="../",params=["co2","pm2p5_mass","tvoc","temperature_c","co"]):
         """
         Imports example data
         
@@ -78,7 +79,7 @@ class TestData:
         
         return df_subset
 
-    def remove_at_random_all(self,df_in,percent=10,params=["co2","pm2p5_mass","tvoc","temperature_c"]):
+    def remove_at_random_all(self,df_in,percent=10,params=["co2","pm2p5_mass","tvoc","temperature_c","co"]):
         """
         Removes the given percentage of data individually across all parameters
         
@@ -291,15 +292,15 @@ class Impute:
         if set_for_class:
             self.set_imputed(self.mice_imputed)
 
-    def miss_forest(self,n_estimators=10,max_depth=3,max_iter=30,set_for_class=False):
+    def miss_forest(self,n_estimators=100,max_depth=50,max_iter=30,set_for_class=False):
         """
         Imputes missing data with missForest
 
         Parameters
         ----------
-        n_estimators : int, default 10
+        n_estimators : int, default 100
             number of trees in the forest
-        max_depth : int, default 3
+        max_depth : int, default 50
             max number of levels in the tree
         max_iter : int, default 30
             max number of iterations 
@@ -318,7 +319,7 @@ class Impute:
         if set_for_class:
             self.set_imputed(self.rf_imputed)
 
-    def arima(self,order=(2,1,2),set_for_class=False):
+    def arima(self,order=(2,0,1),set_for_class=False):
         """
         Imputes missing data with Auto-Regressive Integrated Moving Average 
 
@@ -398,16 +399,23 @@ class Impute:
         y_pred = imputed.loc[self.missing[self.missing[self.param].isnull()].index.values,:][self.param].values
         # Metrics
         # -------
-        r2 = r2_score(y_true=y_true,y_pred=y_pred)
-        mae = mean_absolute_error(y_true=y_true,y_pred=y_pred)
-        rmse = sqrt(mean_squared_error(y_true=y_true,y_pred=y_pred))
-        # looping through values for index of agreement
-        num = 0
-        den = 0
-        for obs, pred in zip(y_true,y_pred):
-            num += (pred - obs)**2
-            den += (abs(pred - np.mean(y_true)) + abs(obs - np.mean(y_true)))**2
-        ia = 1 - num/den
+        try:
+            r2 = r2_score(y_true=y_true,y_pred=y_pred)
+            mae = mean_absolute_error(y_true=y_true,y_pred=y_pred)
+            rmse = sqrt(mean_squared_error(y_true=y_true,y_pred=y_pred))
+            # looping through values for index of agreement
+            num = 0
+            den = 0
+            for obs, pred in zip(y_true,y_pred):
+                num += (pred - obs)**2
+                den += (abs(pred - np.mean(y_true)) + abs(obs - np.mean(y_true)))**2
+            ia = 1 - num/den
+        except ValueError:
+            print("Input contains NaN most likely")
+            r2 = 0
+            mae = np.nan
+            rmse = np.nan
+            ia = 0
 
         if plot:
             _, ax = plt.subplots(figsize=(5,5))
@@ -458,7 +466,7 @@ class Impute:
         -------
         <void>
         """
-        fig, axes = plt.subplots(1,4,figsize=(18,4),gridspec_kw={"wspace":0.5})
+        fig, axes = plt.subplots(1,4,figsize=(18,4),gridspec_kw={"wspace":0.2})
         for metric, ax in zip(["Pearson Correlation","MAE","RMSE","Index of Agreement"],axes):
             for method,color in zip(results.keys(),["cornflowerblue","seagreen","firebrick"]):
                 method_res = results[method]
@@ -521,11 +529,16 @@ class Impute:
         res = {}
         for method, label in zip([self.mice, self.miss_forest, self.arima],["MICE","missForest","ARIMA"]):
             method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
+            if verbose:
+                print(label)
             for p in percents:
+                if verbose:
+                    print("\tPercent:",p)
                 self.load_data_random(percent=p)
-                method(set_for_class=True)
                 raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
-                for _ in range(n_cv):
+                for i in range(n_cv):
+                    if verbose:
+                        print("\t\tIteration:",i)
                     method(set_for_class=True)
                     try:
                         for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
@@ -540,11 +553,6 @@ class Impute:
                 # appending average results to overall results
                 for metric, val in zip(method_res.keys(),avg_res):
                     method_res[metric].append(val)
-                    
-                if verbose:
-                    print(f"Method: {label} - Percent: {p}")
-                    self.evaluate(self.imputed,plot=True)
-                    self.compare_ts(self.imputed)
 
             res[label] = method_res
 
@@ -664,7 +672,7 @@ class Impute:
 
         return res
 
-    def optimize_rf(self,param="co2",percents=[10,20,30],n_estimators=[10,20,50,100],max_depths=[2,3,4],**kwargs):
+    def optimize_rf(self,param="co2",percents=[10,20,30],n_estimators=[10,20,50,100],max_depths=[2,3,4],verbose=False,**kwargs):
         """
         Runs a gridsearch to determine the optimal RF model parameters
 
@@ -689,6 +697,7 @@ class Impute:
         res : DataFrame
             tabulated results from the gridsearch
         """
+        self.param = param
         # missing data generator class
         missing_gen = TestData(pt=self.pt)
         # getting start and stop time from kwargs if available
@@ -712,8 +721,13 @@ class Impute:
         for percent in percents: # looping through the various period lengths
             for estimators in n_estimators:
                 for max_depth in max_depths:
+                    if verbose:
+                        print(f"Percent: {percent} - Estimators: {estimators} - Depth: {max_depth}")
                     raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
-                    for _ in range(3): # iterating 3 times for each period to get an average evaluation
+                    iteration_start = datetime.now()
+                    for i in range(3): # iterating 3 times for each period to get an average evaluation
+                        if verbose:
+                            print(f"\tIteration {i}")
                         # creating missing dataset
                         some_missing = missing_gen.remove_at_random_all(missing_gen.data,percent=10,params=param_list) # removing fixed number from all but one param
                         missing = missing_gen.remove_at_random_all(some_missing,percent=percent,params=[param]) # removing the given percentage from the select param
@@ -732,9 +746,13 @@ class Impute:
                     for metric, val in zip(res.keys(),avg_res):
                         res[metric].append(val)
 
+                    iteration_end = datetime.now()
+                    if verbose:
+                        print(f"\tTime to execute: {(iteration_end - iteration_start).total_seconds()} seconds")
+
         return pd.DataFrame(res)
         
-    def optimize_arima(self,param="co2",percents=[10,20,30],ps=[0,1,2],ds=[0,1,2],qs=[0,1,2],**kwargs):
+    def optimize_arima(self,param="co2",percents=[10,20,30],ps=[0,1,2],ds=[0,1,2],qs=[0,1,2],verbose=False,**kwargs):
         """
         Runs a gridsearch to determine the optimal RF model parameters
 
@@ -761,6 +779,7 @@ class Impute:
         res : DataFrame
             tabulated results from the gridsearch
         """
+        self.param = param
         # missing data generator class
         missing_gen = TestData(pt=self.pt)
         # getting start and stop time from kwargs if available
@@ -785,8 +804,13 @@ class Impute:
             for p in ps:
                 for d in ds:
                     for q in qs:
+                        if verbose:
+                            print(f"P:{p} - D:{d} - Q:{q}")
                         raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
-                        for _ in range(3): # iterating 3 times for each period to get an average evaluation
+                        iteration_start = datetime.now()
+                        for i in range(3): # iterating 3 times for each period to get an average evaluation
+                            if verbose:
+                                print(f"\tIteration {i}...")
                             # creating missing dataset
                             some_missing = missing_gen.remove_at_random_all(missing_gen.data,percent=10,params=param_list) # removing fixed number from all but one param
                             missing = missing_gen.remove_at_random_all(some_missing,percent=percent,params=[param]) # removing the given percentage from the select param
@@ -799,10 +823,47 @@ class Impute:
 
                         # averaging results from iterations
                         avg_res = list(pd.DataFrame(raw_res).mean().values)
-                        for i, val in enumerate([p,d,q]):
+                        for i, val in enumerate([percent,p,d,q]):
                             avg_res.insert(i,val)
                         # appending average results to overall results
                         for metric, val in zip(res.keys(),avg_res):
                             res[metric].append(val)
 
+                        iteration_end = datetime.now()
+                        if verbose:
+                            print(f"\tTime to execute: {(iteration_end - iteration_start).total_seconds()} seconds")
+
         return pd.DataFrame(res)
+
+    def get_optimal_arima(self,res,sort_by="MAE"):
+        """
+        Determines the best ARIMA parameters from the DataFrame of results
+
+        Parameters
+        ----------
+        res : DataFrame
+            tabulated results from optimize_arima method
+        sort_by : str, default "MAE"
+            evaluation metric to sort by
+
+        Returns
+        -------
+        optimal_params : DataFrame
+            model parameters sorted by the order which produced the best results for all three percents
+        """
+        res_sorted = res.sort_values(["Percent",sort_by],ascending=True)
+        optimal_params = {"p":[],"d":[],"q":[],"rank":[]}
+        for p in res["P"].unique():
+            for d in res["D"].unique():
+                for q in res["Q"].unique():
+                    rank = 0 # initializing
+                    for percent in res["Percent"].unique():
+                        res_per_percent = res_sorted[res_sorted["Percent"] == percent].reset_index()
+                        val = res_per_percent[(res_per_percent["P"] == p) & (res_per_percent["D"] == d) & (res_per_percent["Q"] == q)].index[0]
+                        rank += val
+                    for ix, val in zip(["p","d","q","rank"],[p,d,q,rank]):
+                        optimal_params[ix].append(val)
+
+        optimal_params = pd.DataFrame(optimal_params).sort_values("rank").reset_index()
+        print(f"P: {optimal_params.loc[0,'p']}, D: {optimal_params.loc[0,'d']}, Q: {optimal_params.loc[0,'q']}")
+        return optimal_params
