@@ -5,9 +5,11 @@ import numpy as np
 
 from datetime import datetime
 
+import matplotlib.pyplot as plt
+
 class Internal_Temperature_Check():
 
-    def __init__(self, study="wcwh_pilot", suffix="ux_s20", data_dir="../data/",beacons=np.arange(0,51,1), start_time=datetime(2020,1,1),end_time=datetime(2022,1,1)):
+    def __init__(self, study="wcwh_pilot", suffix="ux_s20", data_dir="../data/",beacons=np.arange(0,51,1), start_time=datetime(2020,1,1),end_time=datetime(2022,1,1),correct=True):
         """
         Initializes the class
         """
@@ -19,7 +21,8 @@ class Internal_Temperature_Check():
         self.start_time = start_time
         self.end_time = end_time
 
-        self.set_correction_model()
+        if correct:
+            self.set_correction_model()
 
     def set_data(self, verbose=False, **kwargs):
         """
@@ -54,17 +57,12 @@ class Internal_Temperature_Check():
                                     "PM_N_1":"pm1_number","PM_N_2p5":"pm2p5_number","PM_N_10":"pm10_number",
                                     "PM_C_1":"pm1_mass","PM_C_2p5":"pm2p5_mass","PM_C_10":"pm10_mass"},inplace=True)
                     # correcting
-                    try:
-                        for var in self.linear_model.keys():
-                            data_by_beacon[var] = data_by_beacon[var] * self.linear_model[var].loc[beacon,"coefficient"] + self.linear_model[var].loc[beacon,"constant"]
-                    except AttributeError:
-                        print("No correction model set")
+                    data_by_beacon["temperature_c_corrected"] = data_by_beacon['temperature_c'] * self.linear_model['temperature_c'].loc[beacon,"coefficient"] + self.linear_model['temperature_c'].loc[beacon,"constant"]
 
                     data = data.append(data_by_beacon)
             except FileNotFoundError:
                 print(f"No files found for beacon {beacon}.")
                 
-        #data['temperature_c'] = data[['T_CO','T_NO2']].mean(axis=1)
         data['rh'] = data[['RH_CO','RH_NO2']].mean(axis=1)
         data.drop(["eCO2","Visible","Infrared","Relative Humidity","PM_N_0p5","T_CO","T_NO2","RH_CO","RH_NO2"],axis="columns",inplace=True)
         data = data[[column for column in data.columns if "4" not in column]]
@@ -90,3 +88,18 @@ class Internal_Temperature_Check():
                     except FileNotFoundError:
                         print(f"Missing linear model for {file_info[0]}")
                         self.linear_model[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
+
+    def plot_all(self):
+        """
+        Plots all timeseries
+        """
+        _, axes = plt.subplots(3,1,figsize=(20,10),sharex=True,gridspec_kw={"hspace":0})
+        for ax, var in zip(axes.flat,["temperature_c","temperature_c_corrected","temperature_c_internal"]):
+            for bb in self.data["beacon"].unique():
+                data_bb = self.data[self.data["beacon"] == bb]
+                ax.plot(data_bb["timestamp"],data_bb[var],lw=2,alpha=0.5,label=bb)
+
+        axes[-1].legend()
+
+        plt.show()
+        plt.close()
