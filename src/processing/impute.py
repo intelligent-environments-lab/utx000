@@ -23,14 +23,14 @@ import matplotlib.pyplot as plt
 
 class TestData:
 
-    def __init__(self,pt,data_dir="../",params=["co2","pm2p5_mass","tvoc","temperature_c","co"]):
+    def __init__(self,pt,data_dir="../",params=["co2","pm2p5_mass","pm10_mass","tvoc","temperature_c","co"],**kwargs):
         self.pt = pt
         self.data_dir = data_dir
         self.params = params
 
-        self.data = self.import_example_data(self.pt,self.data_dir,self.params)
+        self.data = self.import_example_data(self.pt,self.data_dir,self.params,**kwargs)
 
-    def import_example_data(self,pt,data_dir="../",params=["co2","pm2p5_mass","tvoc","temperature_c","co"]):
+    def import_example_data(self,pt,data_dir="../",params=["co2","pm2p5_mass","pm10_mass","tvoc","temperature_c","co"],**kwargs):
         """
         Imports example data
         
@@ -51,6 +51,15 @@ class TestData:
         try:
             data = pd.read_csv(f"{data_dir}data/interim/imputation/beacon-example-{pt}-ux_s20.csv",
                             index_col="timestamp",parse_dates=["timestamp"],infer_datetime_format=True)
+            if "start_time" in kwargs.keys():
+                start_time = kwargs["start_time"]
+            else:
+                start_time = data.index[0]
+            if "end_time" in kwargs.keys():
+                end_time = kwargs["end_time"]
+            else:
+                end_time = data.index[-1]
+            data = data[start_time:end_time]
         except FileNotFoundError:
             print("No filename for participant", pt)
             return pd.DataFrame()
@@ -79,7 +88,7 @@ class TestData:
         
         return df_subset
 
-    def remove_at_random_all(self,df_in,percent=10,params=["co2","pm2p5_mass","tvoc","temperature_c","co"]):
+    def remove_at_random_all(self,df_in,percent=10,params=["co2","pm2p5_mass","pm10_mass","tvoc","temperature_c","co"]):
         """
         Removes the given percentage of data individually across all parameters
         
@@ -214,7 +223,7 @@ class TestData:
 
 class Impute:
 
-    def __init__(self,pt,data_dir,freq="2T",consecutive=False,prompt=False):
+    def __init__(self,pt,data_dir,freq="2T",consecutive=False,prompt=False,**kwargs):
         """
         Impute class for BEVO Beacon data
 
@@ -242,8 +251,18 @@ class Impute:
         self.base = pd.read_csv(f"{self.data_dir}data/interim/imputation/beacon-example-{pt}-ux_s20.csv",parse_dates=["timestamp"],
                                 index_col="timestamp",infer_datetime_format=True).asfreq(freq=self.freq)
 
+        if "start_time" in kwargs.keys():
+            start_time = kwargs["start_time"]
+        else:
+            start_time = self.base.index[0]
+        if "end_time" in kwargs.keys():
+            end_time = kwargs["end_time"]
+        else:
+            end_time = self.base.index[-1]
+        self.base = self.base[start_time:end_time]
+
 # methods for loading data
-    def load_data_random(self,percent):
+    def load_data_random(self,percent,**kwargs):
         """
         Loads in the randomly removed data
         """
@@ -268,6 +287,19 @@ class Impute:
             print(f"Check the parameters:\n\tparam:\t{self.param}\n\tpercent:\t{percent}\n\tperiod:\t{period}")
 
 # methods for imputing
+    def interp(self,set_for_class=False):
+        """
+        Imputes missing data with a linear interpolation method
+
+        Parameters
+        ----------
+        """
+        self.interp_imputed = self.missing.copy()
+        self.interp_imputed[self.param] = self.interp_imputed[self.param].interpolate().fillna(method="bfill").fillna(method="ffill")
+
+        if set_for_class:
+            self.set_imputed(self.interp_imputed)
+
     def mice(self,estimator=None,max_iter=30,set_for_class=False):
         """
         Imputes missing data with Mutiple Iterations of Chained Equations (MICE)
@@ -292,7 +324,7 @@ class Impute:
         if set_for_class:
             self.set_imputed(self.mice_imputed)
 
-    def miss_forest(self,n_estimators=100,max_depth=50,max_iter=30,set_for_class=False):
+    def miss_forest(self,n_estimators=200,max_depth=10,max_iter=30,set_for_class=False):
         """
         Imputes missing data with missForest
 
@@ -311,7 +343,7 @@ class Impute:
         -------
         <void>
         """
-        imp = IterativeImputer(estimator=RandomForestRegressor(n_estimators=n_estimators,max_depth=max_depth,random_state=42),
+        imp = IterativeImputer(estimator=RandomForestRegressor(n_estimators=n_estimators,max_depth=max_depth,warm_start=True,random_state=42),
                                                                 max_iter=max_iter,tol=1e-5,imputation_order="ascending")
         imp.fit(self.missing)
         self.rf_imputed = pd.DataFrame(imp.transform(self.missing),index=self.missing.index,columns=self.missing.columns)
@@ -468,7 +500,7 @@ class Impute:
         """
         fig, axes = plt.subplots(1,4,figsize=(18,4),gridspec_kw={"wspace":0.2})
         for metric, ax in zip(["Pearson Correlation","MAE","RMSE","Index of Agreement"],axes):
-            for method,color in zip(results.keys(),["cornflowerblue","seagreen","firebrick"]):
+            for method,color in zip(results.keys(),["black","cornflowerblue","seagreen","firebrick"]):
                 method_res = results[method]
                 ax.plot(method_res["Percent"],method_res[metric],
                         lw=2,color=color,label=method)
@@ -491,7 +523,7 @@ class Impute:
                 
         # legend
         lines, labels = fig.axes[-1].get_legend_handles_labels()
-        fig.legend(lines,labels,loc="upper center",bbox_to_anchor=(0.5,0),frameon=False,ncol=3,fontsize=14)
+        fig.legend(lines,labels,loc="upper center",bbox_to_anchor=(0.5,0),frameon=False,ncol=5,fontsize=14)
         # common x-axis
         fig.add_subplot(111, frame_on=False)
         plt.tick_params(labelcolor="none", bottom=False, left=False)
@@ -505,7 +537,7 @@ class Impute:
         plt.close()
 
 # runners
-    def run_at_random(self,param="co2",percents=[5,10,15,20,25,30,35,40,45,50],n_cv=3,verbose=False):
+    def run_at_random(self,param="co2",percents=[5,10,15,20,25,30,35,40,45,50],n_cv=3,verbose=False,**kwargs):
         """
         Evaluates and compares the imputation models
 
@@ -526,19 +558,38 @@ class Impute:
             metric results for each method
         """
         self.param = param
+        # missing data generator class
+        missing_gen = TestData(pt=self.pt)
+        self.set_base(missing_gen.data) # setting the base to the restricted data
+        # restricted dataset if given keywords
+        if "start_time" in kwargs.keys():
+            start_time = kwargs["start_time"]
+        else:
+            start_time = missing_gen.data.index[0]
+        if "end_time" in kwargs.keys():
+            end_time = kwargs["end_time"]
+        else:
+            end_time = missing_gen.data.index[-1]
+        missing_gen.restrict_data(start_time,end_time)
+        # defining the parameters 
+        param_list = list(missing_gen.data.columns.values).copy()
+        param_list.remove(param)
         res = {}
-        for method, label in zip([self.mice, self.miss_forest, self.arima],["MICE","missForest","ARIMA"]):
+        for method, label in zip([self.interp, self.mice, self.miss_forest, self.arima],["Linear Interpolation","MICE","missForest","ARIMA"]):
             method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
             if verbose:
                 print(label)
             for p in percents:
                 if verbose:
                     print("\tPercent:",p)
-                self.load_data_random(percent=p)
                 raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
                 for i in range(n_cv):
+                    iteration_start = datetime.now()
                     if verbose:
-                        print("\t\tIteration:",i)
+                        print("\t\tIteration:",i,end="")
+                    some_missing = missing_gen.remove_at_random_all(missing_gen.data,percent=10,params=param_list) # removing fixed number from all but one param
+                    missing = missing_gen.remove_at_random_all(some_missing,percent=p,params=[self.param]) # removing the given percentage from the select param
+                    self.set_missing(missing)
                     method(set_for_class=True)
                     try:
                         for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
@@ -546,6 +597,9 @@ class Impute:
                     except Exception as e:
                         print(f"{param} - {p}")
                         print(e)
+                    iteration_end = datetime.now()
+                    if verbose:
+                        print(f" - {round((iteration_end - iteration_start).total_seconds(),1)}")
 
                 # averaging results from iterations
                 avg_res = list(pd.DataFrame(raw_res).mean().values)
@@ -717,7 +771,7 @@ class Impute:
         param_list = list(missing_gen.data.columns.values).copy()
         param_list.remove(param)
         # getting results for each model param
-        res = {"Percent":[],"Estimators":[],"Depth":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
+        res = {"Percent":[],"Estimators":[],"Depth":[],"Time to Execute":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
         for percent in percents: # looping through the various period lengths
             for estimators in n_estimators:
                 for max_depth in max_depths:
@@ -738,17 +792,18 @@ class Impute:
                         for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
                             raw_res[metric].append(val)
 
+                    iteration_end = datetime.now()
+                    t = (iteration_end - iteration_start).total_seconds()
+                    if verbose:
+                        print(f"\tTime to execute: {t} seconds")
+
                     # averaging results from iterations
                     avg_res = list(pd.DataFrame(raw_res).mean().values)
-                    for i, val in enumerate([percent,estimators,max_depth]):
+                    for i, val in enumerate([percent,estimators,max_depth,t]):
                         avg_res.insert(i,val)
                     # appending average results to overall results
                     for metric, val in zip(res.keys(),avg_res):
                         res[metric].append(val)
-
-                    iteration_end = datetime.now()
-                    if verbose:
-                        print(f"\tTime to execute: {(iteration_end - iteration_start).total_seconds()} seconds")
 
         return pd.DataFrame(res)
         
@@ -867,3 +922,28 @@ class Impute:
         optimal_params = pd.DataFrame(optimal_params).sort_values("rank").reset_index()
         print(f"P: {optimal_params.loc[0,'p']}, D: {optimal_params.loc[0,'d']}, Q: {optimal_params.loc[0,'q']}")
         return optimal_params
+
+# saving
+    def save_res(self,res,save_dir="../",annot="_points"):
+        """
+        Save results from running points or periods at random
+
+        Parameters
+        ----------
+        res : dictionary
+            metric results for each method
+        save_dir : str, default "../"
+            location to data dir
+        annot : str, default "_points"
+            annotation to add to save filename
+
+        Returns
+        -------
+        <void>
+        """
+        writer=pd.ExcelWriter(f"{save_dir}data/interim/imputation/{self.param}-results{annot}.xlsx") 
+        for key in res.keys():
+            pd.DataFrame(res[key]).to_excel(writer,sheet_name=key)
+
+        writer.save()
+        writer.close()
