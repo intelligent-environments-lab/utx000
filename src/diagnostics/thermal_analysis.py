@@ -98,6 +98,7 @@ class Internal_Temperature_Check():
             for bb in self.data["beacon"].unique():
                 data_bb = self.data[self.data["beacon"] == bb]
                 ax.plot(data_bb["timestamp"],data_bb[var],lw=2,alpha=0.5,label=bb)
+                ax.set_ylim([18,25])
 
         axes[-1].legend()
 
