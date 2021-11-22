@@ -44,6 +44,8 @@ def get_label(var):
         return "CO"
     elif var == "pm2p5_mass" or var == "pm2p5_number" or var == "pm2p5":
         return "PM$_{2.5}$"
+    elif var == "pm10_mass" or var == "pm10_number" or var == "pm10":
+        return "PM$_{10}$"
     elif var == "no2":
         return "NO$_2$"
     elif var == "tvoc":
@@ -101,7 +103,7 @@ def get_units(pollutant):
         return "ppm"
     elif pollutant == "co":
         return "ppb"
-    elif pollutant == "pm2p5_mass":
+    elif pollutant in ["pm1_mass","pm2p5_mass","pm10_mass"]:
         return "$\mu$g/m$^3$"
     elif pollutant == "pm2p5_number":
         return "#/dL"
