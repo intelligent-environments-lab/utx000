@@ -6,6 +6,7 @@ from pandas.core import frame
 import random
 import missingno as msno
 from datetime import datetime
+import json
 
 # Iterative Imputer for MICE
 from sklearn.experimental import enable_iterative_imputer 
@@ -14,6 +15,8 @@ from sklearn.impute import IterativeImputer
 from sklearn.ensemble import RandomForestRegressor
 # ARIMA
 from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.graphics.tsaplots import plot_pacf
+from statsmodels.graphics.tsaplots import plot_acf
 
 # Evaluation Metrics
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
@@ -60,6 +63,9 @@ class TestData:
             else:
                 end_time = data.index[-1]
             data = data[start_time:end_time]
+            idx = pd.date_range(start_time,end_time,freq="2T")
+            data = data.reindex(idx,fill_value=np.nan)
+            data.index.name = "timestamp"
         except FileNotFoundError:
             print("No filename for participant", pt)
             return pd.DataFrame()
@@ -220,6 +226,9 @@ class TestData:
         Restricts the class data to a certain time interval
         """
         self.data = self.data[start_time:end_time]
+        idx = pd.date_range(start_time,end_time,freq="2T")
+        self.data = self.data.reindex(idx,fill_value=np.nan)
+        self.data.index.name = "timestamp"
 
 class Impute:
 
@@ -244,9 +253,9 @@ class Impute:
             self.param = input("Parameter: ")
             if consecutive:
                 period = input("Period (in minutes): ")
-                self.load_data_consecutive_random(percent,period)
+                self.load_data_consecutive_random(percent,period,**kwargs)
             else:
-                self.load_data_random(percent)
+                self.load_data_random(percent,**kwargs)
         # Base Data
         self.base = pd.read_csv(f"{self.data_dir}data/interim/imputation/beacon-example-{pt}-ux_s20.csv",parse_dates=["timestamp"],
                                 index_col="timestamp",infer_datetime_format=True).asfreq(freq=self.freq)
@@ -259,7 +268,11 @@ class Impute:
             end_time = kwargs["end_time"]
         else:
             end_time = self.base.index[-1]
+
         self.base = self.base[start_time:end_time]
+        idx = pd.date_range(start_time,end_time,freq="2T")
+        self.base = self.base.reindex(idx,fill_value=np.nan)
+        self.base.index.name = "timestamp"
 
 # methods for loading data
     def load_data_random(self,percent,**kwargs):
@@ -269,18 +282,45 @@ class Impute:
         try:
             self.missing = pd.read_csv(f"{self.data_dir}data/interim/imputation/missing_data-random_all-{self.param}-p{percent}-{self.pt}.csv",parse_dates=["timestamp"],
                                     index_col="timestamp",infer_datetime_format=True).asfreq(freq=self.freq)
+        
+            if "start_time" in kwargs.keys():
+                start_time = kwargs["start_time"]
+            else:
+                start_time = self.missing.index[0]
+            if "end_time" in kwargs.keys():
+                end_time = kwargs["end_time"]
+            else:
+                end_time = self.missing.index[-1]
+
+            self.missing = self.missing[start_time:end_time]
+            idx = pd.date_range(start_time,end_time,freq="2T")
+            self.missing = self.missing.reindex(idx,fill_value=np.nan)
+            self.missing.index.name = "timestamp"
         except FileNotFoundError as e:
             print("Could not find file: ",end="")
             print(f"missing_data-random_all-{self.param}-p{percent}-{self.pt}.csv")
             print(f"Check the parameters:\n\tparam:\t{self.param}\n\tpercent:\t{percent}")
 
-    def load_data_consecutive_random(self,percent,period):
+    def load_data_consecutive_random(self,percent,period,**kwargs):
         """
         Loads in the randomly removed, consecutive data for class param
         """
         try:
             self.missing = pd.read_csv(f"{self.data_dir}data/interim/imputation/missing_data-random_periods_all-{self.param}-p{percent}-{period}mins-{self.pt}.csv",
                                     parse_dates=["timestamp"],index_col="timestamp",infer_datetime_format=True).asfreq(freq=self.freq)
+            if "start_time" in kwargs.keys():
+                start_time = kwargs["start_time"]
+            else:
+                start_time = self.missing.index[0]
+            if "end_time" in kwargs.keys():
+                end_time = kwargs["end_time"]
+            else:
+                end_time = self.missing.index[-1]
+
+            self.missing = self.missing[start_time:end_time]
+            idx = pd.date_range(start_time,end_time,freq="2T")
+            self.missing = self.missing.reindex(idx,fill_value=np.nan)
+            self.missing.index.name = "timestamp"
         except FileNotFoundError:
             print("Could not find file: ",end="")
             print(f"missing_data-random_all-p{percent}-{self.pt}.csv")
@@ -320,6 +360,7 @@ class Impute:
         imp = IterativeImputer(estimator=estimator,max_iter=max_iter,tol=1e-5,imputation_order="ascending")
         imp.fit(self.missing)
         self.mice_imputed = pd.DataFrame(imp.transform(self.missing),index=self.missing.index,columns=self.missing.columns)
+        self.mice_imputed[self.mice_imputed < 0] = 0
         
         if set_for_class:
             self.set_imputed(self.mice_imputed)
@@ -347,18 +388,17 @@ class Impute:
                                                                 max_iter=max_iter,tol=1e-5,imputation_order="ascending")
         imp.fit(self.missing)
         self.rf_imputed = pd.DataFrame(imp.transform(self.missing),index=self.missing.index,columns=self.missing.columns)
+        self.rf_imputed[self.rf_imputed < 0] = 0
 
         if set_for_class:
             self.set_imputed(self.rf_imputed)
 
-    def arima(self,order=(2,0,1),set_for_class=False):
+    def arima(self,set_for_class=False,return_metrics=False):
         """
         Imputes missing data with Auto-Regressive Integrated Moving Average 
 
         Parameters
         ----------
-        order : tuple of three values
-            order for (p, d, q)
         set_for_class : boolean, default False
             sets the imputed class variable to the results from this method
 
@@ -366,14 +406,27 @@ class Impute:
         -------
         <void>
         """
+        # getting order
+        try:
+            order = self.arima_order
+        except AttributeError:
+            print("No ARIMA order set, defaulting to (1,1,1)")
+            order = (1,1,1)
+
         imp = ARIMA(self.missing[self.param], order=order, freq=self.freq, enforce_stationarity=False)
         self.arima_imputed = self.missing.copy()
         try:
-            self.arima_imputed[self.param] = imp.fit().predict()
+            fitted = imp.fit()
+            self.arima_imputed[self.param] = fitted.predict()
             self.arima_imputed[self.param].replace(0,np.nanmean(self.arima_imputed[self.param]),inplace=True)
+            self.arima_imputed[self.arima_imputed < 0] = 0 # setting negative values to 0
             if set_for_class:
                 self.set_imputed(self.arima_imputed)
+
+            if return_metrics:
+                return fitted.aic, fitted.bic, fitted.hqic
         except Exception as e:
+            print("Error with ARIMA")
             print(e)
 
 # setters
@@ -381,13 +434,13 @@ class Impute:
         """
         Sets the class base data
         """
-        self.base = base
+        self.base = base.asfreq('2T')
 
     def set_missing(self,missing):
         """
         Sets the class missing data
         """
-        self.missing = missing
+        self.missing = missing.asfreq('2T')
 
     def set_imputed(self,imputed):
         """
@@ -400,6 +453,12 @@ class Impute:
         Sets the class param
         """
         self.param = param
+
+    def set_arima_order(self,order=(1,1,1)):
+        """
+        Sets the class ARIMA parameters
+        """
+        self.arima_order = order
 
 # methods for evaluating
     def evaluate(self,imputed,plot=False):
@@ -426,6 +485,10 @@ class Impute:
         ia : float
             index of agreement
         """
+        # Debugging
+        #print("Missing:",len(self.missing[self.missing[self.param].isnull()]))
+        #print("Base:",len(self.base))
+        #print("Percent:",len(self.missing[self.missing[self.param].isnull()])/len(self.base))
         # placeholders for true/base and imputed values
         y_true = self.base.loc[self.missing[self.missing[self.param].isnull()].index.values,:][self.param].values
         y_pred = imputed.loc[self.missing[self.missing[self.param].isnull()].index.values,:][self.param].values
@@ -442,8 +505,9 @@ class Impute:
                 num += (pred - obs)**2
                 den += (abs(pred - np.mean(y_true)) + abs(obs - np.mean(y_true)))**2
             ia = 1 - num/den
-        except ValueError:
-            print("Input contains NaN most likely")
+        except Exception as e:
+            print("Error evaluating one of the metrics")
+            print(e)
             r2 = 0
             mae = np.nan
             rmse = np.nan
@@ -502,7 +566,11 @@ class Impute:
         for metric, ax in zip(["Pearson Correlation","MAE","RMSE","Index of Agreement"],axes):
             for method,color in zip(results.keys(),["black","cornflowerblue","seagreen","firebrick"]):
                 method_res = results[method]
-                ax.plot(method_res["Percent"],method_res[metric],
+                try:
+                    x = method_res["Percent"]
+                except KeyError:
+                    x = method_res["Period"]
+                ax.plot(x,method_res[metric],
                         lw=2,color=color,label=method)
                 # Formatting
                 # ----------
@@ -527,7 +595,10 @@ class Impute:
         # common x-axis
         fig.add_subplot(111, frame_on=False)
         plt.tick_params(labelcolor="none", bottom=False, left=False)
-        plt.xlabel("Percent Missing Data",labelpad=8,fontsize=14)
+        if "xlabel" in kwargs.keys():
+            plt.xlabel(kwargs["xlabel"],labelpad=8,fontsize=14)
+        else:
+            plt.xlabel("Percent Missing Data",labelpad=8,fontsize=14)
             
         if save:
             if annot != "":
@@ -559,7 +630,7 @@ class Impute:
         """
         self.param = param
         # missing data generator class
-        missing_gen = TestData(pt=self.pt)
+        missing_gen = TestData(pt=self.pt,data_dir=self.data_dir)
         self.set_base(missing_gen.data) # setting the base to the restricted data
         # restricted dataset if given keywords
         if "start_time" in kwargs.keys():
@@ -667,7 +738,7 @@ class Impute:
         return res
 
 # analysis
-    def find_max_period(self, start_time, end_time, param="co2",percent=10,periods=[30,60,90,120,150,180],verbose=False):
+    def find_max_period(self, start_time, end_time, param="co2",percent=10,periods=[30,60,90,120,150,180],methods=["MICE","missForest","ARIMA"],n_cv=3,verbose=False,plot=False,save=False):
         """
         Evaluates and compares imputation models on the consecutive missing observations datasets
 
@@ -678,7 +749,11 @@ class Impute:
         percent : int, default 10
             percents to consider - must have an accompanying data file
         periods : range or list, default [60,120,180,240,300,360]
-            length in minutes of the periods that have been removed
+            length in minutes/2 of the periods that have been removed
+        verbose : boolean, default False
+            whether or not to display output at each method iteration
+        plot : boolean, default False
+            whether to plot the imputed data
 
         Returns
         -------
@@ -687,42 +762,61 @@ class Impute:
         """
         res = {} # final results
         # missing data generator class
-        missing_gen = TestData(pt=self.pt)
+        missing_gen = TestData(pt=self.pt,data_dir=self.data_dir)
         missing_gen.restrict_data(start_time,end_time)
         self.set_base(missing_gen.data) # setting the base to the restricted data
         # defining the parameters 
         param_list = list(missing_gen.data.columns.values).copy()
         param_list.remove(param)
+        self.param = param
         # getting results from each of the methods
-        for method, label in zip([self.mice, self.miss_forest, self.arima],["MICE","missForest","ARIMA"]):
-            method_res = {"Percent":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
-            for period in periods: # looping through the various period lengths
-                raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
-                for _ in range(3): # iterating 3 times for each period to get an average evaluation
-                    # creating missing dataset
-                    missing = missing_gen.remove_n_consecutive_with_other_missing(missing_gen.data,period,10,percent,param_list,param)
-                    missing.set_index("timestamp",inplace=True)
-                    self.set_missing(missing)
-                    method(set_for_class=True)
-                    try:
-                        for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
-                            raw_res[metric].append(val)
-                    except Exception as e:
-                        print(f"{param} - {period} - {percent}")
-                        print(e)
-
+        methods_dict = {"MICE":self.mice,"missForest":self.miss_forest,"ARIMA":self.arima}
+        for label, method in methods_dict.items():
+            if label in methods:
                 if verbose:
-                    print(f"Method: {label} - Period: {period}")
-                    #self.evaluate(self.imputed,plot=True)
-                    self.compare_ts(self.imputed)
-                # averaging results from iterations
-                avg_res = list(pd.DataFrame(raw_res).mean().values)
-                avg_res.insert(0,period*2)
-                # appending average results to overall results
-                for metric, val in zip(method_res.keys(),avg_res):
-                    method_res[metric].append(val)
-                    
-            res[label] = method_res
+                    print(label)
+                method_res = {"Period":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
+                single_res = {"Period":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
+                for period in periods: # looping through the various period lengths
+                    if verbose:
+                        print(f"\t{period}")
+                    raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
+                    for i in range(n_cv): # iterating 3 times for each period to get an average evaluation
+                        iteration_start = datetime.now()
+                        if verbose:
+                            print("\t\tIteration:",i,end="")
+                        # creating missing dataset
+                        missing = missing_gen.remove_n_consecutive_with_other_missing(missing_gen.data,period,10,percent,param_list,param)
+                        missing.set_index("timestamp",inplace=True)
+                        self.set_missing(missing)
+                        method(set_for_class=True)
+                        if plot:
+                            self.compare_ts(self.imputed)
+                        try:
+                            for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
+                                raw_res[metric].append(val)
+                        except Exception as e:
+                            print("Error in evaluating imputation")
+                            print(f"{param} - {period} - {percent}")
+                            print(e)
+                        iteration_end = datetime.now()
+                        if verbose:
+                            print(f" - {round((iteration_end - iteration_start).total_seconds(),1)}")
+
+                    # averaging results from iterations
+                    avg_res = list(pd.DataFrame(raw_res).mean().values)
+                    avg_res.insert(0,period*2)
+                    # appending average results to overall results
+                    for metric, val in zip(method_res.keys(),avg_res):
+                        method_res[metric].append(val)
+                        single_res[metric] = val
+
+                    # saving one iteration
+                    if save:
+                        with open(f"{self.data_dir}/data/interim/imputation/results/{label}-{period}-{param}.json", 'w') as fp:
+                            json.dump(single_res, fp)
+                        
+                res[label] = method_res
 
         return res
 
@@ -753,7 +847,7 @@ class Impute:
         """
         self.param = param
         # missing data generator class
-        missing_gen = TestData(pt=self.pt)
+        missing_gen = TestData(pt=self.pt,data_dir=self.data_dir)
         # getting start and stop time from kwargs if available
         if "start_time" in kwargs.keys():
             start_time = kwargs["start_time"]
@@ -807,7 +901,7 @@ class Impute:
 
         return pd.DataFrame(res)
         
-    def optimize_arima(self,param="co2",percents=[10,20,30],ps=[0,1,2],ds=[0,1,2],qs=[0,1,2],verbose=False,**kwargs):
+    def optimize_arima(self,param="co2",percent=15,periods=[15,30,60],ps=[2,3],ds=[0],qs=[1,2,3],verbose=False,**kwargs):
         """
         Runs a gridsearch to determine the optimal RF model parameters
 
@@ -836,7 +930,7 @@ class Impute:
         """
         self.param = param
         # missing data generator class
-        missing_gen = TestData(pt=self.pt)
+        missing_gen = TestData(pt=self.pt,data_dir=self.data_dir)
         # getting start and stop time from kwargs if available
         if "start_time" in kwargs.keys():
             start_time = kwargs["start_time"]
@@ -853,32 +947,34 @@ class Impute:
         # defining the parameters 
         param_list = list(missing_gen.data.columns.values).copy()
         param_list.remove(param)
+        self.param = param
         # getting results for each model param
-        res = {"Percent":[],"P":[],"D":[],"Q":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[]}
-        for percent in percents: # looping through the various period lengths
+        res = {"Period":[],"P":[],"D":[],"Q":[],"Pearson Correlation":[],"MAE":[],"RMSE":[],"Index of Agreement":[],"AIC":[],"BIC":[],"HIC":[]}
+        for period in periods: # looping through the various period lengths
             for p in ps:
                 for d in ds:
                     for q in qs:
                         if verbose:
                             print(f"P:{p} - D:{d} - Q:{q}")
-                        raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[]} 
+                        raw_res = {"r2":[], "mae":[], "rmse":[], "ia":[], "aic":[], "bic":[], "hic":[]} 
                         iteration_start = datetime.now()
                         for i in range(3): # iterating 3 times for each period to get an average evaluation
                             if verbose:
                                 print(f"\tIteration {i}...")
                             # creating missing dataset
-                            some_missing = missing_gen.remove_at_random_all(missing_gen.data,percent=10,params=param_list) # removing fixed number from all but one param
-                            missing = missing_gen.remove_at_random_all(some_missing,percent=percent,params=[param]) # removing the given percentage from the select param
+                            missing = missing_gen.remove_n_consecutive_with_other_missing(missing_gen.data,period,10,percent,param_list,param)
+                            missing.set_index("timestamp",inplace=True)
                             self.set_missing(missing)
 
-                            self.arima(order=(p,d,q),set_for_class=True)
+                            self.set_arima_order(order=(p,d,q))
+                            aic, bic, hic = self.arima(set_for_class=True,return_metrics=True)
                             
-                            for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)):
+                            for metric, val in zip(raw_res.keys(),self.evaluate(self.imputed)+(aic,bic,hic)):
                                 raw_res[metric].append(val)
 
                         # averaging results from iterations
                         avg_res = list(pd.DataFrame(raw_res).mean().values)
-                        for i, val in enumerate([percent,p,d,q]):
+                        for i, val in enumerate([period,p,d,q]):
                             avg_res.insert(i,val)
                         # appending average results to overall results
                         for metric, val in zip(res.keys(),avg_res):
@@ -906,23 +1002,35 @@ class Impute:
         optimal_params : DataFrame
             model parameters sorted by the order which produced the best results for all three percents
         """
-        res_sorted = res.sort_values(["Percent",sort_by],ascending=True)
+        res_sorted = res.sort_values(["Period",sort_by],ascending=True)
         optimal_params = {"p":[],"d":[],"q":[],"rank":[]}
         for p in res["P"].unique():
             for d in res["D"].unique():
                 for q in res["Q"].unique():
                     rank = 0 # initializing
-                    for percent in res["Percent"].unique():
-                        res_per_percent = res_sorted[res_sorted["Percent"] == percent].reset_index()
-                        val = res_per_percent[(res_per_percent["P"] == p) & (res_per_percent["D"] == d) & (res_per_percent["Q"] == q)].index[0]
+                    for period in res["Period"].unique():
+                        res_per_per = res_sorted[res_sorted["Period"] == period].reset_index()
+                        val = res_per_per[(res_per_per["P"] == p) & (res_per_per["D"] == d) & (res_per_per["Q"] == q)].index[0]
                         rank += val
                     for ix, val in zip(["p","d","q","rank"],[p,d,q,rank]):
                         optimal_params[ix].append(val)
 
         optimal_params = pd.DataFrame(optimal_params).sort_values("rank").reset_index()
         print(f"P: {optimal_params.loc[0,'p']}, D: {optimal_params.loc[0,'d']}, Q: {optimal_params.loc[0,'q']}")
+        print(f"Params at Lowest AIC:", res.sort_values("AIC").loc[0,"P"], res.sort_values("AIC").loc[0,"D"], res.sort_values("AIC").loc[0,"Q"])
+        print(f"Params at Lowest BIC:", res.sort_values("BIC").loc[0,"P"], res.sort_values("BIC").loc[0,"D"], res.sort_values("BIC").loc[0,"Q"])
         return optimal_params
 
+    def pacf_and_acf(self,param="co2",diff=False):
+        """
+        Uses the PACF and ACF plots to get the ideal ARMA parameters
+        """
+        if diff:
+            temp = (self.base[param] - self.base[param].shift()).dropna()
+        else:
+            temp = self.base[param]
+        plot_pacf(temp)
+        plot_acf(temp)
 # saving
     def save_res(self,res,save_dir="../",annot="_points"):
         """
