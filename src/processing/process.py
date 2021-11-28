@@ -56,7 +56,9 @@ class preprocess():
                         date = datetime(y,m,d)
                         if date.date() >= start_time.date() and date.date() <= end_time.date():
                             try:
+                                print(date.date())
                                 temp = pd.read_csv(f"{self.data_dir}raw/{self.study}/beacon/B{number}/DATA/{file}")
+                                print(temp.head())
                                 if len(temp) > 0:
                                     data_by_beacon = data_by_beacon.append(temp)
                             except Exception as e:

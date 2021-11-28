@@ -365,7 +365,7 @@ class Impute:
         if set_for_class:
             self.set_imputed(self.mice_imputed)
 
-    def miss_forest(self,n_estimators=200,max_depth=10,max_iter=30,set_for_class=False):
+    def miss_forest(self,n_estimators=100,max_depth=50,max_iter=30,set_for_class=False):
         """
         Imputes missing data with missForest
 
