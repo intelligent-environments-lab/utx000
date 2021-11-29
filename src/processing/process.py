@@ -81,7 +81,11 @@ class preprocess():
                 print(f"No files found for beacon {beacon}.")
                 
         data['rh'] = data[['RH_CO','RH_NO2']].mean(axis=1)
-        data.drop(["eCO2","Visible","Infrared","Relative Humidity","PM_N_0p5","T_CO","T_NO2","RH_CO","RH_NO2"],axis="columns",inplace=True)
+        for c in ["eCO2","Visible","Infrared","Relative Humidity","PM_N_0p5","T_CO","T_NO2","RH_CO","RH_NO2"]:
+            try:
+                data.drop(c,axis="columns",inplace=True)
+            except KeyError:
+                pass
         data = data[[column for column in data.columns if "4" not in column]]
         data.reset_index(inplace=True)
         data.rename(columns={"Timestamp":"timestamp","TVOC":"tvoc","Lux":"lux","NO2":"no2","CO":"co","CO2":"co2",
