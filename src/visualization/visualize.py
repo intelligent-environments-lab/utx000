@@ -51,7 +51,7 @@ def get_label(var):
     elif var == "tvoc":
         return "TVOC"
     elif var == "temperature_c" or var == "temperature":
-        return "Temperature"
+        return "T"
     elif var == "rh":
         return "RH"
     elif var == "lux":
