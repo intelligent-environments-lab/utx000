@@ -58,14 +58,16 @@ class preprocess():
                             try:
                                 print(date.date())
                                 temp = pd.read_csv(f"{self.data_dir}raw/{self.study}/beacon/B{number}/DATA/{file}")
-                                print(temp.head())
                                 if len(temp) > 0:
                                     data_by_beacon = data_by_beacon.append(temp)
                             except Exception as e:
                                 print("Error with file", file+":", e)
+
                 if len(data_by_beacon) > 0:
                     data_by_beacon["Timestamp"] = pd.to_datetime(data_by_beacon["Timestamp"])
+                    
                     data_by_beacon = data_by_beacon.dropna(subset=["Timestamp"]).set_index("Timestamp").sort_index()[start_time:end_time].resample("1T").mean()
+                    print(data_by_beacon.head())
                     data_by_beacon["beacon"] = int(number)
                     data_by_beacon['temperature_c'] = data_by_beacon[['T_CO','T_NO2']].mean(axis=1)
                     data_by_beacon.rename(columns={"Timestamp":"timestamp","TVOC":"tvoc","Lux":"lux","NO2":"no2","CO":"co","CO2":"co2",
