@@ -16,18 +16,30 @@ from sklearn.cluster import KMeans
 
 class preprocess():
 
-    def __init__(self, data_dir="../data/",study="wcwh_pilot", suffix="ux_s20", ):
+    def __init__(self, data_dir="../data/",study="wcwh_pilot", suffix="ux_s20",):
         self.data_dir = data_dir
         self.study = study
         self.suffix = suffix
         self.set_correction_model()
+
+    # setters
+    def set_data_dir(self,data_dir):
+        self.data_dir = data_dir
+
+    def set_study(self,study):
+        self.study=study
+
+    def set_suffix(self,suffix):
+        self.suffix = suffix
+
+    def set_beacons(self,beacons):
+        self.beacons = beacons
 
     def set_correction_model(self):
         """
         Sets the class correction models
         """
         # Beacon Attributes
-        print("hello")
         self.linear_model = {}
         for file in os.listdir(f"{self.data_dir}/interim/"):
             file_info = file.split("-")
@@ -56,7 +68,6 @@ class preprocess():
                         date = datetime(y,m,d)
                         if date.date() >= start_time.date() and date.date() <= end_time.date():
                             try:
-                                print(date.date())
                                 temp = pd.read_csv(f"{self.data_dir}raw/{self.study}/beacon/B{number}/DATA/{file}")
                                 if len(temp) > 0:
                                     data_by_beacon = data_by_beacon.append(temp)
@@ -67,14 +78,13 @@ class preprocess():
                     data_by_beacon["Timestamp"] = pd.to_datetime(data_by_beacon["Timestamp"])
                     
                     data_by_beacon = data_by_beacon.dropna(subset=["Timestamp"]).set_index("Timestamp").sort_index()[start_time:end_time].resample("1T").mean()
-                    print(data_by_beacon.head())
                     data_by_beacon["beacon"] = int(number)
                     data_by_beacon['temperature_c'] = data_by_beacon[['T_CO','T_NO2']].mean(axis=1)
                     data_by_beacon.rename(columns={"Timestamp":"timestamp","TVOC":"tvoc","Lux":"lux","NO2":"no2","CO":"co","CO2":"co2",
                                     "PM_N_1":"pm1_number","PM_N_2p5":"pm2p5_number","PM_N_10":"pm10_number",
                                     "PM_C_1":"pm1_mass","PM_C_2p5":"pm2p5_mass","PM_C_10":"pm10_mass"},inplace=True)
-                    # correcting
-                    print(data_by_beacon.head())
+                    # correctings
+                    data_by_beacon["co"] /= 1000
                     for param in ["tvoc","co2","co","temperature_c"]:
                         data_by_beacon[param] = data_by_beacon[param] * self.linear_model[param].loc[beacon,"coefficient"] + self.linear_model[param].loc[beacon,"constant"]
 
@@ -93,7 +103,7 @@ class preprocess():
         data.rename(columns={"Timestamp":"timestamp","TVOC":"tvoc","Lux":"lux","NO2":"no2","CO":"co","CO2":"co2",
                                     "PM_N_1":"pm1_number","PM_N_2p5":"pm2p5_number","PM_N_10":"pm10_number",
                                     "PM_C_1":"pm1_mass","PM_C_2p5":"pm2p5_mass","PM_C_10":"pm10_mass","Temperature [C]":"temperature_c_internal"},inplace=True)
-        data["co"] /= 1000
+        #data["co"] /= 1000
         self.data = data
 
     def save_data(self, save_dir="../data/processed/",annot=""):
@@ -234,3 +244,11 @@ class preprocess():
             
         plt.show()
         plt.close()
+
+def main():
+    """"""
+    pp = preprocess(data_dir="../../data/")
+    
+
+if __name__ == '__main__':
+    main()
