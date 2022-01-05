@@ -17,16 +17,36 @@ import statsmodels.api as sm
 # plotting
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import seaborn as sns
+
+from datetime import datetime, timedelta
+import math
 
 class calculate():
 
-    def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data"):
+    def __init__(self, study="utx000", study_suffix="ux_s20", measurement_resolution=120, data_dir="../../data"):
         """
         Initializating method
+
+        Parameters
+        ----------
+        study : str, default "utx000"
+            study name
+        study_suffix : str, default "ux_s20"
+            study suffix ID
+        measurement_resolution : int, default 120
+            interval between beacon measurements in seconds
+        data_dir : str, default "../../data"
+            path to the "data" directory within the project
+
+        Returns
+        -------
+        <void>
         """
-        self.suffix = study_suffix
-        self.data_dir = data_dir
         self.study = study
+        self.suffix = study_suffix
+        self.measurement_resolution = measurement_resolution
+        self.data_dir = data_dir
 
         # beacon data
         self.beacon_all = pd.read_csv(f'{self.data_dir}/processed/beacon-{self.suffix}.csv',index_col="timestamp",parse_dates=True,infer_datetime_format=True)
@@ -95,7 +115,7 @@ class calculate():
         
         return BMR * M * (T / P) * 0.000179
 
-    def get_volume(self, df,E,n_people=1):
+    def get_volume(self, df, E, n_people=1):
         '''
         Estimates the volume based on the CO2 emission rate and negligible infiltration/exfiltration
         
@@ -185,31 +205,34 @@ class calculate():
 
         return v_df_averaged
 
-    def get_co2_periods(self, df, window=12, co2_threshold=10, t_threshold=0.25, time_threshold=300, change='decrease'):
+    def get_co2_periods(self, beacon_data, window=30, co2_threshold=10, t_threshold=0.25, time_threshold=120, difference_threshold=30, change='decrease'):
         '''
         Finds and keeps periods of CO2 change or consistency
         
         Parameters
         ----------
-        df : DataFrame
-            measured CO2 concentrations at 5-minute intervals
-        window : int, default 12
+        beacon_data : DataFrame
+            measured CO2 concentrations
+        window : int, default 30
             many timesteps the increase/decrease period has to last
         co2_threshold : int or float, default 10
             tolerance on the variance in co2 concentration in ppm
         t_threshold : float, default 0.25
             tolerance on temperature variation in C
-        time_threshold : float of int, default 300
+        time_threshold : float of int, default 120
             maximum time difference, in seconds, between subsequent measurements
+        difference_threshold : int or float, default 30 (resolution on SCD30 sensor)
+            minimum co2 difference, in ppm, that must occur over the period to be considered - only used when change in ["increase","decrease"]
         change : str, default "decrease"
             period type to consider - "increase", "decrease", or any other string will specify "constant"
         
         Returns
         -------
         df : DataFrame
-            modified input DataFrame with only increasing/decreasing periods greater in length than the window
+            beacon data with only no change/increasing/decreasing periods that satisfy criteria
         '''
         # getting differences
+        df = beacon_data.copy()
         df['change'] = df['co2'] - df['co2'].shift(1)
         df['change'] = df['change'].shift(-1)
         
@@ -225,7 +248,7 @@ class calculate():
         period = 1
         if change == 'decrease':
             while i < len(df):
-                while df['change'][i] < 0 and df['t_change'][i] <= 0 and df['dtime'][i].total_seconds() <= time_threshold:
+                while df['change'][i] < 0 and df['t_change'][i] <= 0 and df['dtime'][i].total_seconds() <= time_threshold+2:
                     periods.append(period)
                     i += 1
 
@@ -234,7 +257,7 @@ class calculate():
                 i += 1
         elif change == 'increase':
             while i < len(df):
-                while df['change'][i] > 0 and abs(df['t_change'][i]) <= t_threshold and df['dtime'][i].total_seconds() <= time_threshold:
+                while df['change'][i] > 0 and abs(df['t_change'][i]) <= t_threshold and df['dtime'][i].total_seconds() <= time_threshold+2:
                     periods.append(period)
                     i += 1
 
@@ -243,7 +266,7 @@ class calculate():
                 i += 1
         else: # constant periods
             while i < len(df):
-                while abs(df['change'][i]) < co2_threshold and df['t_change'][i] <= 0 and df['dtime'][i].total_seconds() <= time_threshold:
+                while abs(df['change'][i]) < co2_threshold and df['t_change'][i] <= 0 and df['dtime'][i].total_seconds() <= time_threshold+2:
                     periods.append(period)
                     i += 1
 
@@ -251,14 +274,18 @@ class calculate():
                 period += 1
                 i += 1
             
-        # removing periods shorter than the window
+        # removing bad periods
         df['period'] = periods
         df = df[df['period'] > 0]
         for period in df['period'].unique():
             temp = df[df['period'] == period]
+            # period shorter than window length
             if len(temp) < window:
                 df = df[df['period'] != period]
-                
+            # difference in concentrations too low
+            if change in ["increase","decrease"] and abs(temp["co2"].values[-1] - temp["co2"].values[0]) < difference_threshold:
+                df = df[df['period'] != period]
+
         return df
 
     def convert_ppm_to_gm3(self, concentration, mm=44.0, mv=24.5):
@@ -315,7 +342,7 @@ class steady_state(calculate):
         
         return E_gs / (V_m3 * (C_gm3 - p*C0_gm3)) * 3600
 
-    def get_all_ach_ss(self, beacon_data, info, data_length_threshold=36, min_window_threshold=12, min_co2_threshold=600, plot=False, save_plot=False):
+    def ventilation_ss(self, beacon_data, info, data_length_threshold=90, min_window_threshold=30, min_co2_threshold=600, plot=False, save_plot=False):
         """
         Gets all possible ventilation rates from the steady-state assumption
         
@@ -325,8 +352,8 @@ class steady_state(calculate):
             IAQ measurements made by the beacons including the participant id, beacon no, co2, and temperature data
         info : DataFrame
             participant demographic info
-        data_length_threshold : int, default 36 (3 hours of 5-minute resolution data)
-            minimum number of nightly datapoints to consider
+        data_length_threshold : int, default 90 (3 hours of 2-minute resolution data)
+            minimum number of nightly datapoints that must be available i.e. participant needs to sleep a certain length of time
         min_window_threshold : int, default 12
             minimum length of constinuous measurements
         min_co2_threshold : int or float, default 600
@@ -334,7 +361,7 @@ class steady_state(calculate):
         plot : boolean, default False
             plot diagnostic plots of each identified period
         save_plot : boolean, default False
-        save diagnostic plots 
+            save diagnostic plots 
         
         Returns
         -------
@@ -431,7 +458,369 @@ class steady_state(calculate):
         plt.show()
         plt.close()
 
-#class decay(calculate):
+class decay(calculate):
+
+    def get_morning_beacon_data(self, night_df,all_df,num_hours=3):
+        '''
+        Grabs beacon data for hours after the participant has woken up.
+        
+        Parameters
+        ----------
+        night_df : DataFrame 
+            nightly measured beacon values
+        all_df : DataFrame
+            all measured beacon values
+        num_hours : int or float, default 3
+            number of hours after waking up to consider
+        
+        Returns
+        -------
+        df : DataFrame
+            beacon measurements for the "morning" after
+        '''
+        df = pd.DataFrame()
+        for pt in night_df['beiwe'].unique():
+            # pt-specific data
+            night_pt = night_df[night_df['beiwe'] == pt]
+            beacon_pt = all_df[all_df['beiwe'] == pt]
+            # getting measurements after wake periods
+            for wake_time in night_pt['end_time'].unique():
+                temp = beacon_pt[wake_time:pd.to_datetime(wake_time)+timedelta(hours=num_hours)]
+                temp['start_time'] = wake_time
+                df = df.append(temp)
+        
+        return df
+
+    def set_beacon_morning(self, df):
+        """
+        Sets the beacon data for the morning period
+        """
+        self.beacon_morning = df[['beiwe','beacon','co2','temperature_c','rh','start_time']]
+
+    def get_ach_from_dynamic_co2(self, df, E, V, C0=400.0, p=1.0, measurement_resolution=120, plot=False, pt="", period="", method="", save=False):
+        '''
+        Calculates the ACH based on a dynamic solution to the mass balance equation
+        
+        Parameters
+        ----------
+        df : DataFrame 
+            indexed by time with CO2 column for CO2 measurements in ppm
+        E : float 
+            emission rate in L/s
+        V : float
+            volume in ft3
+        C0 : float, default 400.0
+            outdoor co2 concentration in ppm
+        p : float, default 1.0
+            penetration factor
+        measurement_resolution : int, default 120
+            interval between beacon measurements in seconds
+        plot : boolean, default False
+            whether to plot the diagnostic decay periods
+        pt : str, default ""
+            participant beiwe id
+        period : str, default ""
+            period number (used for diagnostic plot)
+        method : str, default ""
+
+        save : boolean, default False
+            whether or not to save the diagnostic plots
+        
+        Returns
+        -------
+        ach : float
+            air exchange rate in 1/h
+        min_rmsd : float
+
+        C_to_plot : 
+
+        '''
+        # defining constants
+        rho = 1.8 # g/L 
+        
+        # converting units
+        E_gh = E * rho *3600 # L/s to g/h
+        V_m3 = V * 0.0283168 # ft3 to m3
+        df['c'] = self.convert_ppm_to_gm3(df['co2']) # ppm to g/m3
+        C0_gm3 = self.convert_ppm_to_gm3(C0) # ppm to g/m3
+        
+        # initial values
+        C_t0 = df['c'][0]
+        min_rmsd = math.inf
+        ach = -1
+        C_to_plot = df['c'].values # for comparison
+        # looping through possible ach values
+        for ell in np.arange(0,15.001,0.001):
+            Cs = []
+            for i in range(len(df)):
+                t = i*measurement_resolution/3600
+                Cs.append(C_t0 * math.exp(-ell*t) + (p*C0_gm3 - E_gh/(V_m3*ell))*(1 - math.exp(-ell*t)))
+                
+            # calculating error metric(s)
+            rmsd = 0
+            for C_est, C_meas in zip(Cs,df['c']):
+                rmsd += (C_est-C_meas)**2
+            rmsd = math.sqrt(rmsd/len(Cs))
+
+            # saving best result
+            if rmsd < min_rmsd:
+                min_rmsd = rmsd
+                ach = ell
+                C_to_plot = Cs
+                
+        # plotting to compare results
+        if plot:
+            _, ax = plt.subplots(figsize=(8,6))
+            # concentration axis
+            ax.plot(df.index,df['c'],color='seagreen',label='Measured')
+            ax.plot(df.index,C_to_plot,color='firebrick',label=f'ACH={round(ach,2)}; RMSD={round(rmsd,3)}')
+
+            for i in range(len(Cs)):
+                ax.annotate(str(round(df['c'].values[i],2)),(df.index[i],df['c'].values[i]),ha="left",fontsize=12)
+                ax.annotate(str(round(C_to_plot[i],2)),(df.index[i],C_to_plot[i]),ha="right",fontsize=12)
+                
+            ax.set_ylabel("CO$_2$ (g/m$^3$)",fontsize=16)
+            plt.yticks(fontsize=14)
+            ax.legend(fontsize=14)
+            plt.xticks(fontsize=14,ha="left",rotation=-15)
+
+            ax2 = ax.twinx()
+            # temperature axis
+            ax2.plot(df.index,df['temperature_c'],color='cornflowerblue',label='Temperature')
+            ax2.spines['right'].set_color('cornflowerblue')
+            ax2.set_ylim([20,30])
+            plt.yticks(fontsize=14)
+            ax2.set_ylabel("Temperature ($^\circ$C)",fontsize=16,color="cornflowerblue")
+            ax2.xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
+            ax2.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+
+            ax.set_title(f"ID: {pt} - Period: {period}")
+            if save:
+                plt.savefig(f"../reports/figures/beacon_summary/ventilation_estimates/method_{method}-{pt}-{period}.pdf",bbox_inches="tight")
+            plt.show()
+            plt.close()
+            
+        return ach, min_rmsd, C_to_plot
+
+    def ventilation_decay_no_occupant_no_penetration(self, beacon_data, info, min_window_threshold=30, min_co2_threshold=600, plot=False, save_plot=False):
+        """
+        Ventilation estimate based on simple decay equation i.e. no indoor or outdoor sources
+
+        Parameters
+        ----------
+        beacon_data : DataFrame
+            contains beacon data from the morning after participants wake
+        info : DataFrame
+            participant demographic info
+        min_window_threshold : int, default 12
+            minimum length of constinuous measurements
+        min_co2_threshold : int or float, default 600
+            minimum nightly average co2 concentration that must be measured
+        plot : boolean, default False
+            plot diagnostic plots of each identified period
+        save_plot : boolean, default False
+            save diagnostic plots 
+
+        Returns
+        -------
+        decay_df : DataFrame
+            ventilation estimates for each decay period for each participant from the simplified model
+        """
+        decay_df = pd.DataFrame()
+        for pt in beacon_data['beiwe'].unique():
+            decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmsd':[],'ach':[]}
+            # getting pt-specific data
+            beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
+            info_pt = info[info.index == pt]
+            # getting 
+            decreasing_co2_ac_pt = self.get_co2_periods(beacon_co2_pt,window=min_window_threshold,change='decrease')
+            for period in decreasing_co2_ac_pt['period'].unique():
+                decreasing_period_ac_pt = decreasing_co2_ac_pt[decreasing_co2_ac_pt['period'] == period]
+                if np.nanmin(decreasing_period_ac_pt['co2']) >= min_co2_threshold:
+                    V = info_pt['volume'].values[0]
+                    # assumptions for simplified model
+                    E = 0
+                    p = 0
+                    # estimating ventilation rates
+                    ach, ss, C_est = self.get_ach_from_dynamic_co2(decreasing_period_ac_pt,E,V,p,plot=plot,pt=pt,period=period,method=1,save=save_plot)
+                    # adding information to dict
+                    for key, value_to_add in zip(decay_dict.keys(),[pt,info_pt['beacon'].values[0],
+                                                            decreasing_period_ac_pt.index[0],decreasing_period_ac_pt.index[-1],
+                                                            decreasing_period_ac_pt['c'][-1],C_est[-1],
+                                                            ss,ach]):
+                        decay_dict[key].append(value_to_add)
+                    
+            decay_df = decay_df.append(pd.DataFrame(decay_dict))
+
+        return decay_df
+
+    def ventilation_decay_no_occupant(self, beacon_data, info, min_window_threshold=30, min_co2_threshold=600, plot=False, save_plot=False):
+        """
+        Ventilation estimate based on no indoor sources
+
+        Parameters
+        ----------
+        beacon_data : DataFrame
+            contains beacon data from the morning after participants wake
+        info : DataFrame
+            participant demographic info
+        min_window_threshold : int, default 12
+            minimum length of constinuous measurements
+        min_co2_threshold : int or float, default 600
+            minimum nightly average co2 concentration that must be measured
+        plot : boolean, default False
+            plot diagnostic plots of each identified period
+        save_plot : boolean, default False
+            save diagnostic plots 
+
+        Returns
+        -------
+        decay_df : DataFrame
+            ventilation estimates for each decay period for each participant from the simplified model
+        """
+        decay_df = pd.DataFrame()
+        for pt in beacon_data['beiwe'].unique():
+            decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmsd':[],'ach':[]}
+            # getting pt-specific data
+            beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
+            info_pt = info[info.index == pt]
+            # getting 
+            decreasing_co2_ac_pt = self.get_co2_periods(beacon_co2_pt,window=min_window_threshold,change='decrease')
+            for period in decreasing_co2_ac_pt['period'].unique():
+                decreasing_period_ac_pt = decreasing_co2_ac_pt[decreasing_co2_ac_pt['period'] == period]
+                if np.nanmin(decreasing_period_ac_pt['co2']) >= min_co2_threshold:
+                    T = np.nanmean(decreasing_period_ac_pt['temperature_c'])
+                    V = info_pt['volume'].values[0]
+                    # assumed values - no occupancy
+                    E = 0
+                    # calculating ventilation
+                    ach, ss, C_est = self.get_ach_from_dynamic_co2(decreasing_period_ac_pt,E,V,plot=plot,pt=pt,period=period,method=2,save=save_plot)
+                    # adding information to dict
+                    for key, value_to_add in zip(decay_dict.keys(),[pt,info_pt['beacon'].values[0],
+                                                            decreasing_period_ac_pt.index[0],decreasing_period_ac_pt.index[-1],
+                                                            decreasing_period_ac_pt['c'][-1],C_est[-1],
+                                                            ss,ach]):
+                        decay_dict[key].append(value_to_add)
+                    
+            decay_df = decay_df.append(pd.DataFrame(decay_dict))
+
+        return decay_df
+
+    def ventilation_decay_full(self, beacon_data, info, min_window_threshold=30, min_co2_threshold=600, plot=False, save_plot=False):
+        """
+        Ventilation estimate based on no indoor sources
+
+        Parameters
+        ----------
+        beacon_data : DataFrame
+            contains beacon data from the morning after participants wake
+        info : DataFrame
+            participant demographic info
+        min_window_threshold : int, default 30
+            minimum length of constinuous measurements
+        min_co2_threshold : int or float, default 600
+            minimum nightly average co2 concentration that must be measured
+        plot : boolean, default False
+            plot diagnostic plots of each identified period
+        save_plot : boolean, default False
+            save diagnostic plots 
+
+        Returns
+        -------
+        decay_df : DataFrame
+            ventilation estimates for each decay period for each participant from the simplified model
+        """
+        decay_df = pd.DataFrame()
+        for pt in beacon_data['beiwe'].unique():
+            decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmsd':[],'ach':[]}
+            # getting pt-specific data
+            beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
+            info_pt = info[info.index == pt]
+            # getting 
+            decreasing_co2_ac_pt = self.get_co2_periods(beacon_co2_pt,window=min_window_threshold,change='decrease')
+            for period in decreasing_co2_ac_pt['period'].unique():
+                decreasing_period_ac_pt = decreasing_co2_ac_pt[decreasing_co2_ac_pt['period'] == period]
+                if np.nanmin(decreasing_period_ac_pt['co2']) >= min_co2_threshold:
+                    T = np.nanmean(decreasing_period_ac_pt['temperature_c'])
+                    E = self.get_emission_rate(info_pt.loc[pt,'bmr'],T+273)
+                    V = info_pt['volume'].values[0]
+                    ach, ss, C_est = self.get_ach_from_dynamic_co2(decreasing_period_ac_pt,E,V,pt=pt,period=period,plot=plot,method=1,save=save_plot)
+                    # adding information to dict
+                    for key, value_to_add in zip(decay_dict.keys(),[pt,info_pt['beacon'].values[0],
+                                                            decreasing_period_ac_pt.index[0],decreasing_period_ac_pt.index[-1],
+                                                            decreasing_period_ac_pt['c'][-1],C_est[-1],
+                                                            ss,ach]):
+                        decay_dict[key].append(value_to_add)
+                    
+            decay_df = decay_df.append(pd.DataFrame(decay_dict))
+            
+        return decay_df
+
+def plot_strip(summarized_rates,save=False, save_dir="../reports/figures/"):
+    """
+    Plots strip plots of ventilation rates
+    """
+    
+    _, ax = plt.subplots(figsize=(14,6))
+    df_to_plot = summarized_rates.copy()
+    device_no = []
+    for bb in df_to_plot["beacon"]:
+        if bb < 10:
+            device_no.append("0"+str(int(bb)))
+        else:
+            device_no.append(str(int(bb)))
+
+    df_to_plot["device"] = device_no
+    df_to_plot.sort_values("device",inplace=True)
+    df_to_plot["method_title"] = ["Steady-State" if method.startswith("ss") else method.replace("_"," ").title() for method in df_to_plot["method"]]
+    sns.stripplot(x="device",y="ach",hue="method_title",palette=['black','#bf5700','navy',"gray"],size=8,jitter=0.2,data=df_to_plot,ax=ax)
+    # xlabel
+    ax.set_xlabel("Device Number",fontsize=18)
+    plt.xticks(fontsize=14)
+    # ylabel
+    ax.set_ylabel("Ventilation Rate (h$^{-1}$)",fontsize=18)
+    plt.yticks(fontsize=14)
+    # other
+    for loc in ["top","right"]:
+        ax.spines[loc].set_visible(False)
+    ax.legend(frameon=False,title="Estimation Method",fontsize=13,title_fontsize=16)
+
+    if save:
+        plt.savefig(f"{save_dir}/beacon_summary/ventilation_rates-strip-ux_s20.pdf",bbox_inches="tight")
+        
+    plt.show()
+    plt.close()
+
+def plot_distribution(summarized_rates,save=False, save_dir="../reports/figures/"):
+    _, ax = plt.subplots(figsize=(14,6))
+    df_to_plot = summarized_rates.copy()
+    device_no = []
+    for bb in df_to_plot["beacon"]:
+        if bb < 10:
+            device_no.append("0"+str(int(bb)))
+        else:
+            device_no.append(str(int(bb)))
+
+    df_to_plot["device"] = device_no
+    df_to_plot.sort_values("device",inplace=True)
+    df_to_plot["method_title"] = ["Steady-State" if method.startswith("ss") else method.replace("_"," ").title() for method in df_to_plot["method"]]
+    colors = ['black','#bf5700','navy',"gray"][:len(df_to_plot["method"].unique())]
+    sns.kdeplot(x="ach",hue="method_title",palette=colors,cut=0,data=df_to_plot,ax=ax)
+    # xlabel
+    ax.set_xlabel("Ventilation Rate (h$^{-1}$)",fontsize=18)
+    plt.xticks(fontsize=14)
+    # ylabel
+    ax.set_ylabel("Density",fontsize=18)
+    plt.yticks(fontsize=14)
+    # other
+    for loc in ["top","right"]:
+        ax.spines[loc].set_visible(False)
+    #ax.legend(frameon=False,title="Estimation Method",fontsize=13,title_fontsize=16)
+
+    if save:
+        plt.savefig(f"{save_dir}/beacon_summary/ventilation_rates-dist-ux_s20.pdf",bbox_inches="tight")
+    plt.show()
+    plt.close()
 
 def main():
     ventilation_estimate = calculate()
