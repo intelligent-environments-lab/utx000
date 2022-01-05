@@ -550,7 +550,7 @@ class decay(calculate):
         ach = -1
         C_to_plot = df['c'].values # for comparison
         # looping through possible ach values
-        for ell in np.arange(0,15.001,0.001):
+        for ell in np.arange(0,10.001,0.001):
             Cs = []
             for i in range(len(df)):
                 t = i*measurement_resolution/3600
@@ -683,18 +683,18 @@ class decay(calculate):
             decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmsd':[],'ach':[]}
             # getting pt-specific data
             beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
+            C0 = np.nanpercentile(self.beacon_all[self.beacon_all["beiwe"] == pt]["co2"],5) # setting background to the 5th percentile co2 concentration
             info_pt = info[info.index == pt]
-            # getting 
+            # getting periods with decreasing co2 and T
             decreasing_co2_ac_pt = self.get_co2_periods(beacon_co2_pt,window=min_window_threshold,change='decrease')
             for period in decreasing_co2_ac_pt['period'].unique():
                 decreasing_period_ac_pt = decreasing_co2_ac_pt[decreasing_co2_ac_pt['period'] == period]
                 if np.nanmin(decreasing_period_ac_pt['co2']) >= min_co2_threshold:
-                    T = np.nanmean(decreasing_period_ac_pt['temperature_c'])
                     V = info_pt['volume'].values[0]
                     # assumed values - no occupancy
                     E = 0
                     # calculating ventilation
-                    ach, ss, C_est = self.get_ach_from_dynamic_co2(decreasing_period_ac_pt,E,V,plot=plot,pt=pt,period=period,method=2,save=save_plot)
+                    ach, ss, C_est = self.get_ach_from_dynamic_co2(decreasing_period_ac_pt,E,V,C0=C0,plot=plot,pt=pt,period=period,method=2,save=save_plot)
                     # adding information to dict
                     for key, value_to_add in zip(decay_dict.keys(),[pt,info_pt['beacon'].values[0],
                                                             decreasing_period_ac_pt.index[0],decreasing_period_ac_pt.index[-1],
@@ -735,6 +735,7 @@ class decay(calculate):
             decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmsd':[],'ach':[]}
             # getting pt-specific data
             beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
+            C0 = np.nanpercentile(self.beacon_all[self.beacon_all["beiwe"] == pt]["co2"],5) # setting background to the 5th percentile co2 concentration
             info_pt = info[info.index == pt]
             # getting 
             decreasing_co2_ac_pt = self.get_co2_periods(beacon_co2_pt,window=min_window_threshold,change='decrease')
@@ -744,7 +745,7 @@ class decay(calculate):
                     T = np.nanmean(decreasing_period_ac_pt['temperature_c'])
                     E = self.get_emission_rate(info_pt.loc[pt,'bmr'],T+273)
                     V = info_pt['volume'].values[0]
-                    ach, ss, C_est = self.get_ach_from_dynamic_co2(decreasing_period_ac_pt,E,V,pt=pt,period=period,plot=plot,method=1,save=save_plot)
+                    ach, ss, C_est = self.get_ach_from_dynamic_co2(decreasing_period_ac_pt,E,V,C0=C0,pt=pt,period=period,plot=plot,method=1,save=save_plot)
                     # adding information to dict
                     for key, value_to_add in zip(decay_dict.keys(),[pt,info_pt['beacon'].values[0],
                                                             decreasing_period_ac_pt.index[0],decreasing_period_ac_pt.index[-1],
