@@ -530,7 +530,7 @@ class decay(calculate):
         -------
         ach : float
             air exchange rate in 1/h
-        min_rmsd : float
+        min_rmse : float
 
         C_to_plot : 
 
@@ -546,7 +546,7 @@ class decay(calculate):
         
         # initial values
         C_t0 = df['c'][0]
-        min_rmsd = math.inf
+        min_rmse = math.inf
         ach = -1
         C_to_plot = df['c'].values # for comparison
         # looping through possible ach values
@@ -557,14 +557,15 @@ class decay(calculate):
                 Cs.append(C_t0 * math.exp(-ell*t) + (p*C0_gm3 - E_gh/(V_m3*ell))*(1 - math.exp(-ell*t)))
                 
             # calculating error metric(s)
-            rmsd = 0
+            # we use rmse here because it tends to penalize larger differences more than mae
+            rmse = 0
             for C_est, C_meas in zip(Cs,df['c']):
-                rmsd += (C_est-C_meas)**2
-            rmsd = math.sqrt(rmsd/len(Cs))
+                rmse += (C_est-C_meas)**2
+            rmse = math.sqrt(rmse/len(Cs))
 
             # saving best result
-            if rmsd < min_rmsd:
-                min_rmsd = rmsd
+            if rmse < min_rmse:
+                min_rmse = rmse
                 ach = ell
                 C_to_plot = Cs
                 
@@ -573,7 +574,7 @@ class decay(calculate):
             _, ax = plt.subplots(figsize=(8,6))
             # concentration axis
             ax.plot(df.index,df['c'],color='seagreen',label='Measured')
-            ax.plot(df.index,C_to_plot,color='firebrick',label=f'ACH={round(ach,2)}; RMSD={round(rmsd,3)}')
+            ax.plot(df.index,C_to_plot,color='firebrick',label=f'ACH={round(ach,2)}; RMSD={round(rmse,3)}')
 
             for i in range(len(Cs)):
                 ax.annotate(str(round(df['c'].values[i],2)),(df.index[i],df['c'].values[i]),ha="left",fontsize=12)
@@ -600,7 +601,7 @@ class decay(calculate):
             plt.show()
             plt.close()
             
-        return ach, min_rmsd, C_to_plot
+        return ach, min_rmse, C_to_plot
 
     def ventilation_decay_no_occupant_no_penetration(self, beacon_data, info, min_window_threshold=30, min_co2_threshold=600, plot=False, save_plot=False):
         """
@@ -628,7 +629,7 @@ class decay(calculate):
         """
         decay_df = pd.DataFrame()
         for pt in beacon_data['beiwe'].unique():
-            decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmsd':[],'ach':[]}
+            decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmse':[],'ach':[]}
             # getting pt-specific data
             beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
             info_pt = info[info.index == pt]
@@ -680,7 +681,7 @@ class decay(calculate):
         """
         decay_df = pd.DataFrame()
         for pt in beacon_data['beiwe'].unique():
-            decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmsd':[],'ach':[]}
+            decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmse':[],'ach':[]}
             # getting pt-specific data
             beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
             C0 = np.nanpercentile(self.beacon_all[self.beacon_all["beiwe"] == pt]["co2"],5) # setting background to the 5th percentile co2 concentration
@@ -732,7 +733,7 @@ class decay(calculate):
         """
         decay_df = pd.DataFrame()
         for pt in beacon_data['beiwe'].unique():
-            decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmsd':[],'ach':[]}
+            decay_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmse':[],'ach':[]}
             # getting pt-specific data
             beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
             C0 = np.nanpercentile(self.beacon_all[self.beacon_all["beiwe"] == pt]["co2"],5) # setting background to the 5th percentile co2 concentration
