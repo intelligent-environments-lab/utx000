@@ -94,6 +94,8 @@ def get_label(var):
         return "Stress"
     elif var[:3] == "ene":
         return "Energy"
+    elif var in ["ach","aer"]:
+        return "Ventilation Rate"
     else:
         return ""
 
@@ -125,6 +127,8 @@ def get_units(pollutant):
         return "mins"
     elif pollutant == "naw":
         return ""
+    elif pollutant in ["ach","aer"]:
+        return "h$^{-1}$"
     else:
         return ""
 
