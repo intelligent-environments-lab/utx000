@@ -12,7 +12,6 @@ import logging
 
 import pandas as pd
 import numpy as np
-import statsmodels.api as sm
 
 # factor analysis
 from sklearn.preprocessing import StandardScaler
@@ -25,7 +24,7 @@ import seaborn as sns
 
 # stats
 import math
-from scipy import stats
+from scipy.stats import ttest_ind, ks_2samp, chi2_contingency
 from sklearn.metrics import matthews_corrcoef
 
 class calculate():
@@ -368,7 +367,7 @@ class calculate():
         Returns
         -------
         qualities : list of str
-            list of qualitative ach rates
+            list of qualitative labels
         """
         if participant_based == False:
             qualities =  [above_label if rate >= threshold else below_label for rate in df[var_label]]
@@ -386,7 +385,7 @@ class calculate():
         data = ct.values
 
         #Chi-squared test statistic, sample size, and minimum of rows and columns
-        X2 = stats.chi2_contingency(data, correction=False)[0]
+        X2 = chi2_contingency(data, correction=False)[0]
         n = np.sum(data)
         minDim = min(data.shape)-1
 
@@ -532,7 +531,7 @@ class calculate():
                 df = df_expanded[df_expanded["variable"] == f"{param}_level"]
                 low_vals = df[df["level"] == "low"]
                 high_vals = df[df["level"] == "high"]
-                _, p = stats.ttest_ind(low_vals[sleep_metric],high_vals[sleep_metric], equal_var=True, nan_policy="omit")
+                _, p = ttest_ind(low_vals[sleep_metric],high_vals[sleep_metric], equal_var=True, nan_policy="omit")
                 pvals = pvals.append(pd.DataFrame({"pollutant":[param],"low":[len(low_vals)],"high":[len(high_vals)],
                                                 "mean_low":[np.nanmean(low_vals[sleep_metric])],"mean_high":np.nanmean(high_vals[sleep_metric]),"p_val":[p]}))
 
@@ -584,28 +583,15 @@ class calculate():
         ax.text(0,-0.22,"n:",fontsize=tick_fs,transform = ax.transAxes)
 
         if save:
-            plt.savefig(f'{save_dir}/beacon_{sleep_modality}/beacon-{sleep_modality}-{iaq_metric}_profile-{annot}-ux_s20.pdf',bbox_inches="tight")
+            plt.savefig(f'{save_dir}/beacon_{sleep_modality}/beacon_{sleep_modality}-{iaq_metric}_profile-{annot}-ux_s20.pdf',bbox_inches="tight")
 
         plt.show()
         plt.close()
         
         return ttest_results
 
-class device_sleep(calculate):
-
-    def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data"):
-        super().__init__(study=study, study_suffix=study_suffix, data_dir=data_dir)
-        # IAQ and Sleep
-        data = self.ieq.merge(right=self.fb_sleep,on=["start_time","end_time","beiwe","redcap","beacon"],how='inner', indicator=False)
-        self.sleep_and_iaq_data = data[[column for column in data.columns if not column.endswith("delta")]]  
-        # Ventilation and Sleep
-        aer_and_fb = self.aer.merge(right=self.fb_sleep,left_on=["beiwe","beacon","date"],right_on=["beiwe","beacon","end_date"])
-        aer_and_fb = aer_and_fb[aer_and_fb["method"].isin(["ss","decay_2"])]
-        aer_and_fb.replace({"decay_2":"decay"},inplace=True)    
-        self.sleep_and_aer_data = aer_and_fb
-
     def plot_ventilation_violin(self, df_in, yvar="tst_fb", binary_var="ventilation_quality", threshold=0.35, zero_label="Inadequate", one_label="Adequate", participant_based=False,
-                           save=False, save_dir="../reports/figures/beacon_fitbit"):
+                           save=False, modality="fitbit", save_dir="../reports/figures"):
         """
         Plots violin plots of sleep metric distributions for binary outcomes
         
@@ -623,7 +609,9 @@ class device_sleep(calculate):
             specifies which qualitative specification maps to a 1
         save : boolean, default False
             whether to save the file
-        save_dir : str, default "../reports/figures/beacon_fitbit/"
+        modality : str, default "fitbit"
+            sleep metric modality
+        save_dir : str, default "../reports/figures"
             path to save the figure
 
         Returns
@@ -638,7 +626,7 @@ class device_sleep(calculate):
         # ------
         low_vals = df[df[binary_var] == zero_label]
         high_vals = df[df[binary_var] == one_label]
-        _, p = stats.ttest_ind(low_vals[yvar],high_vals[yvar], equal_var=True, nan_policy="omit")
+        _, p = ttest_ind(low_vals[yvar],high_vals[yvar], equal_var=True, nan_policy="omit")
         res = pd.DataFrame({"parameter":[yvar],"low":[len(low_vals)],"high":[len(high_vals)],
                                                 "mean_low":[np.nanmean(low_vals[yvar])],"mean_high":np.nanmean(high_vals[yvar]),"p_val":[p]})
 
@@ -673,12 +661,160 @@ class device_sleep(calculate):
         ax.text(xloc,ax.get_ylim()[0],f" {len(high_vals)}",fontsize=tick_fs,ha="left",va="top")
 
         if save:
-            plt.savefig(f"{save_dir}/{yvar}-{binary_var}-violin.pdf", bbox_inches="tight")
+            plt.savefig(f"{save_dir}/beacon_{modality}/{yvar}-{binary_var}-violin.pdf", bbox_inches="tight")
             
         plt.show()
         plt.close()
 
-        return res.set_index("Parameter")
+        return res.set_index("parameter")
+
+    def get_two_sided_quality(self, df, low_limit, high_limit, inclusive=False, inside_label="Satisfactory", outside_label="Poor", var_label="tst"):
+        """
+        Gets qualitative label for variable that has a specific range of good/satisfactory values
+
+        Parameters
+        ----------
+        df : DataFrame
+            data
+        low_limit : float
+            lower limit on range
+        high_limit : float
+            upper limit on range
+        inside_label : str, default "Satisfactory"
+            label to use for measurements inside range
+        outside_label : str, default "Poor"
+            label to use for measurements outside range
+        var_label : str, default "tst"
+            column name corresponding to the variable that is to be binarized
+
+        Returns
+        -------
+        qualities : list of str
+            list of qualitative labels
+        """
+        if inclusive:
+            qualities = [inside_label if value >= low_limit and value <= high_limit else outside_label for value in df[var_label]]
+        else:
+            qualities = [inside_label if value > low_limit and value < high_limit else outside_label for value in df[var_label]]
+
+        return qualities
+
+    def plot_ventilation_vs_binary_sleep_violin(self, df_in, yvar="ach", binary_var="tst",
+            one_sided=True, threshold=85, low_limit=6, high_limit=9, zero_label="Poor", one_label="Satisfactory",
+            switch_labels=False,save=False, modality="fitbit", save_dir="../reports/figures",**kwargs):
+        """
+        Plots violin plots of sleep metric distributions for binary outcomes
+        
+        Parameters
+        ----------
+        df_in : DataFrame
+            data
+        yvar : str, default "tst_fb"
+            variable that will be split into two distributions
+        binary_var : str, default "ventilation_quality"
+            variable used to define distributions
+        one_sided : boolean, default True
+            one or two-sided limit of acceptability
+        threshold : int or float, default 85
+            limit on one-sided variable
+        low_limit : int or float, default 6
+            lower limit on two-sided variable
+        high_limit : int or float, default 9
+            upper limit on two-sided variable
+        zero_label : str, default "Poor"
+            specifies which qualitative specification maps to a 0
+        one_label : str, default "Satisfactory"
+            specifies which qualitative specification maps to a 1
+        switch_labels : boolean, default False
+            switch the number label under the violins
+        save : boolean, default False
+            whether to save the file
+        modality : str, default "fitbit"
+            sleep metric modality
+        save_dir : str, default "../reports/figures"
+            path to save the figure
+
+        Returns
+        -------
+        res : DataFrame
+
+        """
+        df = df_in.copy()
+        if one_sided:
+            df[f"{binary_var}_quality"] = self.get_quality(df,threshold=threshold,above_label=one_label,below_label=zero_label,var_label=binary_var)
+        else:
+            df[f"{binary_var}_quality"] = self.get_two_sided_quality(df,low_limit=low_limit,high_limit=high_limit,inside_label=one_label,outside_label=zero_label,var_label=binary_var)
+
+        # Statistical Tests
+        # -----------------
+        low_vals = df[df[f"{binary_var}_quality"] == zero_label]
+        high_vals = df[df[f"{binary_var}_quality"] == one_label]
+        _, p = ttest_ind(low_vals[yvar],high_vals[yvar], equal_var=True, nan_policy="omit")
+        _, p_ks = ks_2samp(low_vals[yvar],high_vals[yvar])
+        res = pd.DataFrame({"parameter":[binary_var],"low":[len(low_vals)],"high":[len(high_vals)],
+                "mean_low":[np.nanmean(low_vals[yvar])],"mean_high":np.nanmean(high_vals[yvar]),"p_val_t":[p],"p_val_ks":[p_ks]})
+
+        # Plotting
+        # --------
+        # plot fontsizes
+        legend_fs = 22
+        tick_fs = 24
+        label_fs = 26
+
+        _, ax = plt.subplots(figsize=(6,6))
+        df["target"] = yvar
+        if "hue_order" in kwargs.keys():
+            hue_order=kwargs["hue_order"]
+            palette={one_label:"#bf5700",zero_label:"white"}
+        else:
+            hue_order=[zero_label,one_label]
+            palette={zero_label:"#bf5700",one_label:"white"}
+
+        sns.violinplot(x="target",y=yvar,hue=f"{binary_var}_quality",split=True,hue_order=hue_order,palette=palette,data=df,ax=ax,cut=0,inner=None)
+        for loc in ["right","top","bottom"]:
+            ax.spines[loc].set_visible(False)
+        ax.get_xaxis().set_visible(False)
+        ax.get_legend().remove()
+        if visualize.get_units(yvar) == "":
+            unit = ""
+        else:
+            unit = " (" + visualize.get_units(yvar) + ")"
+        ax.set_ylabel(visualize.get_label(yvar) + unit,fontsize=label_fs)
+        plt.yticks(fontsize=tick_fs)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5,-0.1), title=visualize.get_label(binary_var),ncol=1,frameon=False,title_fontsize=label_fs,fontsize=legend_fs)
+
+        # Annotating with p-values
+        xloc = ax.get_xticks()
+        weight="bold" if p < 0.05 else "normal"
+        ax.text(xloc-0.1,ax.get_ylim()[1],"p:  ",fontsize=tick_fs,ha="center",va="bottom")
+        ax.text(xloc,ax.get_ylim()[1],f"{round(p,2)}",fontsize=tick_fs,ha="center",va="bottom",weight=weight)
+        if switch_labels:
+            ax.text(xloc,ax.get_ylim()[0],f"{len(high_vals)} ",fontsize=tick_fs,ha="right",va="top")
+            ax.text(xloc,ax.get_ylim()[0],f" {len(low_vals)}",fontsize=tick_fs,ha="left",va="top")
+        else:
+            ax.text(xloc,ax.get_ylim()[0],f"{len(low_vals)} ",fontsize=tick_fs,ha="right",va="top")
+            ax.text(xloc,ax.get_ylim()[0],f" {len(high_vals)}",fontsize=tick_fs,ha="left",va="top")
+
+        if save:
+            plt.savefig(f"{save_dir}/beacon_{modality}/{yvar}_distributions-{binary_var}-violin.pdf", bbox_inches="tight")
+            
+        plt.show()
+        plt.close()
+
+        return res.set_index("parameter")
+
+class device_sleep(calculate):
+
+    def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data"):
+        super().__init__(study=study, study_suffix=study_suffix, data_dir=data_dir)
+        # IAQ and Sleep
+        data = self.ieq.merge(right=self.fb_sleep,on=["start_time","end_time","beiwe","redcap","beacon"],how='inner', indicator=False)
+        self.sleep_and_iaq_data = data[[column for column in data.columns if not column.endswith("delta")]]  
+        # Ventilation and Sleep
+        aer_and_fb = self.aer.merge(right=self.fb_sleep,left_on=["beiwe","beacon","date"],right_on=["beiwe","beacon","end_date"])
+        aer_and_fb = aer_and_fb[aer_and_fb["method"].isin(["ss","decay_2"])]
+        aer_and_fb.replace({"decay_2":"decay"},inplace=True)
+        self.sleep_and_aer_data = aer_and_fb
 
 class report_sleep(calculate):
     
@@ -686,8 +822,10 @@ class report_sleep(calculate):
         super().__init__(study=study, study_suffix=study_suffix, data_dir=data_dir)
         # IAQ and Sleep
         self.sleep_and_iaq_data = self.ieq.merge(right=self.bw_sleep, on=["end_date","beiwe","redcap","beacon"])
-        # Ventilation and Sleeo
-        aer_and_bw = self.aer.merge(right=self.bw_sleep, left_on=["beiwe","date"], right_on=["beiwe","end_date"])
+        # Ventilation and Sleep
+        aer_and_bw = self.aer.merge(right=self.bw_sleep, left_on=["beiwe","beacon","date"], right_on=["beiwe","beacon","end_date"])
+        aer_and_bw = aer_and_bw[aer_and_bw["method"].isin(["ss","decay_2"])]
+        aer_and_bw.replace({"decay_2":"decay"},inplace=True)
         self.sleep_and_aer_data = aer_and_bw
 
     def plot_iaq_violin(self, df_in, sleep_metric="restful", targets=["tvoc","co","co2","pm2p5_mass","temperature_c"], hues=["Negative","Positive"],
@@ -730,9 +868,11 @@ class report_sleep(calculate):
             # ------
             low_vals = df[df[f"{sleep_metric}_binary"] == hues[0]]
             high_vals = df[df[f"{sleep_metric}_binary"] == hues[1]]
-            _, p = stats.ttest_ind(low_vals[target],high_vals[target], equal_var=True, nan_policy="omit")
+            _, p = ttest_ind(low_vals[target],high_vals[target], equal_var=True, nan_policy="omit")
             pvals = pvals.append(pd.DataFrame({"parameter":[target],"low":[len(low_vals)],"high":[len(high_vals)],
                                                 "mean_low":[np.nanmean(low_vals[target])],"mean_high":np.nanmean(high_vals[target]),"p_val":[p]}))
+            # KS Test
+            # -------
 
             # Plotting
             # --------
