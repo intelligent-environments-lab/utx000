@@ -6,8 +6,181 @@ import math
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import seaborn as sns
 
-class co2_increase:
+class PreProcess:
+
+    def __init__(self) -> None:
+        pass
+
+class Classify:
+
+    def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data") -> None:
+        """
+        Initializing method
+
+        Parameters
+        ----------
+        study : str, default "utx000"
+            study name
+        study_suffix : str, default "ux_s20"
+            study suffix ID
+        data_dir : str, default "../../data"
+            path to the "data" directory within the project
+        """
+        self.study = study
+        self.suffix = study_suffix
+        self.data_dir = data_dir
+
+        # Loading Data
+        # ------------
+        ## Beacon
+        self.beacon_all = pd.read_csv(f"{data_dir}/processed/beacon-{self.suffix}.csv",
+            index_col="timestamp",parse_dates=["timestamp"],infer_datetime_format=True)
+        self.beacon_all.drop(["redcap","fitbit"],axis=1,inplace=True)
+        self.beacon_all.dropna(subset=["co2"],inplace=True)
+
+        self.beacon_nightly = pd.read_csv(f"{self.data_dir}/processed/beacon_by_night-{self.suffix}.csv",
+            index_col="timestamp",parse_dates=["timestamp","start_time","end_time"],infer_datetime_format=True)
+        self.beacon_nightly.drop(["no2","increasing_co2","ema","redcap","fitbit"],axis=1,inplace=True)
+        self.beacon_nightly.dropna(subset=["co2"],inplace=True)
+
+        ## GPS
+        self.gps = pd.read_csv(f"{self.data_dir}/processed/beiwe-gps_beacon_pts-{self.suffix}.csv",
+            index_col="timestamp",parse_dates=["timestamp"],infer_datetime_format=True)
+        
+    def add_label(self,home_labels=[1],verbose=False):
+        """
+        Includes a column that corresponds to the occupied label 
+
+        Parameters
+        ----------
+        home_labels : list of int, default [1]
+            labels to use that indicate if the participant is home in [0,1]
+            0 indicates participants were confirmed home by sleep episode and CO2/T measurements
+            1 indicates participants were confirmed home by GPS/address cross-reference
+        verbose : boolean, default False
+            increased output for debugging purposes
+        
+        Returns
+        -------
+
+        """
+        # occupied label
+        beacon_occupied = self.beacon_nightly.copy() # nightly measurements are from occupied periods
+        beacon_occupied = beacon_occupied[beacon_occupied["home"].isin(home_labels)] # ensures we use gps-confirmed data
+        beacon_occupied["label"] = "occupied" # add label
+        #data = self.beacon_all.merge(right=occupied_data[["label","beiwe"]],on=["timestamp","beiwe"],how="left")
+
+        # unoccupied label
+        beacon_unoccupied = pd.DataFrame()
+        # looping through each participant because we lose ID information when we `groupby`
+        for pt in self.beacon_nightly["beiwe"].unique():
+            # participant-specific data
+            beacon_night_pt = self.beacon_nightly[self.beacon_nightly["beiwe"] == pt]
+            beacon_all_pt = self.beacon_all[self.beacon_all["beiwe"] == pt].reset_index()
+            gps_pt = self.gps[self.gps["beiwe"] == pt]
+            occupied_pt = pd.DataFrame()
+            
+            # looping through sleep episodes to get gps data from occupied periods
+            for s, e in zip(beacon_night_pt["start_time"].unique(),beacon_night_pt["end_time"].unique()):
+                occupied_pt = occupied_pt.append(gps_pt.loc[s:e])
+            
+            # merging and pulling out non-overlapping data
+            unoccupied_pt = gps_pt.reset_index().merge(right=occupied_pt.reset_index()[["beiwe","timestamp"]],on=["beiwe","timestamp"],how="left",indicator=True)
+            unoccupied_only = unoccupied_pt[unoccupied_pt["_merge"] == "left_only"]
+            # resampling to timestamp consistent with beacon data
+            unoccupied_resampled = unoccupied_only.set_index("timestamp").resample("2T").mean().dropna()
+            unoccupied_resampled["beiwe"] = pt # adding back in the participant ID
+            if verbose:
+                print(f"{pt}: {len(unoccupied_resampled)}")
+            
+            # merging gps data from unoccupied periods with beacon data
+            iaq_unoccupied = beacon_all_pt.merge(right=unoccupied_resampled.reset_index(),on=["beiwe","timestamp"],how="inner")
+            beacon_unoccupied = beacon_unoccupied.append(iaq_unoccupied)
+
+        # adding labels, combining, and dropping any pesky duplicates
+        beacon_occupied["label"] = "occupied"
+        beacon_unoccupied["label"] = "unoccupied"
+        labeled_data = beacon_occupied.append(beacon_unoccupied.set_index("timestamp"))
+        labeled_data.drop_duplicates(subset=["beiwe","co2"],inplace=True)
+        labeled_data.reset_index(inplace=True)
+        
+        # adding both labels to beacon measurements and cleaning
+        data = self.beacon_all.reset_index().merge(labeled_data[["beiwe","timestamp","label"]],on=["beiwe","timestamp"],how="inner")
+        pts_with_one_label = []
+        for pt in data["beiwe"].unique():
+            data_pt = data[data["beiwe"] == pt]
+            if len(data_pt["label"].unique()) != 2:
+                pts_with_one_label.append(pt)
+        data = data[~data["beiwe"].isin(pts_with_one_label)]
+
+        self.data = data.set_index("timestamp")
+
+    def resample_data(self, rate=15, by_id="beiwe"):
+        """
+        Resamples data to the given rate
+
+        Parameters
+        ----------
+        rate : int, default 15
+            resample rate in minutes
+        by_id : str, default "beiwe"
+            ID to prse out data by
+
+        Returns
+        -------
+        resampled : DataFrame
+            resampled data from df
+        """
+        resampled = pd.DataFrame()
+        # have to parse out data because of duplicate timestamps and because we lose beiwe IDs
+        for pt in self.data[by_id].unique():
+            data_pt = self.data[self.data[by_id] == pt]
+            data_pt.resample(f"{rate}T").mean()
+            data_pt[by_id] = pt # adding ID back in
+            resampled = resampled.append(data_pt)
+
+        self.data = resampled
+
+    def co2_comparison(self, participants=None, by_id="beiwe", occ_label="occupied", unocc_label="unoccupied"):
+        """
+        Compares distributions of co2 measurements between occupied and unoccupied conditions
+        """
+
+        if participants == None:
+            pt_list = self.data[by_id].unique()
+        elif isinstance(participants,list):
+            pt_list = participants
+        else:
+            pt_list = [participants] 
+
+        for pt in pt_list:
+            _, ax =plt.subplots(figsize=(12,4))
+            data_pt = self.data[self.data[by_id] == pt]
+            occupied_co2 = data_pt[data_pt["label"] == occ_label]
+            unoccupied_co2 = data_pt[data_pt["label"] == unocc_label]
+            sns.kdeplot(x="co2",data=occupied_co2,
+                lw=2,color="seagreen",cut=0,
+                label=occ_label.title(),ax=ax)
+            sns.kdeplot(x="co2",data=unoccupied_co2,
+                lw=2,color="firebrick",cut=0,
+                label=unocc_label.title(),ax=ax)
+            # x-axis
+            ax.set_xlabel("CO$_2$ Concentration (ppm",fontsize=16)
+            # y-axis
+            ax.set_ylabel("Density",fontsize=16)
+            # remainder
+            ax.tick_params(labelsize=12)
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            ax.legend(frameon=False,ncol=1,fontsize=14)
+            ax.set_title(pt,fontsize=16)
+
+            plt.show()
+            plt.close()
+
+class manual_inspection:
     
     def __init__(self,pt,data_dir="../",threshold=0.75):
         self.pt = pt # beiwe id
