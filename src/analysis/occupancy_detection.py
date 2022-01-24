@@ -1,6 +1,12 @@
 import pandas as pd
 import numpy as np
 
+import warnings
+
+import sys
+sys.path.append('../')
+from src.visualization import visualize
+
 from datetime import datetime, timedelta
 import math
 
@@ -8,12 +14,20 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import seaborn as sns
 
+# Sklearn
+## classifiers
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
+## evaluation
+from sklearn.metrics import confusion_matrix, accuracy_score, recall_score, precision_score, f1_score, roc_auc_score
+## other methods
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split, GridSearchCV
+
 class PreProcess:
-
-    def __init__(self) -> None:
-        pass
-
-class Classify:
 
     def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data") -> None:
         """
@@ -143,9 +157,27 @@ class Classify:
 
         self.data = resampled
 
-    def co2_comparison(self, participants=None, by_id="beiwe", occ_label="occupied", unocc_label="unoccupied"):
+    def iaq_comparison(self, iaq_param="co2", participants=None, by_id="beiwe", occ_label="occupied", unocc_label="unoccupied"):
         """
-        Compares distributions of co2 measurements between occupied and unoccupied conditions
+        Compares distributions of IAQ measurements between occupied and unoccupied conditions
+
+        Parameters
+        ----------
+        iaq_param : str, default "co2"
+            the parameters/column to use
+        participants : str or list of str, default None
+            participants to inspect
+            None corresponds to all participants in objects data attribute
+        by_id : str, default "beiwe"
+            ID to prse out data by
+        occ_label : str, default "occupied"
+            label for occupied
+        unocc_label : str, default "unoccupied"
+            label for unoccupied
+
+        Returns
+        -------
+        <void>
         """
 
         if participants == None:
@@ -158,16 +190,16 @@ class Classify:
         for pt in pt_list:
             _, ax =plt.subplots(figsize=(12,4))
             data_pt = self.data[self.data[by_id] == pt]
-            occupied_co2 = data_pt[data_pt["label"] == occ_label]
-            unoccupied_co2 = data_pt[data_pt["label"] == unocc_label]
-            sns.kdeplot(x="co2",data=occupied_co2,
+            occupied_iaq = data_pt[data_pt["label"] == occ_label]
+            unoccupied_iaq = data_pt[data_pt["label"] == unocc_label]
+            sns.kdeplot(x=iaq_param,data=occupied_iaq,
                 lw=2,color="seagreen",cut=0,
                 label=occ_label.title(),ax=ax)
-            sns.kdeplot(x="co2",data=unoccupied_co2,
+            sns.kdeplot(x=iaq_param,data=unoccupied_iaq,
                 lw=2,color="firebrick",cut=0,
                 label=unocc_label.title(),ax=ax)
             # x-axis
-            ax.set_xlabel("CO$_2$ Concentration (ppm",fontsize=16)
+            ax.set_xlabel(f"{visualize.get_label(iaq_param)} Concentration ({visualize.get_units(iaq_param)})",fontsize=16)
             # y-axis
             ax.set_ylabel("Density",fontsize=16)
             # remainder
@@ -179,6 +211,340 @@ class Classify:
 
             plt.show()
             plt.close()
+
+class Classify:
+
+    def __init__(self, data, zero_label="unoccupied", one_label="occupied",) -> None:
+        """
+        Parameters
+        ----------
+        data : DataFrame
+            pre-processed data from the PreProcess class
+        zero_label : str, default "unoccupied"
+            string corresponding to a label of 0
+        one_label : str, default "occupied"
+            string corresponding to a label of 1
+        """
+        self.data = data
+        self.data.replace({zero_label:0, one_label:1},inplace=True)
+
+    def create_pipeline(self, model, model_params=None):
+        """
+        Creates model pipeline
+
+        Parameters
+        ----------
+        model : sklearn classifier, default RandomForestClassifier
+            model to use for classification
+        model_params : dict, default None
+            parameters to use for the ML model
+
+        Creates
+        -------
+        pipe : sklearn pipeline object
+        """
+        preprocessing_pipe = Pipeline(steps=[
+            ("scale",StandardScaler())
+            ])
+
+        if model_params:
+            rf = model(**model_params)
+        else:
+            rf = model() # default classifier
+
+        pipe = Pipeline(steps=[
+            ("preprocess", preprocessing_pipe),
+            ("model", rf)
+        ])
+
+        self.pipe = pipe
+
+    def update_params(self,model,model_params,from_run=False):
+        """
+        Updates the model parameters within the class pipe object
+        
+        Parameters
+        ----------
+        model : 
+
+        model_params : dict
+            classifier model parameters
+        from_run : boolean, default False
+            whether parameters are coming from a call to run() - have to remove prefix
+
+        Creates
+        -------
+        pipe : SKlearn Pipeline
+            new Pipeline object with updated model parameters
+        """
+        if from_run:
+            model_params_unannotated = {f"{k.split('__')[1]}": v for k, v in model_params.items()}
+            self.create_pipeline(model=model,model_params=model_params_unannotated)
+        else:
+            self.create_pipeline(model=model,model_params=model_params)
+
+    def split(self, features=["co2"], target="label", test_size=0.33):
+        """
+        Creates the training and testing sets
+        
+        Parameters
+        ----------
+        features : list of str, default ["co2"]
+            columns in data to use as model features
+        target : str, default "label"
+            column in data to use as target
+        test_size : float, default 0.33
+            size of the testing datasets
+
+        Creates
+        -------
+        X_train : np.array
+            feature training data
+        X_test : np.array
+            feature testing data
+        y_train : np.array
+            target training data
+        y_test : np.array
+            target training data
+        """
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.data[features], self.data[target],test_size=test_size, random_state=42)
+
+    def perform_gridsearch(self, param_dict, cv=3, verbose_level=0):
+        """
+        Performs gridsearch on the class pipeline
+
+        Parameters
+        ----------
+        param_dict : dict
+            comprehensive dictionary to run the gridsearch on
+        cv : int, default 3
+            number of cross-validations to run in GridSearch
+        verbose_level : int, default 0
+            verbosity level for the GridSearchCV - see sklearn documentation for more info
+
+        Returns
+        -------
+        <best_params> : dict
+            best model parameters from the GridSearch
+        """
+        
+        # adding prefix for pipeline 
+        annotated_param_dict = {f"model__{k}": v for k, v in param_dict.items()}
+
+        try:
+            opt = GridSearchCV(self.pipe, annotated_param_dict, cv=cv, scoring='accuracy',verbose=verbose_level)
+            opt.fit(self.X_train, self.y_train)
+
+            print("\t\tBest Score\n\t\t\t", round(opt.best_score_,3))
+            print("\t\tBest Params\n\t\t\t", opt.best_params_)
+
+            return opt.best_params_
+
+        except AttributeError:
+            warnings.warn("Missing attribute(s) - make sure the pipeline object and training/test sets have been created")
+
+            return None
+
+    def make_predictions(self):
+        """
+        Makes the predictions on the training set with the class pipeline
+
+        Creates
+        -------
+        predictions : np.array
+            predicted target labels
+        """
+        try:
+            self.pipe.fit(self.X_train,self.y_train)
+            self.predictions = self.pipe.predict(self.X_test)
+        except AttributeError:
+            warnings.warn("Missing attribute(s) - make sure the pipeline object and training/test sets have been created")
+
+    def make_evaluations(self):
+        """
+        Evaluates the performance of the model
+
+        Returns
+        -------
+        res : dict
+            evaluation metrics
+        cm : np.array
+            confusion matrix
+        """
+        res = {}
+        try:
+            cm = confusion_matrix(self.y_test, self.predictions)
+            # getting evaluation metrics
+            acc = accuracy_score(self.y_test, self.predictions)
+            recall = recall_score(self.y_test, self.predictions)
+            precision = precision_score(self.y_test, self.predictions)
+            auc = roc_auc_score(self.y_test, self.predictions)
+            f1 = f1_score(self.y_test, self.predictions)
+            # adding metrics to res dict
+            for key, val in zip(["accuracy","recall","precision","f1","roc_auc"],[acc, recall, precision, f1, auc]):
+                res[key] = val
+
+        except AttributeError:
+            warnings.warn("Missing attribute(s) - make sure the training/test sets and predictions have been created")
+            cm = None # so no error from return
+
+        return res, cm
+
+    def optimize(self, model, param_grid, features=["co2"], target="label", test_size=0.33, cv=3, verbose_level=0):
+        """
+        Runs classification to optimize the model parameters
+
+        Parameters
+        ----------
+        model : SKlearn classifier
+            which model to use for classification
+        param_grid : dict
+            classifier parameters to GridSearch through
+        features : list of str, default ["co2"]
+            columns in data to use as model features
+        target : str, default "label"
+            column in data to use as target
+        test_size : float, default 0.33
+            size of the testing datasets
+        cv : int, default 3
+            number of cross-validations to run in GridSearch
+        verbose_level : int, default 0
+            verbosity level for the GridSearchCV - see sklearn documentation for more info
+
+        Returns
+        -------
+        results : dict
+            evaluation results from the classification
+        """
+        # Result Dicts
+        classification_results = {"beiwe":[],"n_occupied":[],"n_unoccupied":[],"accuracy":[],"recall":[],"precision":[],"f1":[],"roc_auc":[]}
+        model_results = {k: [] for k in param_grid.keys()}
+        model_results["beiwe"] = []
+        model_results["n_occupied"] = []
+        model_results["n_unoccupied"] = []
+
+        # creating copy of all participants data
+        data_all = self.data.copy()
+        # looping through all participants to get per-participant models
+        for pt in data_all["beiwe"].unique():
+            # Classifying per Participant
+            self.data = data_all[data_all["beiwe"] == pt]
+
+            print("Starting...\n")
+            s = datetime.now()
+
+            print("\tCreating Pipeline")
+            self.create_pipeline(model=model)
+            print("\tSplitting Data")
+            self.split(features=features, target=target, test_size=test_size)
+            print("\tPerforming Gridsearch")
+            self.best_params = self.perform_gridsearch(param_dict=param_grid, cv=cv, verbose_level=verbose_level)
+            print("\tUpdating Parameters")
+            self.update_params(model, self.best_params, from_run=True)
+            print("\tMaking Predictions")
+            self.make_predictions()
+            print("\tEvaluating Classifier")
+            res_pt, _ = self.make_evaluations()
+
+            e = datetime.now()
+            print(f"\nDone - Time for Evaluation: {round((e-s).total_seconds(),2)} seconds")
+            
+            # Classification Results
+            ## adding meta data
+            res_pt["beiwe"] = pt
+            n_occupied = len(self.data[self.data["label"] == 1])
+            n_unoccupied = len(self.data[self.data["label"] == 0])
+            res_pt["n_occupied"] = n_occupied
+            res_pt["n_unoccupied"] = n_unoccupied
+            ## adding evaluation metrics 
+            for k in res_pt.keys():
+                classification_results[k].append(res_pt[k])
+            
+            # Model Hyperparameter Results
+            ## adding meta data
+            best_params_short = {f"{k.split('__')[1]}": v for k, v in self.best_params.items()}
+            best_params_short["beiwe"] = pt
+            best_params_short["n_occupied"] = n_occupied
+            best_params_short["n_unoccupied"] = n_unoccupied
+            
+            # adding to model results from gridsearch
+            for k in best_params_short.keys():
+                model_results[k].append(best_params_short[k])
+
+        # reset class data
+        self.data = data_all
+        return pd.DataFrame(classification_results), pd.DataFrame(model_results)
+
+    def run(self, model, model_params, participants=None, features=["co2"], target="label", test_size=0.33):
+        """
+        Runs classification on participant-level data
+
+        Parameters
+        ----------
+        model : SKlearn classifier
+            which model to use for classification
+        model_params : dict
+            optimal classifier parameters
+        features : list of str, default ["co2"]
+            columns in data to use as model features
+        target : str, default "label"
+            column in data to use as target
+        zero_label : str, default "unoccupied"
+            string corresponding to a label of 0
+        one_label : str, default "occupied"
+            string corresponding to a label of 1
+        test_size : float, default 0.33
+            size of the testing datasets
+
+        Returns
+        -------
+        classification_results : dict
+            evaluation results from the classification
+        """
+
+        classification_results = {"beiwe":[],"n_occupied":[],"n_unoccupied":[],"accuracy":[],"recall":[],"precision":[],"f1":[],"roc_auc":[]}
+
+        # getting list of participants
+        if participants == None:
+            pt_list = self.data["beiwe"].unique()
+        elif isinstance(participants,list):
+            pt_list = participants
+        else:
+            pt_list = [participants] 
+
+        data_all = self.data.copy() # saving all the data since the methods use the class object
+        for pt in pt_list:
+            # Classifying per Participant
+            self.data = data_all[data_all["beiwe"] == pt] # overwriting class data
+            
+            print("Starting...\n")
+            s = datetime.now()
+
+            print("\tCreating Pipeline")
+            self.create_pipeline(model=model,model_params=model_params)
+            print("\tSplitting Data")
+            self.split(features=features, target=target, test_size=test_size)
+            print("\tMaking Predictions")
+            self.make_predictions()
+            print("\tEvaluating Classifier")
+            res_pt, self.cm = self.make_evaluations()
+
+            e = datetime.now()
+            print(f"\nDone - Time for Evaluation: {round((e-s).total_seconds(),2)} seconds")
+            
+            # Classification Results
+            ## adding meta data
+            res_pt["beiwe"] = pt
+            n_occupied = len(self.data[self.data["label"] == 1])
+            n_unoccupied = len(self.data[self.data["label"] == 0])
+            res_pt["n_occupied"] = n_occupied
+            res_pt["n_unoccupied"] = n_unoccupied
+            ## adding evaluation metrics 
+            for k in res_pt.keys():
+                classification_results[k].append(res_pt[k])
+
+        self.data = data_all # resetting the class data object 
+        self.results = pd.DataFrame(classification_results)
 
 class manual_inspection:
     

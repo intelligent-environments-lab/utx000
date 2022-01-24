@@ -963,9 +963,9 @@ def plot_strip(summarized_rates, save=False, save_dir="../reports/figures/"):
     df_to_plot["device"] = device_no
     df_to_plot.sort_values("device",inplace=True)
     df_to_plot["method_title"] = ["Steady-State" if method.startswith("ss") else method.split("_")[0].title() for method in df_to_plot["method"]]
-    sns.stripplot(x="device",y="ach",hue="method_title",palette=['black','#bf5700','navy',"gray"],size=10,jitter=0.2,alpha=0.7,data=df_to_plot,ax=ax)
+    sns.stripplot(x="device",y="ach",hue="method_title",palette=["white",'#bf5700','navy',"gray"],edgecolor="black",linewidth=1,size=8,jitter=0.25,alpha=0.5,data=df_to_plot,ax=ax)
     # xlabel
-    ax.set_xlabel("Device Number",fontsize=22)
+    ax.set_xlabel("ID of Participants with Sufficient Data",fontsize=22)
     plt.xticks(fontsize=18)
     # ylabel
     ax.set_ylabel("Ventilation Rate (h$^{-1}$)",fontsize=22)
@@ -973,7 +973,8 @@ def plot_strip(summarized_rates, save=False, save_dir="../reports/figures/"):
     # other
     for loc in ["top","right"]:
         ax.spines[loc].set_visible(False)
-    ax.legend(frameon=True,title="Estimation Method",fontsize=16,title_fontsize=18,facecolor="white")
+    #ax.legend(frameon=False,fontsize=16,title_fontsize=18,facecolor="white")
+    ax.get_legend().remove()
 
     if save:
         plt.savefig(f"{save_dir}/beacon_summary/ventilation_rates-strip-ux_s20.pdf",bbox_inches="tight")

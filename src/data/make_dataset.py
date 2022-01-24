@@ -1231,12 +1231,6 @@ class utx000():
 
         return True
 
-class wcwh_pilot(wcwh):
-    '''
-    Class for processing data from the pilot study with the WCWH ambassador families
-    '''
-
-    pass
 
 def main():
     '''
@@ -1260,7 +1254,7 @@ def main():
     elif ans == 5:
         processor = utx000()
     elif ans == 6:
-        processor = wcwh(study="wcwh_pilot",suffix="wcwh_s20")
+        processor = wcwh(study="wcwh_pilot",suffix="wcwh_s21")
     else:
         print("Invalid Choice")
         exit(1)

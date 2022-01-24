@@ -749,8 +749,12 @@ class calculate():
         # -----------------
         low_vals = df[df[f"{binary_var}_quality"] == zero_label]
         high_vals = df[df[f"{binary_var}_quality"] == one_label]
-        _, p = ttest_ind(low_vals[yvar],high_vals[yvar], equal_var=True, nan_policy="omit")
-        _, p_ks = ks_2samp(low_vals[yvar],high_vals[yvar])
+        try:
+            _, p = ttest_ind(low_vals[yvar],high_vals[yvar], equal_var=True, nan_policy="omit")
+            _, p_ks = ks_2samp(low_vals[yvar],high_vals[yvar])
+        except ValueError:
+            p = np.nan
+            p_ks = np.nan
         res = pd.DataFrame({"parameter":[binary_var],"low":[len(low_vals)],"high":[len(high_vals)],
                 "mean_low":[np.nanmean(low_vals[yvar])],"mean_high":np.nanmean(high_vals[yvar]),"p_val_t":[p],"p_val_ks":[p_ks]})
 
@@ -802,6 +806,33 @@ class calculate():
         plt.close()
 
         return res.set_index("parameter")
+
+    def plot_method_dstribution(self, df_in, method_column="method"):
+        """
+        Plots the distributions of ventilation estimates from the two methods
+        """
+        # plot fontsizes
+        tick_fs = 24
+        label_fs = 26
+
+        df_to_plot = df_in.copy()
+        _, ax = plt.subplots(figsize=(6,6))
+        sns.stripplot(x=method_column,y="ach", data=df_to_plot,ax=ax,
+            palette=["seagreen","cornflowerblue"],s=10,edgecolor="black",linewidth=1)
+
+        # x-axis
+        ax.set_xlabel("Estimation Method",fontsize=label_fs)
+        # y-axis
+        ax.set_ylabel("Ventilation Rate (h$^{-1}$)",fontsize=label_fs)
+        ax.set_ylim([-0.25,3])
+        ax.set_yticks(np.arange(0,3.5,0.5))
+        # remainder
+        ax.tick_params(labelsize=tick_fs)
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+
+        plt.show()
+        plt.close()
 
 class device_sleep(calculate):
 
