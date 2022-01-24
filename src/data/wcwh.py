@@ -18,29 +18,57 @@ warnings.filterwarnings('ignore')
 
 class wcwh():
     """
-    Class dedicated to processing data from the wcwh studies
+    Class dedicated to processing data from the wcwh family studies
     """
 
-    def __init__(self,study,suffix,data_dir="../../data"):
+    def __init__(self,study,suffix,data_dir="../../data",
+        beacon_list=np.arange(1,51,1),start_time=datetime(2021,12,1),end_time=datetime(2023,12,1),
+        verbose=0):
+        """
+        Initializing Method
+
+        Parameters
+        ----------
+        study : str
+            specific study name to pull from
+        suffix : str
+            specific suffix associated with a study
+        data_dir : str, default "../../data/"
+            path to raw data
+        beacon_list : np array, default np.arange(1,51,1)
+            list of beacon numbers to use
+        verbose : int, default 0
+            verbose level where 3 or higher is debugging level
+        start_time : Datetime
+            beginning data for period to consider data
+        end_time : Datetime
+            ending data for period to consider data
+        """
         # study specifics
         self.study = study
         self.suffix = suffix
         self.data_dir = data_dir
 
-        # participant and device ids
-        self.id_crossover = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='id')
-        self.beacon_id = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='beacon')
+        self.beacon_list = beacon_list
+        self.start_time = start_time
+        self.end_time = end_time
+
+        self.verbose = verbose
 
         # beacon correction factors 
         self.correction = {}
-        for file in os.listdir(f"{self.data_dir}/interim/"):
+        for file in os.listdir(f"{self.data_dir}/interim/{self.study}/"):
+            if verbose > 2:
+                print(file)
             file_info = file.split("-")
             if len(file_info) == 3:
                 if file_info[1] == "linear_model" and file_info[-1] == self.suffix+".csv":
                     try:
-                        self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{file}',index_col=0)
+                        if verbose > 2:
+                            print(f"Reading for {file_info[0]}")
+                        self.correction[file_info[0]] = pd.read_csv(f'{self.data_dir}/interim/{self.study}/{file}',index_col=0)
                     except FileNotFoundError:
-                        print(f"Missing offset for {file_info[0]} - padding with zeros")
+                        print(f"Missing file for {file_info[0]} - padding with zeros")
                         self.correction[file_info[0]] = pd.DataFrame(data={"beacon":np.arange(1,51),"constant":np.zeros(51),"coefficient":np.ones(51)}).set_index("beacon")
 
         # EMA Attributes
@@ -56,90 +84,122 @@ class wcwh():
         print('\t\tMoving to purgatory...')
         os.replace(path_to_file, path_to_destination)
 
-    def process_beacon(self,extreme=''):
+    def process_beacon(self,extreme=None,retain_negative=True,retain_na=True,resample_rate=1,
+        columns_to_drop=["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4","Temperature [C]","Relative Humidity"]):
         '''
-        Combines data from all sensors on all beacons
+        Processes data from the beacons
 
-        Returns True if able to save one dataframe that contains all the data at regular intervals in /data/processed directory
+        Parameters
+        ----------
+        resample_rate : int, default 1
+            number of minutes to resample to
+        extreme : str, default None
+            method to use for outlier detection and removing
+            "zscore": remove values outside +/- 2.5 zscore
+            "iqr": remove values outside +/- 1.5*IQR
+        retain_negative : boolean, default True
+            whether to retain negative measurements for IAQ parameters
+        retain_na : boolean, default True
+            whether to retain NaN values
+        columns_to_drop : list of str, default ["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4","Temperature [C]","Relative Humidity"]
+            data that are not needed
+
+        Returns
+        -------
+        <done> : boolean
+            True if able to save dataframe that contains all the data at regular intervals in processed directory
         '''
 
         beacon_data = pd.DataFrame() # dataframe to hold the final set of data
         beacons_folder=f"{self.data_dir}/raw/{self.study}/beacon"
-        print('\tProcessing beacon data...\n\t\tReading for beacon:')
-        for beacon in self.beacon_id["beacon"].to_list():
+        print("\tProcessing beacon data...")
+        if self.verbose > 0:
+            print("\n\t\tReading for beacon:")
+        for beacon in self.beacon_list:
 
             # correcting the number since the values <10 have leading zero in directory
             number = f'{beacon:02}'
-            print(f'\t\t{number}')
+            if self.verbose > 0:
+                print(f'\t\t{number}')
 
-            beacon_folder=f'{beacons_folder}/B{number}'
+            beacon_folder=f'{beacons_folder}/B{number}/DATA'
             beacon_df = pd.DataFrame() # dataframe specific to the beacon
 
-            # getting other ids
-            beacon_crossover_info = self.id_crossover.loc[self.id_crossover['beacon'] == beacon].reset_index(drop=True)
-            beiwe = beacon_crossover_info['beiwe'][0]
-            fitbit = beacon_crossover_info['fitbit'][0]
-            redcap = beacon_crossover_info['redcap'][0]
-            del beacon_crossover_info
-
-            def import_and_merge(csv_dir,number,resample_rate=2):
-                df_list = []
-                for file in os.listdir(csv_dir+'/'):
-                    try:
-                        # reading in raw data (csv for one day at a time) and appending it to the overal dataframe
-                        day_df = pd.read_csv(f'{csv_dir}/{file}',
-                                            index_col='Timestamp',parse_dates=True,
-                                            infer_datetime_format=True)
-                        df_list.append(day_df)
-                        
-                    except Exception:
-                        # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
-                        print(f'Issue encountered while importing {csv_dir}/{file}, skipping...')
-                        self.move_to_purgatory(f'{csv_dir}/{file}',f'{self.data_dir}/purgatory/B{number}-py3-{file}-{self.suffix}')
+            df_list = []
+            for file in os.listdir(beacon_folder):
+                if file[-1] == "v":
+                    y = int(file.split("_")[1].split("-")[0])
+                    m = int(file.split("_")[1].split("-")[1])
+                    d = int(file.split("_")[1].split("-")[2].split(".")[0])
+                    date = datetime(y,m,d)
+                    if date.date() >= self.start_time.date() and date.date() <= self.end_time.date():
+                        try:
+                            # reading in raw data (csv for one day at a time) and appending it to the overall dataframe
+                            if self.verbose > 2:
+                                print("\t\t\t",file)
+                            day_df = pd.read_csv(f'{beacon_folder}/{file}',
+                                                index_col='Timestamp',parse_dates=True,
+                                                infer_datetime_format=True)
+                            df_list.append(day_df)
+                            
+                        except Exception:
+                            # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
+                            print(f'Issue encountered while importing {beacon_folder}/{file}, skipping...')
+                            self.move_to_purgatory(f'{beacon_folder}/{file}',f'{self.data_dir}/purgatory/B{number}-{self.suffix}-{file}')
+            if len(df_list) > 0:
                 try:
-                    df = pd.concat(df_list).resample(f'{resample_rate}T').mean() # resampling to 5 minute intervals (raw data is at about 1 min)
-                    return df
+                    beacon_df = pd.concat(df_list).resample(f'{resample_rate}T').mean()
                 except ValueError:
-                    return pd.DataFrame() # empty dataframe
-
-            # Python3 Sensors
-            # ---------------
-            py3_df = import_and_merge(f'{beacon_folder}/adafruit', number)
-            if len(py3_df) == 0:
+                    if self.verbose > 1:
+                        print("\t\t\tIssue concatenating daily DataFrames")
+                    # no data available so moving on to next beacon and skipping the cleaning steps
+                    continue
+            else:
+                if self.verbose > 0:
+                    print(f"\t\t\tNo data available for Beacon {beacon} between {self.start_time} - {self.end_time}")
                 continue
 
-            # Changing NO2 readings on beacons without NO2 readings to CO (wiring issues - see Hagen)
-            if int(number) >= 28:
-                print('\t\t\tNo NO2 sensor - removing values')
-
-                py3_df[['CO','T_CO','RH_CO']] = py3_df[['NO2','T_NO2','RH_NO2']]
-                py3_df[['NO2','T_NO2','RH_NO2']] = np.nan
-
-            py3_df['CO'] /= 1000 # converting ppb measurements to ppm
-
-            # Python2 Sensors
-            # ---------------
-            py2_df = import_and_merge(f'{beacon_folder}/sensirion', number)
-            if len(py2_df) == 0:
-                continue
-                
             # Cleaning
             # --------
-            # merging python2 and 3 sensor dataframes
-            beacon_df = py3_df.merge(right=py2_df,left_index=True,right_index=True,how='outer')
+            ## Changing NO2 readings on beacons without NO2 sensors to CO
+            ##  The RPi defaults the USB directory to USB0 if only one USB port is used regardless of position
+            ##  Since the CO sensor is plugged into the USB1 port and the NO2 sensor into USB0, if we don't include
+            ##  the NO2 sensor then the CO sensor defaults to USB0 and the headers in the dataframe are wrong since
+            ##  they are hard-coded to have USB0 correspond to NO2.
+            #if int(number) >= 28: # needs to be updated
+            if self.verbose > 1:
+                print('\t\t\tNo NO2 sensor - switch NO2 headers to CO')
+
+            beacon_df[['CO','T_CO','RH_CO']] = beacon_df[['NO2','T_NO2','RH_NO2']]
+            beacon_df[['NO2','T_NO2','RH_NO2']] = np.nan
+
+            # converting ppb measurements to ppm
+            try:
+                beacon_df['CO'] /= 1000
+            except KeyError:
+                if self.verbose > 0:
+                    print("\t\t\tNo ['CO') in columns") 
             
             # getting relevant data only
-            start_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['start_date'].values[0]
-            end_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['end_date'].values[0]
-            beacon_df = beacon_df[start_date:end_date]
+            #start_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['start_date'].values[0]
+            #end_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['end_date'].values[0]
+            #beacon_df = beacon_df[start_date:end_date]
 
-            # combing T/RH readings and dropping the bad ones
-            beacon_df['temperature_c'] = beacon_df[['T_CO','T_NO2']].mean(axis=1)
-            beacon_df['rh'] = beacon_df[['RH_CO','RH_NO2']].mean(axis=1)
-            beacon_df.drop(["T_NO2","T_CO","RH_NO2","RH_CO","Temperature [C]","Relative Humidity"],axis=1,inplace=True)
+            # combining T/RH readings and dropping old columns
+            try:
+                beacon_df['temperature_c'] = beacon_df[['T_CO','T_NO2']].mean(axis=1)
+                beacon_df['rh'] = beacon_df[['RH_CO','RH_NO2']].mean(axis=1)
+                beacon_df.drop(["T_NO2","T_CO","RH_NO2","RH_CO"],axis=1,inplace=True)
+            except KeyError:
+                print('\t\t\tOne of ["T_NO2","T_CO","RH_NO2","RH_CO" no found in the dataframe')
 
             # dropping unecessary columns
-            beacon_df.drop(["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4"],axis=1,inplace=True)
+            for col in columns_to_drop:
+                try:
+                    beacon_df.drop([col],axis=1,inplace=True)
+                except KeyError:
+                    if self.verbose > 1:
+                        print(f"\t\t\tNo column {col} in dataframe")
 
             # renaming columns
             beacon_df.rename(columns={"TVOC":"tvoc","Lux":"lux","NO2":"no2","CO":"co","CO2":"co2",
@@ -147,18 +207,17 @@ class wcwh():
                                     "PM_C_1":"pm1_mass","PM_C_2p5":"pm2p5_mass","PM_C_10":"pm10_mass"},inplace=True)
             beacon_df.index.rename("timestamp",inplace=True)
 
-            # offsetting measurements with linear model
+            # correcting values with linear model
             for var in self.correction.keys():
-                print()
                 beacon_df[var] = beacon_df[var] * self.correction[var].loc[beacon,"coefficient"] + self.correction[var].loc[beacon,"constant"]
             
             # variables that should never have anything less than zero
             for var in ["lux",'temperature_c','rh']:
-                beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
-            
-            # variables that should never be less than a certain limit
-            #for var, threshold in zip(['co2'],[100]):
-            #    beacon_df[var].mask(beacon_df[var] < threshold, np.nan, inplace=True)
+                try:
+                    beacon_df[var].mask(beacon_df[var] < 0, np.nan, inplace=True)
+                except KeyError:
+                    if self.verbose > 1:
+                        print(f"No column {var} in DataFrame")
             
             # removing extreme values 
             if extreme == 'zscore':
@@ -179,25 +238,45 @@ class wcwh():
                     beacon_df[var].mask(beacon_df[var]<Q1-1.5*IQR,np.nan,inplace=True)
                     beacon_df[var].mask(beacon_df[var]>Q3+1.5*IQR,np.nan,inplace=True)
             else:
-                print('\t\t\tExtreme values retained')
+                if self.verbose > 1:
+                    print('\t\t\tExtreme values retained')
 
-            # dropping NaN values that get in
-            beacon_df.dropna(how='all',inplace=True)
+            # removing negative values if necessary
+            if retain_negative:
+                if self.verbose > 1:
+                    print("\t\t\tRetaining negative values")
+            else:
+                beacon_df[beacon_df < 0] = 0
+                if self.verbose > 1:
+                    print("\t\t\tRemoving negative values")
+
+            # dropping NaN values that get in across all variables
+            if retain_na:
+                if self.verbose > 1:
+                    print("\t\t\tRetaining NaN values")
+            else:
+                beacon_df.dropna(how='all',inplace=True)
+                if self.verbose > 1:
+                    print("\t\t\tRemoving NaN values")
+
+            # reindexing for any missed values
+            dts = pd.date_range(beacon_df.index[0],self.end_time,freq=f'1T')
+            beacon_df.reindex(dts)
 
             # adding columns for the pt details
             beacon_df['beacon'] = beacon
-            beacon_df['beiwe'] = beiwe
-            beacon_df['fitbit'] = fitbit
-            beacon_df['redcap'] = redcap
             
+            # combining to overall dataframe
             beacon_data = pd.concat([beacon_data,beacon_df])
 
         # saving
+        self.beacon_data = beacon_data
         try:
             beacon_data.to_csv(f'{self.data_dir}/processed/beacon-{self.suffix}.csv')
         except:
             return False
 
+        print("DONE")
         return True
 
     def process_gps(self, data_dir='/Volumes/HEF_Dissertation_Research/utx000/data/raw/utx000/beiwe/gps/', home=False):
