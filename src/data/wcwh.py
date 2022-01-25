@@ -85,7 +85,8 @@ class wcwh():
         os.replace(path_to_file, path_to_destination)
 
     def process_beacon(self,extreme=None,retain_negative=True,retain_na=True,resample_rate=1,
-        columns_to_drop=["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4","Temperature [C]","Relative Humidity"]):
+        columns_to_drop=["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4","Temperature [C]","Relative Humidity"],
+        columns_to_leave_raw=[]):
         '''
         Processes data from the beacons
 
@@ -103,6 +104,8 @@ class wcwh():
             whether to retain NaN values
         columns_to_drop : list of str, default ["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4","Temperature [C]","Relative Humidity"]
             data that are not needed
+        columns_to_leave_raw : list of str, default []
+            variables we do not want to correct
 
         Returns
         -------
@@ -166,12 +169,12 @@ class wcwh():
             ##  Since the CO sensor is plugged into the USB1 port and the NO2 sensor into USB0, if we don't include
             ##  the NO2 sensor then the CO sensor defaults to USB0 and the headers in the dataframe are wrong since
             ##  they are hard-coded to have USB0 correspond to NO2.
-            #if int(number) >= 28: # needs to be updated
-            if self.verbose > 1:
-                print('\t\t\tNo NO2 sensor - switch NO2 headers to CO')
+            if int(number) >= 28: # needs to be updated
+                if self.verbose > 1:
+                    print('\t\t\tNo NO2 sensor - switch NO2 headers to CO')
 
-            beacon_df[['CO','T_CO','RH_CO']] = beacon_df[['NO2','T_NO2','RH_NO2']]
-            beacon_df[['NO2','T_NO2','RH_NO2']] = np.nan
+                beacon_df[['CO','T_CO','RH_CO']] = beacon_df[['NO2','T_NO2','RH_NO2']]
+                beacon_df[['NO2','T_NO2','RH_NO2']] = np.nan
 
             # converting ppb measurements to ppm
             try:
@@ -208,8 +211,11 @@ class wcwh():
             beacon_df.index.rename("timestamp",inplace=True)
 
             # correcting values with linear model
-            for var in self.correction.keys():
-                beacon_df[var] = beacon_df[var] * self.correction[var].loc[beacon,"coefficient"] + self.correction[var].loc[beacon,"constant"]
+            for param in self.correction.keys():
+                if param not in columns_to_leave_raw:
+                    if self.verbose > 1:
+                        print(f"\t\t\tCorrecting {param}")
+                    beacon_df[param] = beacon_df[param] * self.correction[param].loc[beacon,"coefficient"] + self.correction[param].loc[beacon,"constant"]
             
             # variables that should never have anything less than zero
             for var in ["lux",'temperature_c','rh']:
