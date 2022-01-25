@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 import math
+from datetime import datetime
 
 # user-defined
 from src.visualization import visualize
@@ -60,6 +61,42 @@ class Summarize():
 
         return data_bb
 
+    def plot_beacon_ts(self,beacon,param="co2",start_time=None,end_time=None,scatter=False):
+        """
+        Plots timeseries of the specified parameter within the time range
+
+        Parameters
+        ----------
+        beacon : int
+            number of beacon to pull data from
+        params : str, default "co2"
+            column to use from data
+        start_time : datetime, default None
+            data start time
+        end_time : datetime, default None
+            data end time
+        scatter : boolean, default False
+            whether to scatter the data versus plot
+
+        Returns
+        -------
+        <void>
+        """
+        beacon_df = self.get_beacon(beacon, start_time, end_time)
+
+        _, ax = plt.subplots(figsize=(16,4))
+        if scatter:
+            ax.scatter(beacon_df.index,beacon_df[param],color="black",s=5,marker="s")
+        else:
+            ax.plot(beacon_df.index,beacon_df[param],color="black",lw=2)
+        # y-axis
+        ax.set_ylabel(f"{visualize.get_label(param)} ({visualize.get_units(param)})",fontsize=18)
+        # remainder
+        ax.tick_params(labelsize=14)
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+
+    
     def plot_sensor_operation(self,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]):
         """
         
@@ -96,8 +133,6 @@ class Summarize():
 
             plt.show()
             plt.close()
-
-
 
     def get_summary_stats(self, params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"], precision=1,
         save=False, annot=None):
@@ -137,29 +172,94 @@ class Summarize():
         print(stats_df.to_latex())
         if save:
             if annot:
-                stats_df.to_csv(f'../data/processed/beacon-{annot}-summary_stats.csv')
+                stats_df.to_csv(f'../data/processed/beacon-{annot}-summary_stats-{self.suffix}.csv')
             else:
-                stats_df.to_csv(f'../data/processed/beacon-{annot}-summary_stats.csv')
+                stats_df.to_csv(f'../data/processed/beacon-summary_stats-{self.suffix}.csv')
             
         return stats_df
 
-    def plot_aggregate_distributions(self,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"],):
+    def plot_correlation_matrix(self, data=None, params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"], save=False, annot="partially_filtered"):
+        """
+        Plots correlation matrix between variables
+        
+        Parameters
+        ----------
+        data : DataFrame, default None
+            user-specified data to use, otherwise uses the class data
+        params : list of str, default ["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]
+            names of columns to include when summarizing
+        save : boolean, default False
+            whether to save or not
+        annot : str, default None
+            information to include in the filename when saving
+
+        Creates
+        -------
+        correlation_matrix : NumPy Array
+            correlation matrix between the given parameters
+        """
+        if isinstance(data,pd.DataFrame):
+            df = data[params]
+        else:
+            df = self.data.copy()[params]
+            
+        df.columns = [visualize.get_label(col) for col in df.columns]
+        corr = df.corr()
+        corr = round(corr,2)
+        mask = np.triu(np.ones_like(corr, dtype=bool))
+        _, ax = plt.subplots(figsize=(7, 5))
+        sns.heatmap(corr, mask=mask, 
+                        vmin=-1, vmax=1, center=0, 
+                        cmap=sns.diverging_palette(20, 220, n=200),cbar_kws={'ticks':[-1,-0.5,0,0.5,1],"pad":-0.07,"shrink":0.8,"anchor":(0.0,0.0)},fmt=".2f",
+                        square=True,linewidths=1,annot=True,annot_kws={"size":12},ax=ax)
+        # colorbar
+        cbar = ax.collections[0].colorbar
+        cbar.ax.tick_params(labelsize=14)
+        cbar.outline.set_color('black')
+        cbar.outline.set_linewidth(0.5)
+        
+        yticklabels = ax.get_yticklabels()
+        yticklabels[0] = ' '
+        ax.set_yticklabels(yticklabels,rotation=0,ha='right',fontsize=14)
+
+        xticklabels = ax.get_xticklabels()
+        xticklabels[-1] = ' '
+        ax.set_xticklabels(xticklabels,rotation=0,ha='center',fontsize=14)
+        ax.tick_params(axis=u'both', which=u'both',length=0)
+        if save:
+            if annot:
+                plt.savefig(f'../data/processed/beacon-{annot}-correlation_matrix-{self.suffix}.csv')
+            else:
+                plt.savefig(f'../data/processed/beacon-correlation_matrix-{self.suffix}.csv')
+                
+        plt.show()
+        plt.close()
+
+        self.correlation_matrix = corr
+
+    def plot_distributions(self,data=None,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]):
         """
         Plots distributions from all the beacons for each given variable
 
         Parameters
         ----------
+        data : DataFrame, default None
+            user-specified data to use, otherwise uses the class data
         params : list of str, default ["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]
             names of columns to include when summarizing
 
         Returns
         -------
-
+        <void>
         """
+        if isinstance(data,pd.DataFrame):
+            df = data
+        else:
+            df = self.data.copy()
 
         for param in params:
             _, ax = plt.subplots(figsize=(12,4))
-            sns.kdeplot(param,data=self.data, ax=ax,
+            sns.kdeplot(param,data=df, ax=ax,
                 cut=0, linewidth=2, color="cornflowerblue")
             # x-axis
             ax.set_xlabel(f"{visualize.get_label(param)} ({visualize.get_units(param)})",fontsize=16)
@@ -174,7 +274,7 @@ class Summarize():
             plt.show()
             plt.close()
 
-    def plot_beacon_joyplots_by_stat(self,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"],
+    def plot_beacon_joyplots_by_stat(self,data=None,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"],
         limits=[[400,3000],[0,50],[0,20],[0,1000],[15,30],[20,80]],
         ticks=[range(400,3800,600),range(0,55,5),range(0,24,4),range(0,1200,200),range(15,33,3),range(20,100,20)],
         beacons_to_leave_out = [[],[],[],[],[],[]],
@@ -184,6 +284,8 @@ class Summarize():
         
         Parameters
         ----------
+        data : DataFrame, default None
+            user-specified data to use, otherwise uses the class data
         params : list of str, default ["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]
             names of columns to include when summarizing
         limits : list of lists, default [[400,4000],[0,50],[0,20],[0,1000],[15,30],[20,80]]
@@ -193,7 +295,6 @@ class Summarize():
             column used to separate the individual distributions by
         by_stat: str, default "mean",
             summary stat to order joyplots by
-        
         save : boolean, default False
             whether to save or not
         annot : str, default None
@@ -203,12 +304,15 @@ class Summarize():
         -------
         <void>
         """
-        df = self.data.copy()
+        if isinstance(data,pd.DataFrame):
+            df = data
+        else:
+            df = self.data.copy()
 
         titles = ["a","b","c","d","e","f","g","h"]
             
         # looping through the variables 
-        for v, limit, tick, title, bad_beacons in zip(params, limits, ticks, titles, beacons_to_leave_out):
+        for param, limit, tick, title, bad_beacons in zip(params, limits, ticks, titles, beacons_to_leave_out):
             df_filtered = pd.DataFrame()
             for bb in df[by_var].unique():
                 if bb in bad_beacons:
@@ -216,9 +320,9 @@ class Summarize():
                 else:
                     temp = df[df[by_var] == bb]
                     if by_stat == "median":
-                        temp['stat'] = temp[v].median() + 0.0001*int(bb)
+                        temp['stat'] = temp[param].median() + 0.0001*int(bb)
                     else:
-                        temp['stat'] = temp[v].mean() + 0.0001*int(bb)
+                        temp['stat'] = temp[param].mean() + 0.0001*int(bb)
 
                     if math.isnan(temp['stat'][0]):
                         pass
@@ -226,30 +330,100 @@ class Summarize():
                         df_filtered = df_filtered.append(temp)
                 
             try:
-                df_to_plot = df_filtered[[v,'stat',by_var]].sort_values(["stat"])
+                df_to_plot = df_filtered[[param,'stat',by_var]].sort_values(["stat"])
                 labels = df_to_plot[by_var].unique()
-                fig, ax = joyplot(data=df_to_plot,by='stat',column=[v],tails=0,
+                fig, ax = joyplot(data=df_to_plot,by='stat',column=[param],tails=0,
                     kind='kde',overlap=0.5,ylim="own",range_style="own",x_range=limit,grid="y",
                     labels=labels,alpha=0.75,color="cornflowerblue",figsize=(6,6))
                 # x-axis
-                #fig.xlabel(f"{visualize.get_label(v)} ({visualize.get_units(v)})", fontsize=24)
+                plt.xlabel(f"{visualize.get_label(param)} ({visualize.get_units(param)})", fontsize=24)
+                plt.xticks(tick,tick)
                 # remainder
                 fig.suptitle(title, fontsize=28)
                 for a in ax:
                     a.tick_params(labelsize=20)
-                    
-                plt.xticks(tick,tick)
                 
                 if save:
                     if annot:
-                        plt.savefig(f'../reports/figures/beacon_summary/beacon-{v}-joyplot{annot}-{self.suffix}.pdf',bbox_inches="tight")
+                        plt.savefig(f'../reports/figures/beacon_summary/beacon-{param}-joyplot{annot}-{self.suffix}.pdf',bbox_inches="tight")
                     else:
-                        plt.savefig(f'../reports/figures/beacon_summary/beacon-{v}-joyplot-{self.suffix}.pdf',bbox_inches="tight")
+                        plt.savefig(f'../reports/figures/beacon_summary/beacon-{param}-joyplot-{self.suffix}.pdf',bbox_inches="tight")
 
                 plt.show()
                 plt.close()
             except AssertionError as e:
                 print("Something wrong with labeling")
+
+    def plot_beacon_boxplots_by_stat(self,data=None,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"],
+        limits=[[400,3000],[0,50],[0,20],[0,1000],[15,30],[20,80]],
+        ticks=[range(400,3800,600),range(0,55,5),range(0,24,4),range(0,1200,200),range(15,33,3),range(20,100,20)],
+        beacons_to_leave_out = [[],[],[],[],[],[]],
+        by_var='beacon',by_stat="mean",save=False,annot=None):
+        '''
+        Plots joyplots for the major sensors on the beacon. 
+        
+        Parameters
+        ----------
+        data : DataFrame, default None
+            user-specified data to use, otherwise uses the class data
+        params : list of str, default ["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]
+            names of columns to include when summarizing
+        limits : list of lists, default [[400,4000],[0,50],[0,20],[0,1000],[15,30],[20,80]]
+            limits to include for the variables
+        ticks : list of ranges, default [range(400,3800,600),range(0,55,5),range(0,24,4),range(0,1200,200),range(15,33,3),range(20,100,20)]
+        by_var: str, default "beacon"
+            column used to separate the individual distributions by
+        by_stat: str, default "mean",
+            summary stat to order joyplots by
+        save : boolean, default False
+            whether to save or not
+        annot : str, default None
+            information to include in the filename when saving
+        
+        Returns
+        -------
+        <void>
+        '''
+
+        titles = ["a","b","c","d","e","f"]
+        
+        if isinstance(data,pd.DataFrame):
+            df = data
+        else:
+            df = self.data.copy()
+
+        for param, limit, tick, title in zip(params, limits, ticks, titles):
+            df_filtered = pd.DataFrame()
+            for bb in df[by_var].unique():
+                temp = df[df[by_var] == bb]
+                temp['stat'] = temp[param].median() + 0.0001*int(bb)
+
+                if len(temp) > 0:
+                    df_filtered = df_filtered.append(temp)
+                    
+            _, ax = plt.subplots(figsize=(20,6))
+            df_filtered.sort_values("stat",inplace=True,ascending=False)
+            sns.boxplot(x="stat",y=param,order=df_filtered["stat"].unique(),data=df_filtered)
+            # x-axis
+            ax.set_xticklabels(df_filtered["beacon"].unique(),fontsize=14)
+            ax.set_xlabel("")
+            # y-axis
+            plt.yticks(fontsize=14)
+            ax.set_ylabel(f"{visualize.get_label(param)} ({visualize.get_units(param)})",fontsize=16)
+            ax.set_ylim(limit)
+            ax.set_yticks(tick)
+            # remainder
+            ax.set_title(title,fontsize=20)
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+                
+            if annot:
+                plt.savefig(f'../reports/figures/beacon_summary/beacon-{param}-boxplot{annot}-{self.suffix}.pdf',bbox_inches="tight")
+            else:
+                plt.savefig(f'../reports/figures/beacon_summary/beacon-{param}-boxplot-{self.suffix}.pdf',bbox_inches="tight")
+            
+            plt.show()
+            plt.close()
 
 def main():
     pass
