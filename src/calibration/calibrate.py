@@ -1231,6 +1231,14 @@ class Calibration():
 class IntramodelComparison():
     
     def __init__(self,ieq_param="co2",env="chamber",model_type="linear",study_suffix="wcwh_s21"):
+        """
+        Initializing function
+
+        Parameters
+        ----------
+        env : str, default "chamber"
+            specifies the environment - one of ["chamner","testhouse"]
+        """
         
         self.ieq_param = ieq_param
         self.env = env
@@ -1350,7 +1358,7 @@ class IntramodelComparison():
         """
         self.ref=ref
 
-    def show_comprehensive_timeseries(self,ref,r=4,c=5,save=False,show_std=False,**kwargs):
+    def show_comprehensive_timeseries(self,ref,r=4,c=5,save=False,show_std=False,scoring_metric="r2",**kwargs):
         """shows a subplot of all the correlation beacons"""
         ref = ref.resample("1T").interpolate()
         fig, axes = plt.subplots(r,c,figsize=(c*4,r*4),sharex=True,sharey=True,gridspec_kw={"wspace":0.1})
@@ -1384,10 +1392,15 @@ class IntramodelComparison():
             # annotating
             if self.model_type == "linear":
                 try:
-                    r2 = r2_score(merged["concentration"],merged[self.ieq_param])
+                    if scoring_metric == "mae":
+                        score = mean_absolute_error(merged["concentration"],merged[self.ieq_param])
+                        score_label = "MAE"
+                    else: # default to r2
+                        score = r2_score(merged["concentration"],merged[self.ieq_param])
+                        score_label="r$^2$"
                 except ValueError:
-                    r2 = 0
-                ax.set_title(f"  Device {int(bb)}\n  r$^2$ = {round(r2,3)}\n  y = {self.get_beacon_x1(bb)}x + {self.get_beacon_x0(bb)}",
+                    score = 0
+                ax.set_title(f"  Device {int(bb)}\n  {score_label} = {round(score,3)}\n  y = {self.get_beacon_x1(bb)}x + {self.get_beacon_x0(bb)}",
                         y=0.85,pad=0,fontsize=13,loc="left",ha="left")
             else:
                 ax.set_title(f"  Device {int(bb)}\n  y = x + {self.get_beacon_x0(bb)}",
