@@ -577,10 +577,11 @@ class calculate():
                 val = round(p,3) if p > 0.001 else "<0.001"
                 ax.text(xloc,ax.get_ylim()[1],val,fontsize=tick_fs,ha="center",va="bottom",weight=weight)
                 if sleep_metric == sleep_metrics[-1]:
-                    ax.text(xloc,-0.12,f"{n_low} ",fontsize=tick_fs,ha="right",va="top")
-                    ax.text(xloc,-0.12,f" {n_high}",fontsize=tick_fs,ha="left",va="top")
+                    yloc = ax.get_ylim()[0] - (ax.get_ylim()[1] - ax.get_ylim()[0])*0.12
+                    ax.text(xloc,yloc,f"{n_low} ",fontsize=tick_fs,ha="right",va="top")
+                    ax.text(xloc,yloc,f" {n_high}",fontsize=tick_fs,ha="left",va="top")
                 
-        ax.text(0,-0.22,"n:",fontsize=tick_fs,transform = ax.transAxes)
+        #ax.text(0,-0.22,"n:",fontsize=tick_fs,transform = ax.transAxes)
 
         if save:
             plt.savefig(f'{save_dir}/beacon_{sleep_modality}/beacon_{sleep_modality}-{iaq_metric}_profile-{annot}-ux_s20.pdf',bbox_inches="tight")
