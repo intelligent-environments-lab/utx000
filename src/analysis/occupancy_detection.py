@@ -29,7 +29,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 
 class PreProcess:
 
-    def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data") -> None:
+    def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data", resample_rate=10, resample_nightly=True) -> None:
         """
         Initializing method
 
@@ -41,52 +41,46 @@ class PreProcess:
             study suffix ID
         data_dir : str, default "../../data"
             path to the "data" directory within the project
+        resample_rate : int, default 15
+            number of minutes to resample to
         """
         self.study = study
         self.suffix = study_suffix
         self.data_dir = data_dir
 
+        self.resample_rate = resample_rate
+
         # Loading Data
         # ------------
-        ## Beacon
-        self.beacon_all = pd.read_csv(f"{data_dir}/processed/beacon-{self.suffix}.csv",
-            index_col="timestamp",parse_dates=["timestamp"],infer_datetime_format=True)
-        self.beacon_all.drop(["redcap","fitbit"],axis=1,inplace=True)
-        self.beacon_all.dropna(subset=["co2"],inplace=True)
-
-        self.beacon_nightly = pd.read_csv(f"{self.data_dir}/processed/beacon_by_night-{self.suffix}.csv",
-            index_col="timestamp",parse_dates=["timestamp","start_time","end_time"],infer_datetime_format=True)
-        self.beacon_nightly.drop(["no2","increasing_co2","ema","redcap","fitbit"],axis=1,inplace=True)
-        self.beacon_nightly.dropna(subset=["co2"],inplace=True)
-
         ## GPS
         self.gps = pd.read_csv(f"{self.data_dir}/processed/beiwe-gps_beacon_pts-{self.suffix}.csv",
             index_col="timestamp",parse_dates=["timestamp"],infer_datetime_format=True)
-        
-    def add_label(self,home_labels=[1],verbose=False):
+        self.homestay = pd.read_csv(f"{self.data_dir}/processed/beiwe-homestay-{self.suffix}.csv",
+            parse_dates=["start","end"],infer_datetime_format=True)
+
+        ## Beacon
+        beacon_all = pd.read_csv(f"{data_dir}/processed/beacon-{self.suffix}.csv",
+            index_col="timestamp",parse_dates=["timestamp"],infer_datetime_format=True)
+        beacon_all.drop(["redcap","fitbit"],axis=1,inplace=True)
+        self.beacon_all = self.resample_data(beacon_all,rate=self.resample_rate)
+        self.beacon_all.dropna(subset=["co2"],inplace=True)
+        ### Beacon during only Fitbit-detected sleep events
+        self.beacon_nightly = pd.read_csv(f"{self.data_dir}/processed/beacon_by_night-{self.suffix}.csv",
+            index_col="timestamp",parse_dates=["timestamp","start_time","end_time"],infer_datetime_format=True)
+        self.beacon_nightly.drop(["no2","increasing_co2","ema","redcap","fitbit"],axis=1,inplace=True)
+        if resample_nightly:
+            self.beacon_nightly = self.resample_data(self.beacon_nightly,rate=self.resample_rate)
+
+        self.beacon_nightly.dropna(subset=["co2"],inplace=True)
+        ### Beacon data from unoccupied periods (has been corss-referenced with available GPS data)
+        self.set_beacon_occupancy_data()
+
+    def set_unoccupied_bedroom_data(self, verbose=False):
         """
-        Includes a column that corresponds to the occupied label 
+        Finds the IAQ data for periods when GPS data are available and participants are not at home
 
-        Parameters
-        ----------
-        home_labels : list of int, default [1]
-            labels to use that indicate if the participant is home in [0,1]
-            0 indicates participants were confirmed home by sleep episode and CO2/T measurements
-            1 indicates participants were confirmed home by GPS/address cross-reference
-        verbose : boolean, default False
-            increased output for debugging purposes
-        
-        Returns
-        -------
-
+        CANNOT RESAMPLE BEACON NIGHTLY IF USING THIS METHOD
         """
-        # occupied label
-        beacon_occupied = self.beacon_nightly.copy() # nightly measurements are from occupied periods
-        beacon_occupied = beacon_occupied[beacon_occupied["home"].isin(home_labels)] # ensures we use gps-confirmed data
-        beacon_occupied["label"] = "occupied" # add label
-        #data = self.beacon_all.merge(right=occupied_data[["label","beiwe"]],on=["timestamp","beiwe"],how="left")
-
-        # unoccupied label
         beacon_unoccupied = pd.DataFrame()
         # looping through each participant because we lose ID information when we `groupby`
         for pt in self.beacon_nightly["beiwe"].unique():
@@ -104,7 +98,7 @@ class PreProcess:
             unoccupied_pt = gps_pt.reset_index().merge(right=occupied_pt.reset_index()[["beiwe","timestamp"]],on=["beiwe","timestamp"],how="left",indicator=True)
             unoccupied_only = unoccupied_pt[unoccupied_pt["_merge"] == "left_only"]
             # resampling to timestamp consistent with beacon data
-            unoccupied_resampled = unoccupied_only.set_index("timestamp").resample("2T").mean().dropna()
+            unoccupied_resampled = unoccupied_only.set_index("timestamp").resample(f"{self.resample_rate}T").mean().dropna()
             unoccupied_resampled["beiwe"] = pt # adding back in the participant ID
             if verbose:
                 print(f"{pt}: {len(unoccupied_resampled)}")
@@ -113,30 +107,156 @@ class PreProcess:
             iaq_unoccupied = beacon_all_pt.merge(right=unoccupied_resampled.reset_index(),on=["beiwe","timestamp"],how="inner")
             beacon_unoccupied = beacon_unoccupied.append(iaq_unoccupied)
 
+        self.beacon_bedroom_unoccupied = beacon_unoccupied
+        
+    def set_beacon_occupancy_data(self,verbose=False):
+        """
+        
+        """
+        unoccupied_gps = pd.DataFrame()
+        occupied_gps = pd.DataFrame()
+        # looping through the participants to get GPS data when they are not home
+        for pt in self.homestay["beiwe"].unique():
+            # pt-specific data
+            gps_pt = self.gps[self.gps["beiwe"] == pt]
+            homestay_pt = self.homestay[self.homestay["beiwe"] == pt]
+            # get gps data for homestay periods
+            home_data_list = [gps_pt[s:e] for s, e in homestay_pt[['start','end']].to_numpy()]
+            occupied_pt = pd.concat(home_data_list)
+            # combine gps and homestay gps data
+            temp = gps_pt.merge(occupied_pt,left_index=True,right_index=True,how="left",suffixes=("","_home"),indicator=True)
+            # take only gps data for periods outside of homestay
+            unoccupied_pt = temp[temp["_merge"] == "left_only"]
+            # drop unnecessary columns from merge
+            unoccupied_pt = unoccupied_pt[[col for col in unoccupied_pt.columns if not col.endswith("home") and not col.endswith("merge")]]
+            # resample gps data
+            unoccupied_pt_resampled = unoccupied_pt.resample(f"{self.resample_rate}T").mean().dropna()
+            unoccupied_pt_resampled["beiwe"] = pt
+            occupied_pt_resampled = occupied_pt.resample(f"{self.resample_rate}T").mean().dropna()
+            occupied_pt_resampled["beiwe"] = pt
+            
+            # combine to aggregate df
+            unoccupied_gps = unoccupied_gps.append(unoccupied_pt_resampled)
+            occupied_gps = occupied_gps.append(occupied_pt_resampled)
+
+        # merge gps data from periods away from home with beacon data
+        beacon_all = self.beacon_all.copy() # making a copy so we don't ruin the original
+        self.beacon_unoccupied = beacon_all.reset_index().merge(unoccupied_gps.reset_index(),on=["beiwe","timestamp"]).set_index("timestamp")
+        self.beacon_occupied = beacon_all.reset_index().merge(occupied_gps.reset_index(),on=["beiwe","timestamp"]).set_index("timestamp")
+
+    def add_bedroom_label(self,home_labels=[1],drop_duplicates=True,verbose=False):
+        """
+        Includes a column that corresponds to bedroom occupancy label 
+
+        Parameters
+        ----------
+        home_labels : list of int, default [1]
+            labels to use that indicate if the participant is home in [0,1]
+            0 indicates participants were confirmed home by sleep episode and CO2/T measurements
+            1 indicates participants were confirmed home by GPS/address cross-reference
+        verbose : boolean, default False
+            increased output for debugging purposes
+        
+        Attributes Created
+        ------------------
+        bedroom_data : DataFrame
+            data that includes an occupied and unoccupied label
+        """
+        # occupied label
+        occupied_data = self.beacon_nightly.copy() # nightly measurements are from occupied periods
+        occupied_data = occupied_data[occupied_data["home"].isin(home_labels)] # ensures we use gps-confirmed data
+        occupied_data["bedroom"] = "occupied" # add label
+
         # adding labels, combining, and dropping any pesky duplicates
-        beacon_occupied["label"] = "occupied"
-        beacon_unoccupied["label"] = "unoccupied"
-        labeled_data = beacon_occupied.append(beacon_unoccupied.set_index("timestamp"))
-        labeled_data.drop_duplicates(subset=["beiwe","co2"],inplace=True)
+        occupied_data["bedroom"] = "occupied"
+        unoccupied_data = self.beacon_unoccupied.copy()
+        unoccupied_data["bedroom"] = "unoccupied"
+        labeled_data = occupied_data.append(unoccupied_data)
+        if drop_duplicates:
+            labeled_data.drop_duplicates(subset=["beiwe","co2"],inplace=True)
         labeled_data.reset_index(inplace=True)
         
-        # adding both labels to beacon measurements and cleaning
-        data = self.beacon_all.reset_index().merge(labeled_data[["beiwe","timestamp","label"]],on=["beiwe","timestamp"],how="inner")
+        # ensuring participants have both occupied and unoccupied data
         pts_with_one_label = []
-        for pt in data["beiwe"].unique():
-            data_pt = data[data["beiwe"] == pt]
-            if len(data_pt["label"].unique()) != 2:
+        for pt in labeled_data["beiwe"].unique():
+            data_pt = labeled_data[labeled_data["beiwe"] == pt]
+            if len(data_pt["bedroom"].unique()) != 2:
                 pts_with_one_label.append(pt)
-        data = data[~data["beiwe"].isin(pts_with_one_label)]
+        labeled_data = labeled_data[~labeled_data["beiwe"].isin(pts_with_one_label)]
 
-        self.data = data.set_index("timestamp")
+        self.bedroom_data = labeled_data.set_index("timestamp")
 
-    def resample_data(self, rate=15, by_id="beiwe"):
+    def add_home_label(self,occupied_label="occupied",unoccupied_label="unoccupied",drop_duplicates=True,verbose=False):
+        """
+        Includes a column that corresponds to home occupancy 
+        
+        Parameters
+        ----------
+        occupied_label : str or int, default "occupied"
+            label to use for occupied periods
+        unoccupied_label : str or int, default "unoccupied"
+            label to use for unoccupied periods
+
+        Attributes Created
+        ------------------
+        home_data : DataFrame
+            IAQ data with labels indicating if participants are home or not
+        """
+        # occupied data
+        occupied_data = self.beacon_occupied.copy()
+        occupied_data["home"] = occupied_label
+        # unoccupied data
+        unoccupied_data = self.beacon_unoccupied.copy()
+        unoccupied_data["home"] = unoccupied_label
+        # combining unoccupied and occupied data, dropping duplicates and saving as new attribute
+        home_data = occupied_data.append(unoccupied_data)
+        if drop_duplicates:
+            home_data.drop_duplicates(subset=["beiwe","co2"],inplace=True)
+        home_data.reset_index(inplace=True)
+
+        # ensuring participants have both occupied and unoccupied data
+        pts_with_one_label = []
+        for pt in home_data["beiwe"].unique():
+            data_pt = home_data[home_data["beiwe"] == pt]
+            if len(data_pt["home"].unique()) != 2:
+                pts_with_one_label.append(pt)
+        home_data = home_data[~home_data["beiwe"].isin(pts_with_one_label)]
+
+        self.home_data = home_data.set_index("timestamp")
+
+    def set_data(self,bedroom=True):
+        """
+        Sets the class data attribute
+
+        Parameters
+        ----------
+        bedroom : boolean, default True
+            whether to use bedroom data or home data if False
+
+        Creates Attribute
+        -----------------
+        data : DataFrame
+            main data to use for further analysis
+        """
+        if bedroom:
+            try:
+                self.data = self.bedroom_data
+            except AttributeError:
+                print("Need to create bedroom labeled data")
+        else:
+            try:
+                self.data = self.home_data
+            except AttributeError:
+                print("Need to create home labeled data")
+
+    def resample_data(self, df, rate=10, by_id="beiwe"):
         """
         Resamples data to the given rate
 
         Parameters
         ----------
+        df : DataFrame
+            data to be resampled - index must be datetime
         rate : int, default 15
             resample rate in minutes
         by_id : str, default "beiwe"
@@ -149,15 +269,15 @@ class PreProcess:
         """
         resampled = pd.DataFrame()
         # have to parse out data because of duplicate timestamps and because we lose beiwe IDs
-        for pt in self.data[by_id].unique():
-            data_pt = self.data[self.data[by_id] == pt]
-            data_pt.resample(f"{rate}T").mean()
-            data_pt[by_id] = pt # adding ID back in
-            resampled = resampled.append(data_pt)
+        for pt in df[by_id].unique():
+            data_pt = df[df[by_id] == pt]
+            resampled_pt = data_pt.resample(f"{rate}T").mean()
+            resampled_pt[by_id] = pt # adding ID back in
+            resampled = resampled.append(resampled_pt)
 
-        self.data = resampled
+        return resampled
 
-    def iaq_comparison(self, iaq_param="co2", participants=None, by_id="beiwe", occ_label="occupied", unocc_label="unoccupied"):
+    def iaq_comparison(self, iaq_param="co2", participants=None, by_id="beiwe", space_label="bedroom", occ_label="occupied", unocc_label="unoccupied"):
         """
         Compares distributions of IAQ measurements between occupied and unoccupied conditions
 
@@ -170,6 +290,8 @@ class PreProcess:
             None corresponds to all participants in objects data attribute
         by_id : str, default "beiwe"
             ID to prse out data by
+        space_label : str, default "bedroom"
+            specifies column to use for occupancy
         occ_label : str, default "occupied"
             label for occupied
         unocc_label : str, default "unoccupied"
@@ -190,8 +312,8 @@ class PreProcess:
         for pt in pt_list:
             _, ax =plt.subplots(figsize=(12,4))
             data_pt = self.data[self.data[by_id] == pt]
-            occupied_iaq = data_pt[data_pt["label"] == occ_label]
-            unoccupied_iaq = data_pt[data_pt["label"] == unocc_label]
+            occupied_iaq = data_pt[data_pt[space_label] == occ_label]
+            unoccupied_iaq = data_pt[data_pt[space_label] == unocc_label]
             sns.kdeplot(x=iaq_param,data=occupied_iaq,
                 lw=2,color="seagreen",cut=0,
                 label=occ_label.title(),ax=ax)
@@ -283,7 +405,7 @@ class Classify:
         else:
             self.create_pipeline(model=model,model_params=model_params)
 
-    def split(self, features=["co2"], target="label", test_size=0.33):
+    def split(self, features=["co2"], target="bedroom", test_size=0.33):
         """
         Creates the training and testing sets
         
@@ -291,7 +413,7 @@ class Classify:
         ----------
         features : list of str, default ["co2"]
             columns in data to use as model features
-        target : str, default "label"
+        target : str, default "bedroom"
             column in data to use as target
         test_size : float, default 0.33
             size of the testing datasets
@@ -392,7 +514,7 @@ class Classify:
 
     def optimize(self, model, param_grid, features=["co2"], target="label", test_size=0.33, cv=3, verbose_level=0):
         """
-        Runs classification to optimize the model parameters
+        Runs classification to optimize the model parameters on a participant-level
 
         Parameters
         ----------
@@ -452,8 +574,8 @@ class Classify:
             # Classification Results
             ## adding meta data
             res_pt["beiwe"] = pt
-            n_occupied = len(self.data[self.data["label"] == 1])
-            n_unoccupied = len(self.data[self.data["label"] == 0])
+            n_occupied = len(self.data[self.data[target] == 1])
+            n_unoccupied = len(self.data[self.data[target] == 0])
             res_pt["n_occupied"] = n_occupied
             res_pt["n_unoccupied"] = n_unoccupied
             ## adding evaluation metrics 
@@ -485,6 +607,8 @@ class Classify:
             which model to use for classification
         model_params : dict
             optimal classifier parameters
+        participants : list of str, default None
+            participants to consider - if None, then use all participants in the class data
         features : list of str, default ["co2"]
             columns in data to use as model features
         target : str, default "label"
@@ -502,7 +626,7 @@ class Classify:
             evaluation results from the classification
         """
 
-        classification_results = {"beiwe":[],"n_occupied":[],"n_unoccupied":[],"accuracy":[],"recall":[],"precision":[],"f1":[],"roc_auc":[]}
+        classification_results = {"beiwe":[],"n_occupied":[],"n_unoccupied":[],"runtime":[],"accuracy":[],"recall":[],"precision":[],"f1":[],"roc_auc":[]}
 
         # getting list of participants
         if participants == None:
@@ -530,21 +654,134 @@ class Classify:
             res_pt, self.cm = self.make_evaluations()
 
             e = datetime.now()
-            print(f"\nDone - Time for Evaluation: {round((e-s).total_seconds(),2)} seconds")
+            runtime = round((e-s).total_seconds(),2)
+            print(f"\nDone - Time for Evaluation: {runtime} seconds")
             
             # Classification Results
             ## adding meta data
             res_pt["beiwe"] = pt
-            n_occupied = len(self.data[self.data["label"] == 1])
-            n_unoccupied = len(self.data[self.data["label"] == 0])
+            n_occupied = len(self.data[self.data[target] == 1])
+            n_unoccupied = len(self.data[self.data[target] == 0])
             res_pt["n_occupied"] = n_occupied
             res_pt["n_unoccupied"] = n_unoccupied
+            res_pt["runtime"] = runtime
             ## adding evaluation metrics 
             for k in res_pt.keys():
                 classification_results[k].append(res_pt[k])
 
         self.data = data_all # resetting the class data object 
         self.results = pd.DataFrame(classification_results)
+
+    def classify(self, model, model_params, observations, participants=None, features=["co2"], target="bedroom"):
+        """
+        Classifies occupancy on unlabeled data
+
+        Parameters
+        ----------
+        model : SKlearn classifier
+            which model to use for classification
+        model_params : dict
+            optimal classifier parameters
+        observations : DataFrame
+            unlabeled data to classify on
+        participants : list of str, default None
+            participants to consider - if None, then use all participants in the class data
+        features : list of str, default ["co2"]
+            columns in data to use as model features
+        target : str, default "bedroom"
+            column in data to use as target
+
+        Returns
+        -------
+
+        """
+        # getting list of participants
+        if participants == None:
+            pt_list = self.data["beiwe"].unique()
+        elif isinstance(participants,list):
+            pt_list = participants
+        else:
+            pt_list = [participants] 
+
+        data_all = self.data.copy() # saving all the data since the methods use the class object
+        for pt in pt_list:
+            # Classifying per Participant
+            self.data = data_all[data_all["beiwe"] == pt] # overwriting class data
+            observations_pt = observations[observations["beiwe"] == pt]
+            
+            print("Starting...\n")
+            s = datetime.now()
+
+            print("\tCreating Pipeline")
+            self.create_pipeline(model=model,model_params=model_params)
+            print("\tFitting Model to Labeled Data")
+            self.pipe.fit(data_all[features],data_all[target])
+            print("\tClassifying Occupancy on Unlabeled Data")
+            self.classifications = self.pipe.predict_proba(observations_pt[features])
+
+            e = datetime.now()
+            print(f"\nDone - Time for Evaluation: {round((e-s).total_seconds(),2)} seconds")
+
+class CompareModels():
+
+    def __init__(self, model_results) -> None:
+        """
+        Parameters
+        ----------
+        model_results : dict
+            keys correspond to model and values are dataframes with participant-based evaluation metrics
+        """
+        self.res = model_results
+
+    def get_model_name(self,model_name_short):
+        """
+        Gets the model's full name from the abbreviation
+        """
+        abb = model_name_short.lower()
+        if abb == "lr":
+            return "Logistic Regression"
+        elif abb == "nb":
+            return "Naive Bayes"
+        elif abb == "rf":
+            return "Random Forest"
+        elif abb == "mlp":
+            return "MLP"
+        else:
+            return ""
+
+    def scatter_metric(self,metric="accuracy"):
+        """
+        Scatters the evaluation metric for each participant from each method
+        """
+        
+        # combinig results so we can sort them
+        df_list = []
+        for m in self.res.keys():
+            df_list.append(self.res[m][metric])
+
+        comb = pd.concat(df_list,axis=1)
+        comb.set_index(self.res[m]["beiwe"],inplace=True)
+        comb["mean"] = comb.mean(axis=1)
+        comb_sorted = comb.sort_values("mean")
+        # plotting
+        _, ax = plt.subplots(figsize=(16,4))
+        for col, model in zip(range(len(comb_sorted.columns)-1),self.res.keys()):
+            ax.scatter(comb_sorted.index,comb_sorted.iloc[:,col],
+                s=75,alpha=0.7,label=self.get_model_name(model))
+
+        # x-axis
+        ax.set_xlabel("ID",fontsize=16)
+        ax.tick_params(axis="x",labelrotation=-30,labelsize=12)
+        # y-axis
+        ax.set_ylabel(metric.title(),fontsize=16)
+        ax.tick_params(axis="y",labelsize=12)
+        # remainder
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5,-0.4),frameon=False,fontsize=14,ncol=len(self.res.keys()))
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+
+        plt.show()
+        plt.close()
 
 class manual_inspection:
     
