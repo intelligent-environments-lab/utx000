@@ -1,3 +1,4 @@
+from ast import Param
 from tracemalloc import start
 import pandas as pd
 import numpy as np
@@ -96,6 +97,70 @@ class Summarize():
         for loc in ["top","right"]:
             ax.spines[loc].set_visible(False)
 
+    def plot_two_var_ts(self,beacon,params=["co2","pm2p5_mass"],start_time=None,end_time=None,scatter=False,save=False,annot=None):
+        """
+        Plots timeseries of the specified parameter within the time range
+
+        Parameters
+        ----------
+        beacon : int
+            number of beacon to pull data from
+        params : str, default "co2"
+            column to use from data
+        start_time : datetime, default None
+            data start time
+        end_time : datetime, default None
+            data end time
+        scatter : boolean, default False
+            whether to scatter the data versus plot
+
+        Returns
+        -------
+        <void>
+        """
+        beacon_df = self.get_beacon(beacon, start_time, end_time)
+
+        _, axis = plt.subplots(figsize=(16,4))
+        for param, ax, color in zip(params, [axis,axis.twinx()], ["black","cornflowerblue"]):
+            if scatter:
+                ax.scatter(beacon_df.index,beacon_df[param],color=color,s=5,marker="s")
+            else:
+                ax.plot(beacon_df.index,beacon_df[param],color=color,lw=2)
+
+            # x-axis
+            if start_time:
+                ax.set_xlim(left=start_time)
+            if end_time:
+                ax.set_xlim(right=end_time)
+            try:
+                if end_time.day - start_time.day <= 14:
+                    ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+                    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+            except AttributeError:
+                # end_time and start_time not specified
+                pass
+            
+            # y-axis
+            ax.set_ylabel(f"{visualize.get_label(param)} ({visualize.get_units(param)})",fontsize=18)
+            if param == "co2":
+                ax.set_ylim(bottom=400)
+            if param == "pm2p5_mass":
+                ax.set_ylim(bottom=0)
+            if param == params[1]:
+                ax.spines['right'].set_color(color)
+                ax.tick_params(axis='y', colors=color)
+            # remainder
+            ax.tick_params(labelsize=14)
+
+        if save:
+            if annot:
+                plt.savefig(f"/Users/hagenfritz/Desktop/beacon{beacon}-{params[0]}-{params[1]}-{annot}-{self.suffix}.pdf")
+            else:
+                plt.savefig(f"~/Desktop/beacon{beacon}-{params[0]}-{params[1]}-{self.suffix}.pdf")
+
+        plt.show()
+        #plt.close()
     
     def plot_sensor_operation(self,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]):
         """
