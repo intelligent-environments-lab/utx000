@@ -1,3 +1,4 @@
+from re import A
 import pandas as pd
 import numpy as np
 
@@ -336,7 +337,7 @@ class PreProcess:
 
 class Classify:
 
-    def __init__(self, data, zero_label="unoccupied", one_label="occupied",) -> None:
+    def __init__(self, data, features=["co2"], zero_label="unoccupied", one_label="occupied",) -> None:
         """
         Parameters
         ----------
@@ -347,7 +348,8 @@ class Classify:
         one_label : str, default "occupied"
             string corresponding to a label of 1
         """
-        self.data = data
+        self.features = features
+        self.data = data.dropna(subset=features)
         self.data.replace({zero_label:0, one_label:1},inplace=True)
 
     def create_pipeline(self, model, model_params=None):
@@ -405,7 +407,7 @@ class Classify:
         else:
             self.create_pipeline(model=model,model_params=model_params)
 
-    def split(self, features=["co2"], target="bedroom", test_size=0.33):
+    def split(self, target="bedroom", test_size=0.33):
         """
         Creates the training and testing sets
         
@@ -429,7 +431,7 @@ class Classify:
         y_test : np.array
             target training data
         """
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.data[features], self.data[target],test_size=test_size, random_state=42)
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.data[self.features], self.data[target],test_size=test_size, random_state=42)
 
     def perform_gridsearch(self, param_dict, cv=3, verbose_level=0):
         """
@@ -512,7 +514,7 @@ class Classify:
 
         return res, cm
 
-    def optimize(self, model, param_grid, features=["co2"], target="label", test_size=0.33, cv=3, verbose_level=0):
+    def optimize(self, model, param_grid, target="label", test_size=0.33, cv=3, verbose_level=0):
         """
         Runs classification to optimize the model parameters on a participant-level
 
@@ -545,6 +547,8 @@ class Classify:
         model_results["n_occupied"] = []
         model_results["n_unoccupied"] = []
 
+        # removing 
+
         # creating copy of all participants data
         data_all = self.data.copy()
         # looping through all participants to get per-participant models
@@ -558,7 +562,7 @@ class Classify:
             print("\tCreating Pipeline")
             self.create_pipeline(model=model)
             print("\tSplitting Data")
-            self.split(features=features, target=target, test_size=test_size)
+            self.split(target=target, test_size=test_size)
             print("\tPerforming Gridsearch")
             self.best_params = self.perform_gridsearch(param_dict=param_grid, cv=cv, verbose_level=verbose_level)
             print("\tUpdating Parameters")
@@ -597,7 +601,7 @@ class Classify:
         self.data = data_all
         return pd.DataFrame(classification_results), pd.DataFrame(model_results)
 
-    def run(self, model, model_params, participants=None, features=["co2"], target="label", test_size=0.33):
+    def run(self, model, model_params, participants=None, target="label", test_size=0.33):
         """
         Runs classification on participant-level data
 
@@ -647,7 +651,7 @@ class Classify:
             print("\tCreating Pipeline")
             self.create_pipeline(model=model,model_params=model_params)
             print("\tSplitting Data")
-            self.split(features=features, target=target, test_size=test_size)
+            self.split(target=target, test_size=test_size)
             print("\tMaking Predictions")
             self.make_predictions()
             print("\tEvaluating Classifier")
@@ -672,7 +676,7 @@ class Classify:
         self.data = data_all # resetting the class data object 
         self.results = pd.DataFrame(classification_results)
 
-    def classify(self, model, model_params, observations, participants=None, features=["co2"], target="bedroom"):
+    def classify(self, model, model_params, observations, target="bedroom", verbose=0):
         """
         Classifies occupancy on unlabeled data
 
@@ -684,43 +688,149 @@ class Classify:
             optimal classifier parameters
         observations : DataFrame
             unlabeled data to classify on
-        participants : list of str, default None
-            participants to consider - if None, then use all participants in the class data
         features : list of str, default ["co2"]
             columns in data to use as model features
         target : str, default "bedroom"
             column in data to use as target
+        verbose : int, default 0
+
 
         Returns
         -------
 
         """
-        # getting list of participants
-        if participants == None:
-            pt_list = self.data["beiwe"].unique()
-        elif isinstance(participants,list):
-            pt_list = participants
-        else:
-            pt_list = [participants] 
 
         data_all = self.data.copy() # saving all the data since the methods use the class object
-        for pt in pt_list:
+        probs = pd.DataFrame()
+        for pt in observations["beiwe"].unique():
             # Classifying per Participant
             self.data = data_all[data_all["beiwe"] == pt] # overwriting class data
             observations_pt = observations[observations["beiwe"] == pt]
+            if len(self.data) > 0:
+                print("Starting...\n")
+                s = datetime.now()
+
+                print("\tCreating Pipeline")
+                self.create_pipeline(model=model,model_params=model_params)
+                print("\tFitting Model to Labeled Data")
+                self.pipe.fit(self.data[self.features],self.data[target])
+                print("\tClassifying Occupancy on Unlabeled Data")
+                classifications = self.pipe.predict_proba(observations_pt[self.features])
+
+                e = datetime.now()
+                print(f"\nDone - Time for Evaluation: {round((e-s).total_seconds(),2)} seconds")
+
+                probs = probs.append(pd.DataFrame(classifications))
+            else:
+                # update observations by removing the participant
+                if verbose > 0:
+                    print("No available labeled data for participant {pt}")
+                observations = observations[observations["beiwe"] != pt]
+
+        self.data = data_all # resetting the class data object 
+        self.classifications = pd.concat([observations.reset_index(),probs.reset_index()],axis=1).set_index("timestamp")[["beiwe"]+self.features+[0,1]]
+
+    def get_classification_color(self,percent,highest=0.9):
+        """
+        Returns color based on the percent level
+        """
+        if percent >= highest:
+            return "seagreen"
+        elif percent >= 0.8:
+            return "goldenrod"
+        elif percent >= 0.7:
+            return "orange"
+        elif percent >= 0.6:
+            return "firebrick"
+        else: # default color is black
+            return "black"
+
+    def ts_prediction(self,participants=None,percents=[0.6,0.7,0.8,0.9],iaq_param="co2",save=False,**kwargs):
+        """
+        Plots timeseries of IAQ data, colored by occupancy
+
+        Parameters
+        ----------
+        participants : list of str, default None
+            participants to consider - if None, then use all participants in the class data
+
+        """
+        # checking to see if classifications have been made
+        try:
+            _ = self.classifications.copy()
+        except AttributeError:
+            print("Need to create classification predictions using the `classify` method")
+            return
+
+        # getting list of participants
+        if participants == None:
+            pt_list = self.classifications["beiwe"].unique()
+        elif isinstance(participants,list):
+            pt_list = participants
+        else:
+            pt_list = [participants]
+
+        _, axes = plt.subplots(len(pt_list),1,figsize=(16,4*len(pt_list)))
+        try:
+            _ = len(axes)
+        except TypeError:
+            axes = [axes]
+        for pt, ax in zip(pt_list,axes):
+            # pt-specific data
+            pt_class = self.classifications[self.classifications["beiwe"] == pt]
+            # coloring points based on percentages
+            for percent in percents:
+                above_percent = pt_class[pt_class[1] >= percent]
+                ax.scatter(above_percent.index,above_percent[iaq_param],s=5,color=self.get_classification_color(percent),label=f"> {percent}",zorder=percent*10)
+            # plotting remaining data
+            ax.plot(pt_class.index,pt_class[iaq_param],color="black",lw=2,label=f"< {np.min(percents)}",zorder=1)
+            # x-axis
+            ax.set_xlabel("")
+            ax.set_xlim([pt_class.index[0],pt_class.index[-1]])
+
+            if "start_time" in kwargs.keys():
+                ax.set_xlim(left=kwargs["start_time"])
+            if "end_time" in kwargs.keys():
+                ax.set_xlim(right=kwargs["end_time"])
+            # y-axis
+            ax.set_ylabel(f"{visualize.get_label(iaq_param)} ({visualize.get_units(iaq_param)})",fontsize=16)
+            if iaq_param == "co2":
+                ax.set_ylim([400,2500])
+            # remainder
+            ax.tick_params(labelsize=14)
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+
+            if save:
+                plt.savefig(f"../reports/figures/predicted_occupancy-{pt}.png")
+        
+        plt.show()
+        plt.close()
+
+    def summarize_classification(self,available_data,percents=[0.7,0.8,0.9]):
+        """
+    
+        """
+        for percent in percents:
+            above_percent = self.classifications[self.classifications[1] > percent]
+            print(f"Recovered Data with Probability of Occupancy Above {percent*100}%")
+            for pt in above_percent["beiwe"].unique():
+                # all data
+                available_pt = available_data[available_data["beiwe"] == pt]
+                # data for training
+                training = self.data[self.data["beiwe"] == pt]
+                training_per = round(len(training)/len(available_pt)*100,1)
+                # above probability
+                above_percent_pt = above_percent[above_percent["beiwe"] == pt]
+                above_per = round(len(above_percent_pt)/len(available_pt)*100,1)
+                
+                print(f"\t{pt}:\tAvailable:\t{len(available_pt)}\tTraining:\t{len(training)} ({training_per}%)\tRecovered:\t{len(above_percent_pt)} ({above_per}%)")
             
-            print("Starting...\n")
-            s = datetime.now()
-
-            print("\tCreating Pipeline")
-            self.create_pipeline(model=model,model_params=model_params)
-            print("\tFitting Model to Labeled Data")
-            self.pipe.fit(data_all[features],data_all[target])
-            print("\tClassifying Occupancy on Unlabeled Data")
-            self.classifications = self.pipe.predict_proba(observations_pt[features])
-
-            e = datetime.now()
-            print(f"\nDone - Time for Evaluation: {round((e-s).total_seconds(),2)} seconds")
+    def save_classifications(self,model_name,annot):
+        """
+        
+        """
+        self.classifications.to_csv(f"../data/results/{model_name}-occupancy_classification-{annot}-ux_s20.csv")
 
 class CompareModels():
 
@@ -749,9 +859,32 @@ class CompareModels():
         else:
             return ""
 
-    def scatter_metric(self,metric="accuracy"):
+    def get_symbol(self,model_name_short):
+        """
+        Gets the symbol for the given model
+        """
+        abb = model_name_short.lower()
+        if abb == "lr":
+            return "o"
+        elif abb == "nb":
+            return "d"
+        elif abb == "rf":
+            return "s"
+        elif abb == "mlp":
+            return "*"
+        else:
+            return ""
+
+    def scatter_metric(self,metric="accuracy",anonymize=False, save=False, annot=None):
         """
         Scatters the evaluation metric for each participant from each method
+
+        Parameters
+        ----------
+        metric : str, default "accuracy"
+            evaluation metric to plot
+        anonymize : boolean, default False
+            use participant IDs or not
         """
         
         # combinig results so we can sort them
@@ -763,25 +896,65 @@ class CompareModels():
         comb.set_index(self.res[m]["beiwe"],inplace=True)
         comb["mean"] = comb.mean(axis=1)
         comb_sorted = comb.sort_values("mean")
+        if anonymize:
+            comb_sorted.reset_index(drop=True,inplace=True)
+            comb_sorted.index = [str(i) for i in range(1,len(comb_sorted)+1)]
         # plotting
-        _, ax = plt.subplots(figsize=(16,4))
+        _, ax = plt.subplots(figsize=(12,4))
         for col, model in zip(range(len(comb_sorted.columns)-1),self.res.keys()):
             ax.scatter(comb_sorted.index,comb_sorted.iloc[:,col],
-                s=75,alpha=0.7,label=self.get_model_name(model))
+                marker=self.get_symbol(model), s=75,alpha=0.7,label=self.get_model_name(model))
 
         # x-axis
         ax.set_xlabel("ID",fontsize=16)
-        ax.tick_params(axis="x",labelrotation=-30,labelsize=12)
+        ax.tick_params(axis="x",labelsize=14)
         # y-axis
         ax.set_ylabel(metric.title(),fontsize=16)
-        ax.tick_params(axis="y",labelsize=12)
+        ax.tick_params(axis="y",labelsize=14)
+        ax.set_ylim(bottom=0.4,top=1)
         # remainder
-        ax.legend(loc="upper center", bbox_to_anchor=(0.5,-0.4),frameon=False,fontsize=14,ncol=len(self.res.keys()))
+        ax.legend(loc="upper center", bbox_to_anchor=(0.35,1),frameon=True,fontsize=14,ncol=2)
         for loc in ["top","right"]:
             ax.spines[loc].set_visible(False)
 
+        if save:
+            if annot:
+                plt.savefig(f"../reports/figures/occupancy_detection-{annot}-{metric}.pdf")
+            else:
+                plt.savefig(f"../reports/figures/occupancy_detection-{metric}.pdf")
+
         plt.show()
         plt.close()
+
+    def compare_runtimes(self):
+        """
+        Compares runtime metrics
+        """
+        print("runtime:".upper())
+        for model in self.res.keys():
+            print("\t",model.upper())
+            rts = self.res[model]['runtime']
+            print(f"\t\tMean:\t{np.mean(rts)} s\n\t\tSum:\t{np.sum(rts)} s")
+
+    def compare_f1s(self):
+        """
+        Compares F1 scores
+        """
+        print("F1:")
+        for model in self.res.keys():
+            print("\t",model.upper())
+            f1s = self.res[model]['f1']
+            print(f"\t\tMean:\t{np.mean(f1s)}\n\t\tSTD:\t{np.std(f1s)}")
+
+    def save_results(self,annot=None):
+        """
+        Saves model results as separate csv files
+        """
+        for model in self.res.keys():
+            if annot:
+                self.res[model].to_csv(f"../data/results/{model}-metrics-{annot}-ux_s20.csv")
+            else:
+                self.res[model].to_csv(f"../data/results/{model}-metrics-ux_s20.csv")
 
 class manual_inspection:
     
