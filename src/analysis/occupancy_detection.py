@@ -1,3 +1,4 @@
+from __future__ import annotations
 from re import A
 import pandas as pd
 import numpy as np
@@ -30,7 +31,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 
 class PreProcess:
 
-    def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data", resample_rate=10, resample_nightly=True) -> None:
+    def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data", features=["co2"], resample_rate=10, resample_nightly=True) -> None:
         """
         Initializing method
 
@@ -49,6 +50,7 @@ class PreProcess:
         self.suffix = study_suffix
         self.data_dir = data_dir
 
+        self.features = features
         self.resample_rate = resample_rate
 
         # Loading Data
@@ -64,7 +66,7 @@ class PreProcess:
             index_col="timestamp",parse_dates=["timestamp"],infer_datetime_format=True)
         beacon_all.drop(["redcap","fitbit"],axis=1,inplace=True)
         self.beacon_all = self.resample_data(beacon_all,rate=self.resample_rate)
-        self.beacon_all.dropna(subset=["co2"],inplace=True)
+        self.beacon_all.dropna(subset=self.features,inplace=True)
         ### Beacon during only Fitbit-detected sleep events
         self.beacon_nightly = pd.read_csv(f"{self.data_dir}/processed/beacon_by_night-{self.suffix}.csv",
             index_col="timestamp",parse_dates=["timestamp","start_time","end_time"],infer_datetime_format=True)
@@ -72,7 +74,7 @@ class PreProcess:
         if resample_nightly:
             self.beacon_nightly = self.resample_data(self.beacon_nightly,rate=self.resample_rate)
 
-        self.beacon_nightly.dropna(subset=["co2"],inplace=True)
+        self.beacon_nightly.dropna(subset=self.features,inplace=True)
         ### Beacon data from unoccupied periods (has been corss-referenced with available GPS data)
         self.set_beacon_occupancy_data()
 
@@ -809,23 +811,42 @@ class Classify:
 
     def summarize_classification(self,available_data,percents=[0.7,0.8,0.9]):
         """
+        Summarizes the classification abiliity by participant and provided percent cutoffs
+
+        Parameters
+        ----------
+        available_data : DataFrame
+            all the possible IAQ data for each participant
+        percents : list of float, default [0.7,0.8,0.9]
+            decimal percentages for cutoff
     
+        Returns
+        -------
+        <res> : DataFrame
+            summarized results for cutoffs
         """
-        for percent in percents:
-            above_percent = self.classifications[self.classifications[1] > percent]
-            print(f"Recovered Data with Probability of Occupancy Above {percent*100}%")
-            for pt in above_percent["beiwe"].unique():
-                # all data
-                available_pt = available_data[available_data["beiwe"] == pt]
-                # data for training
-                training = self.data[self.data["beiwe"] == pt]
-                training_per = round(len(training)/len(available_pt)*100,1)
-                # above probability
-                above_percent_pt = above_percent[above_percent["beiwe"] == pt]
-                above_per = round(len(above_percent_pt)/len(available_pt)*100,1)
+        # creatiing results dictionary
+        res = {f"> {p*100}%": [] for p in percents}
+        res["Participant"] = []
+        # looping through pts and percentages
+        for pt in self.classifications["beiwe"].unique():
+            # pt data
+            res["Participant"].append(pt)
+            available_pt = available_data[available_data["beiwe"] == pt]
+            classifications_pt = self.classifications[self.classifications["beiwe"] == pt]
+            if len(classifications_pt) == 0:
+                for p in percents:
+                    res[p].append("0 (0%)")
+            else:
+                for p in percents:
+                    # above data
+                    above_percent = classifications_pt[classifications_pt[1] > p]
+                    n = len(above_percent)
+                    percent_recovered = round(n / len(available_pt) * 100,1)
+                    res[f"> {p*100}%"].append(f"{n} ({percent_recovered}%)")
+
+        return pd.DataFrame(res)
                 
-                print(f"\t{pt}:\tAvailable:\t{len(available_pt)}\tTraining:\t{len(training)} ({training_per}%)\tRecovered:\t{len(above_percent_pt)} ({above_per}%)")
-            
     def save_classifications(self,model_name,annot):
         """
         
@@ -885,6 +906,11 @@ class CompareModels():
             evaluation metric to plot
         anonymize : boolean, default False
             use participant IDs or not
+
+        Returns
+        -------
+        comb_sorted : DataFrame
+            accuracy for each model for each participant
         """
         
         # combinig results so we can sort them
@@ -897,6 +923,7 @@ class CompareModels():
         comb["mean"] = comb.mean(axis=1)
         comb_sorted = comb.sort_values("mean")
         if anonymize:
+            pids = comb_sorted.index
             comb_sorted.reset_index(drop=True,inplace=True)
             comb_sorted.index = [str(i) for i in range(1,len(comb_sorted)+1)]
         # plotting
@@ -913,7 +940,7 @@ class CompareModels():
         ax.tick_params(axis="y",labelsize=14)
         ax.set_ylim(bottom=0.4,top=1)
         # remainder
-        ax.legend(loc="upper center", bbox_to_anchor=(0.35,1),frameon=True,fontsize=14,ncol=2)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.75,0.3),frameon=True,fontsize=14,ncol=2)
         for loc in ["top","right"]:
             ax.spines[loc].set_visible(False)
 
@@ -925,6 +952,12 @@ class CompareModels():
 
         plt.show()
         plt.close()
+
+        # adding back ids 
+        if anonymize:
+            comb_sorted["beiwe"] = pids
+
+        return comb_sorted
 
     def compare_runtimes(self):
         """
