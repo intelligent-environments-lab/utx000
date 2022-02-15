@@ -5,19 +5,28 @@
 # Description: 
 
 import sys
+
+from attr import assoc
 sys.path.append('../')
 
 # user-created libraries
 from src.visualization import visualize
+from src.analysis import aqi
 
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import StandardScaler
+from scipy import stats
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 from datetime import datetime, timedelta
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 class Analyze():
 
-    def __init__(self,data_dir="../data", study_suffix="ux_s20") -> None:
+    def __init__(self,data_dir="../data", study_suffix="ux_s20", scale=False) -> None:
         """
         Initializing method
 
@@ -39,6 +48,8 @@ class Analyze():
         self.suffix = study_suffix
 
         # EMA data
+        # --------
+        ## At Home Responses
         ema = pd.read_csv(f"{self.data_dir}/processed/beiwe-ema_at_home_v2-{self.suffix}.csv",
             index_col="timestamp",parse_dates=["timestamp"],infer_datetime_format=True)
         for column in ema.columns:
@@ -46,9 +57,17 @@ class Analyze():
                 ema[column] = pd.to_numeric(ema[column]) # sometimes the data are not numeric
 
         self.ema = ema
-        # pre-processing ema
+        ### pre-processing ema
         self.add_discontent()
         self.binarize_ema()
+        if scale:
+            self.standardize_ema()
+        self.ema["minutes_at_home"] = self.ema["time_at_home"] / 60
+        self.ema["DoW"] = self.ema.index.strftime("%a")
+
+        ## All Responses
+        self.ema_all = pd.read_csv(f"{self.data_dir}/processed/beiwe-daily_ema-{self.suffix}.csv",
+            index_col="date",parse_dates=["timestamp_morning","timestamp_evening","date"],infer_datetime_format=True)
 
         # IAQ data
         iaq = pd.read_csv(f'{self.data_dir}/processed/beacon-{self.suffix}.csv',
@@ -74,6 +93,11 @@ class Analyze():
         ----------
         moods : list of str, default ["content","discontent","stress","lonely","sad","energy"]
             moods in ema to consider
+
+        Updates
+        -------
+        ema : DataFrame
+            adds binary column for each mood
         """
         for mood in moods:
             if mood in ["content","discontent","energy"]:
@@ -81,37 +105,84 @@ class Analyze():
             else:
                 self.ema[f"{mood}_binary"] = [0 if score == 0 else 1 for score in self.ema[mood]]
 
-    def binarize_iaq(self,iaq_params=["co2","tvoc","pm2p5_mass","temperature_c","rh"]):
+    def standardize_ema(self,moods=["content","discontent","stress","lonely","sad","energy"]):
+        """
+        Standardizes mood responses
+
+        Parameters
+        ----------
+        moods : list of str, default ["content","discontent","stress","lonely","sad","energy"]
+            moods in ema to consider
+
+        Updates
+        -------
+        ema : DataFrame
+            adds scaled column for each mood
+        """
+        scaler = StandardScaler()
+        
+        for mood in moods:
+            self.ema[f"{mood}_scaled"] = scaler.fit_transform(self.ema[mood].values.reshape(-1, 1)) 
+
+    def label_iaq(self,value,threshold):
+        """
+        Labels binary IAQ measurements. Really just needed to handle NaNs
+        """
+        if value == np.nan:
+            return np.nan
+        elif value > threshold:
+            return 0
+        elif value <= threshold:
+            return 1
+        else:
+            return np.nan
+
+    def binarize_iaq(self,thresholds=None,comparator="mean"):
         """
         Gets the binary encoding of the vars in pollutants for each participant
         
         Parameters
         ----------
-        df: dataframe with mean pollutant concentrations
-        raw_ieq: dataframe of the unaltered ieq data from the entire deployment
-        pollutants: list of strings corresponding to the IEQ parameters of interest - must have corresponding columns in the other two dataframes
-        
-        Need to rethink this method for two reasons:
-        - how are we binarizing and over what window?
-        - what datasets do we need and should be included?
+        thresholds : dict or str, default None
+            thresholds to binarize the corresponding IAQ parameters
+            None - use default values defined in this method
+            dict - keys corresponding to IAQ parameters and values are the thresholds
+            str - one of ["median","mean"] meaning to use the participant's specific median/mean value as the threshold
+        comparator : str, default "mean"
+            which IAQ summary statistic to compare the the threshold to
+
+        Updates
+        -------     
+        ema_and_iaq : DataFrame
+            Includes a binary IAQ column where 0 is bad/above and 1 is good/below
         """ 
-        df_bi = pd.DataFrame()
-        for pt in self.iaq["beiwe"].unique():
-            df_pt = self.iaq[self.iaq["beiwe"] == pt]
-            ieq_pt = raw_ieq[raw_ieq["beiwe"] == pt]
-            for param in iaq_params:
+        updated_ema_and_iaq = pd.DataFrame()
+
+        for pt in self.ema_and_iaq["beiwe"].unique():
+            # pt-specific data
+            iaq_pt = self.iaq[self.iaq["beiwe"] == pt]
+            ema_and_iaq_pt = self.ema_and_iaq[self.ema_and_iaq["beiwe"] == pt]
+            # getting thresholds in order
+            if thresholds == None:
+                threshold_pt = {"co2": 1100, "co": 4, "tvoc": 200, "pm2p5_mass": 12, "temperature_c": 27, "rh": 60}
+            elif thresholds == "median":
+                threshold_pt = {param: np.nanmedian(iaq_pt[param]) for param in ["co2","co","tvoc","pm2p5_mass","temperature_c","rh"]}
+                comparator = "median"
+            elif thresholds == "mean":
+                threshold_pt = {param: np.nanmean(iaq_pt[param]) for param in ["co2","co","tvoc","pm2p5_mass","temperature_c","rh"]}
+            else: # already in dictionary form
+                threshold_pt = thresholds
+
+            for param, threshold in threshold_pt.items():
                 try:
-                    mean_night = np.nanmean(ieq_pt[f"{param}"])
-                except KeyError as e:
-                    print(f"Exiting: {e} not in the raw IEQ data")
-                    return
-                
-                df_pt[f"{param}_binary"] = df_pt.apply(lambda x: encode_ieq(x[f"{pollutant}_mean"],mean_night), axis="columns")
+                    ema_and_iaq_pt[f"{param}_binary"] = ema_and_iaq_pt.apply(lambda x: self.label_iaq(x[f"{param}_{comparator}"],threshold), axis="columns")
+                except KeyError:
+                    pass # IAQ parameter not included - used primarily for co
 
-            df_bi = df_bi.append(df_pt)
+            updated_ema_and_iaq = updated_ema_and_iaq.append(ema_and_iaq_pt)
 
-        return df_bi
-    
+        self.ema_and_iaq = updated_ema_and_iaq
+
     def summarize_iaq_before_submission(self, window=10, min_time_at_home=60, percentile=0.9):
         """
         Summarizes IAQ measurements for a given period prior to submission of the EMA
@@ -218,5 +289,399 @@ class Analyze():
                                     iaq_prior_percentile.reset_index(drop=True)],axis=1)
             ema_and_iaq = ema_and_iaq.append(ema_iaq_pt)
 
-        self.ema_and_iaq = ema_and_iaq
+        self.ema_and_iaq = ema_and_iaq.dropna(subset=["co2_mean","pm2p5_mass_mean","temperature_c_mean","rh_mean"],how="all")
         self.iaq_prior = iaq_prior.dropna(subset=["co2","pm2p5_mass","temperature_c","rh"],how="all")
+
+    def plot_mood_violin_per_iaq(self,iaq_params=["co2","pm2p5_mass","tvoc","temperature_c"],summary_stat="mean",moods=["discontent","stress","lonely","sad","energy"],label="",save=False):
+        """
+        Plots the distributions of IAQ parameters for binary moods
+
+        Parameters
+        ----------
+        iaq_params : list of str, default ["co2","pm2p5_mass","tvoc","temperature_c"]
+            IAQ parameters to include for visualization
+        summary_stat : str, default "mean"
+            summary statistic to use
+        """
+        legend_fs = 22
+        tick_fs = 24
+        label_fs = 26
+        # creating dictionary to store p-values
+        ttest_results = {}
+        _, axes = plt.subplots(len(iaq_params),1,figsize=(4*len(moods),4*len(iaq_params)),sharex=True)
+        for iaq_param, ax in zip(iaq_params,axes.flat):
+            df_expanded = self.ema_and_iaq.melt(id_vars=[c for c in self.ema_and_iaq.columns if c.endswith(summary_stat)],value_vars=moods)
+            g = sns.violinplot(x="variable",y=f"{iaq_param}_{summary_stat}",hue="value",data=df_expanded,
+                        split=True,inner=None,hue_order=[0,1],palette={0:"white",1:"#bf5700"},cut=0,ax=ax,legend_out=False)
+            # x-axis
+            ax.set_xticklabels([mood.title() for mood in moods],fontsize=tick_fs)
+            ax.set_xlabel("")
+            # y-axis
+            plt.setp(ax.get_yticklabels(), ha="right", rotation=0, fontsize=tick_fs)
+            ax.set_ylabel(visualize.get_label(iaq_param),fontsize=label_fs)
+            # remainder
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            if iaq_param == iaq_params[-1]:
+                ax.legend(handles=g.get_children(),labels=["Low","High"],loc="upper center",bbox_to_anchor=(0.5,-0.075),frameon=False,ncol=2,fontsize=legend_fs,title_fontsize=tick_fs,title="Mood Score")
+            else:
+                ax.get_legend().remove()
+            
+            pvals = pd.DataFrame()
+            for mood in moods:
+                df = df_expanded[df_expanded["variable"] == mood].dropna()
+                low_vals = df[df["value"] == 0]
+                high_vals = df[df["value"] == 1]
+                #print(f"Number of high:\t{len(high_vals)}\nNumber of low:\t{len(low_vals)}")
+                _, p = stats.ttest_ind(low_vals[f"{iaq_param}_{summary_stat}"],high_vals[f"{iaq_param}_{summary_stat}"], equal_var=True, nan_policy="omit")
+                pvals = pvals.append(pd.DataFrame({"mood":[mood.title()],"low":[len(low_vals)],"high":[len(high_vals)],
+                                                "mean_low":[np.nanmean(low_vals[f"{iaq_param}_{summary_stat}"])],"mean_high":np.nanmean(high_vals[f"{iaq_param}_{summary_stat}"]),"p":[p]}))
+
+            ttest_results[iaq_param] = pvals.set_index("mood")
+
+            # Annotating with p-values
+            xlocs = ax.get_xticks()
+            ax.text(ax.get_xlim()[0],ax.get_ylim()[1],"          p:",ha="center",va="bottom",fontsize=tick_fs)
+            for xloc, p in zip(xlocs,ttest_results[iaq_param]["p"]):
+                weight="bold" if p < 0.1 else "normal"
+                sty="italic" if p < 0.05 else "normal"
+                val = round(p,3) if p > 0.001 else "< 0.001"
+                ax.text(xloc,ax.get_ylim()[1],val,fontsize=tick_fs,ha="center",va="bottom",weight=weight,fontstyle=sty)
+            
+        if save:
+            plt.savefig(f"../reports/figures/beiwe-beacon-mood_bi{'_'+label}-ieq_{summary_stat}{'_'+label}-violin-ux_s20.pdf",bbox_inches="tight")
+        
+        plt.show()
+        plt.close()
+        
+        return ttest_results
+
+    def get_mood_distribution(self, moods=["discontent","stress","lonely","sad"], binary=False, plot=False):
+        """
+        Parameters
+        ----------
+        moods : list-like, default ["content","stress","lonely","sad"]
+            Strings of the moods to consider - must be columns in df_in
+        binary : boolean, default False
+            whether to use binary values or not
+        plot : boolean, default False
+            whether or not to output the histograms of the scores
+            
+        Returns
+        -------
+        df : DataFrame
+            
+        """
+        if binary:
+            scores= [0,1]
+        else:
+            scores = [0,1,2,3]
+
+        response_summary = {score: [] for score in scores}
+        response_summary["mood"] = []
+        for mood in moods:
+            response_summary["mood"].append(mood)
+            for score in scores:
+                response_summary[score].append(len(self.ema[self.ema[mood] == score]))
+                
+        response_summary_df = pd.DataFrame(response_summary).set_index("mood")
+
+        if plot:
+            _, axes = plt.subplots(1,len(moods),figsize=(len(moods)*4,3),sharey="row",sharex="col")
+            for mood, ax in zip(moods,axes):
+                ax.bar(response_summary_df.columns,response_summary_df.loc[mood,:],edgecolor="black",color="lightgray")
+                #for score, height in zip(dist.index,dist.values/dist.sum()):
+                    #ax.text(score,height+0.05,round(height*100,1),ha="center")
+                #ax.set_ylim([0,1])
+                    
+                ax.set_xlabel(mood.title(),fontsize=12)
+
+                # appending results to output
+                #res[mood].append(dist.values)
+
+                for loc in ["top","right"]:
+                    ax.spines[loc].set_visible(False)
+                
+            plt.show()
+            plt.close()
+            
+        return response_summary_df
+
+    def plot_mood_on_time(self,moods=["discontent","stress","lonely","sad"],interval=15,max_t=600):
+        """
+        Plots aggregated mood scores submitted at different lengths after arriving home
+
+        Parameters
+        ----------
+        moods : list of str, default ["discontent","stress","lonely","sad"]
+            moods in ema to consider
+        interval : int, default 15
+            time interval, in minutes, between each submission group
+        max_t : int, default 600
+            max time, in minutes, a participant submitted an EMA after arriving home
+
+        Returns
+        -------
+
+        """
+        _, axes = plt.subplots(len(moods),1,figsize=(18,3*len(moods)),sharex=True)
+        for mood, ax in zip(moods,axes):
+            scores = []
+            ns = []
+            for cutoff1, cutoff2 in zip(np.arange(0,max_t,interval),np.arange(interval,max_t+interval,interval)):
+                ema_by_cutoff = self.ema[(self.ema["minutes_at_home"] >= cutoff1) & (self.ema["minutes_at_home"] <= cutoff2)]
+                scores.append(ema_by_cutoff.mean(axis=0)[mood])
+                ns.append(len(ema_by_cutoff))
+
+            sc = ax.scatter(np.arange(interval,max_t+interval,interval),scores,s=100,c=ns,cmap=plt.cm.get_cmap("coolwarm_r", 8),vmin=0,vmax=80,edgecolor="black")
+            ax.set_title(mood.title(),fontsize=22,pad=0)
+
+            ax.set_xticks(np.arange(0,max_t+interval,interval))
+
+            ax.set_ylim([-0.5,3.5])
+            ax.set_yticks(np.arange(0,4,1))
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            ax.tick_params(labelsize=18)
+                
+        ax.set_xlabel("Minutes since arriving home",fontsize=20)
+        cbar = plt.colorbar(sc,ax=axes.ravel().tolist(),shrink=0.75)
+        cbar.ax.set_title("EMAs",fontsize=18)
+        cbar.ax.tick_params(labelsize=18)
+        plt.show()
+        plt.close()
+
+    def plot_mood_on_dow(self,scale=False):
+        """
+        Plots the mean aggregated mood scores for each day of the week (DoW)
+
+        Parameters
+        ----------
+        scale : boolean, default False
+            whether to use scaled values or not
+        """
+        moods = ["discontent","stress","lonely","sad"] # hardcoded because of the 2x2 structure
+        if scale:
+            moods = [f"{mood}_scaled" for mood in moods]
+        ema_copy = self.ema.copy()
+        ema_copy["DoW"] = ema_copy.index.strftime("%a")
+        n_df = ema_copy.groupby("DoW").count()
+        ema_copy_dow = ema_copy.groupby("DoW").mean()
+        ema_copy_dow["n"] = n_df["beiwe"]
+        ema_copy_dow = ema_copy_dow.reindex(index=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"])
+        fig, axes = plt.subplots(2,2,figsize=(12,8),sharex=True,sharey=True,gridspec_kw={"hspace":0,"wspace":0})
+        for mood, color, ax in zip(moods, ["seagreen","goldenrod","firebrick","cornflowerblue"],axes.flat):
+            ax.scatter(ema_copy_dow.index,ema_copy_dow[mood],s=50,c=color)
+            # x-axis
+
+            # y-axis
+            if scale:
+                pass
+            else:
+                ax.set_ylim([0,1.25])
+                ax.set_yticks(np.arange(0,1.25,0.25))
+            # remainder
+            ax.tick_params(labelsize=14)
+            ax.set_title(mood.title(), fontsize=16)
+
+        fig.add_subplot(111, frame_on=False)
+        plt.tick_params(labelcolor="none", bottom=False, left=False)
+        plt.ylabel("Mean Aggregated Mood Score",fontsize=18,labelpad=15)
+
+        plt.show()
+        plt.close()
+
+        return ema_copy_dow
+
+    def conduct_mood_anova(self, mood, group_label, run_tukey=True):
+        """
+        Conducts one-way analysis of variance for a given mood
+        
+        Parameters
+        ----------
+        mood : str
+            mood to consider
+        group_label : str
+            grouping column
+        run_tukey : boolean, True
+            whether to run Tukey HSD between groups
+
+        Returns
+        -------
+
+        """
+        # Splitting data into groups
+        ema_mood = self.ema[[mood,group_label]]
+        group_data = []
+        for group in ema_mood[group_label].unique():
+            group_data.append(ema_mood[ema_mood[group_label] == group][mood].values)
+        
+        # ANOVA
+        fvalue, pvalue = stats.f_oneway(*group_data)
+        print(f"{mood.upper()}\nANOVA p-value: {round(pvalue,3)}")
+
+        #Tukey HSD
+        if run_tukey:
+            res = pairwise_tukeyhsd(ema_mood[mood],ema_mood[group_label])
+            print(res)
+
+        return fvalue, pvalue, res
+
+    def calculate_cramers_v(self,ct):
+        """returns Cramers V from the given contingency table"""
+        #create 2x2 table
+        data = ct.values
+
+        #Chi-squared test statistic, sample size, and minimum of rows and columns
+        X2 = stats.chi2_contingency(data, correction=False)[0]
+        n = np.sum(data)
+        minDim = min(data.shape)-1
+
+        #calculate Cramer's V 
+        V = np.sqrt((X2/n) / minDim)
+
+        #display Cramer's V
+        return V
+    
+    def determine_mood_associations(self, moods=["discontent","stress","lonely","sad"], binary=False):
+        """
+        Displays associations as determined by Cramer's V between all combinations of mood.
+
+        Parameters
+        ----------
+        moods : list of str, default ["discontent","stress","lonely","sad"]
+            moods to consider from the EMA
+        binary : boolean, default False
+            whether to use binary responses or not
+
+        Returns
+        -------
+        associations : DataFrame
+            tabularized results
+        """
+        associations = {"mood1":[],"mood2":[],"score":[]}
+        for mood1 in moods:
+            for mood2 in moods:
+                if mood1 != mood2:
+                    if binary:
+                        V = self.calculate_cramers_v(pd.crosstab(self.ema[f"{mood1}_binary"],self.ema[f"{mood2}_binary"]))
+                    else:
+                        V = self.calculate_cramers_v(pd.crosstab(self.ema[mood1],self.ema[mood2]))
+                        
+                    for key, value in zip(associations.keys(),[mood1,mood2,V]):
+                        associations[key].append(value)
+
+        return pd.DataFrame(associations)
+
+    def plot_correlation_matrix(self, params=["co2","pm2p5_mass","tvoc","temperature_c",], metric="mean", save=False, annot="partially_filtered"):
+        """
+        Plots correlation matrix between variables
+        
+        Parameters
+        ----------
+        params : list of str, default ["co2","pm2p5_mass","tvoc","temperature_c"]
+            names of columns to include when summarizing
+        metric : str, default "mean"
+            summary stat for the IAQ parameters to consider
+        save : boolean, default False
+            whether to save or not
+        annot : str, default None
+            information to include in the filename when saving
+
+        Creates
+        -------
+        correlation_matrix : NumPy Array
+            correlation matrix between the given parameters
+        """
+        # getting dataframe in order
+        params_with_metric = [param+f"_{metric}" for param in params]
+        df = self.ema_and_iaq[params_with_metric]
+        df.columns = [visualize.get_label(col) for col in params]
+
+        corr = df.corr()
+        corr = round(corr,2)
+        mask = np.triu(np.ones_like(corr, dtype=bool))
+        _, ax = plt.subplots(figsize=(7, 5))
+        sns.heatmap(corr, mask=mask, 
+                        vmin=-1, vmax=1, center=0, 
+                        cmap=sns.diverging_palette(20, 220, n=200),cbar_kws={'ticks':[-1,-0.5,0,0.5,1],"pad":-0.07,"shrink":0.8,"anchor":(0.0,0.0)},fmt=".2f",
+                        square=True,linewidths=1,annot=True,annot_kws={"size":12},ax=ax)
+        # colorbar
+        cbar = ax.collections[0].colorbar
+        cbar.ax.tick_params(labelsize=14)
+        cbar.outline.set_color('black')
+        cbar.outline.set_linewidth(0.5)
+        
+        yticklabels = ax.get_yticklabels()
+        yticklabels[0] = ' '
+        ax.set_yticklabels(yticklabels,rotation=0,ha='right',fontsize=14)
+
+        xticklabels = ax.get_xticklabels()
+        xticklabels[-1] = ' '
+        ax.set_xticklabels(xticklabels,rotation=0,ha='center',fontsize=14)
+        ax.tick_params(axis=u'both', which=u'both',length=0)
+        if save:
+            if annot:
+                plt.savefig(f'../data/processed/beacon-{annot}-correlation_matrix-{self.suffix}.csv')
+            else:
+                plt.savefig(f'../data/processed/beacon-correlation_matrix-{self.suffix}.csv')
+                
+        plt.show()
+        plt.close()
+
+        self.correlation_matrix = corr
+
+    def determine_mood_and_binary_iaq(self, moods=["discontent","stress","lonely","sad"], iaq_params=["co2","pm2p5_mass","tvoc","temperature_c"], binary_mood=False):
+        """
+        Displays associations as determined by Cramer's V between all combinations of mood.
+
+        Parameters
+        ----------
+        moods : list of str, default ["discontent","stress","lonely","sad"]
+            moods to consider from the EMA
+        iaq_params : list of str, default ["co2","pm2p5_mass","tvoc","temperature_c"]
+            IAQ parameters to consider
+        binary_mood : boolean, default False
+            whether to use binary mood responses or not
+
+        Returns
+        -------
+        associations : DataFrame
+            tabularized results
+        """
+        associations = {"mood":[],"iaq_param":[],"score":[]}
+        for mood in moods:
+            for iaq_param in iaq_params:
+                if binary_mood:
+                    V = self.calculate_cramers_v(pd.crosstab(self.ema_and_iaq[f"{mood}_binary"],self.ema_and_iaq[f"{iaq_param}_binary"]))
+                else:
+                    V = self.calculate_cramers_v(pd.crosstab(self.ema_and_iaq[mood],self.ema_and_iaq[f"{iaq_param}_binary"]))
+                    
+                for key, value in zip(associations.keys(),[mood,iaq_param,V]):
+                    associations[key].append(value)
+
+        return pd.DataFrame(associations)
+
+    def get_aggregate_aqi(self,iaq_params=["co2","pm2p5_mass","tvoc","temperature_c"],summary_stat="mean",binary=False):
+        """
+        Gets aggregate AQI metric
+
+        Parameters
+        ----------
+        """
+        function_map = {"co2":aqi.co2,"pm2p5_mass":aqi.pm2p5_mass,"tvoc":aqi.tvoc,"temperature_c":aqi.trh}
+        for iaq_param in iaq_params:
+            f = function_map[iaq_param]
+            aqis = []
+            for measurement, rh_measurement in zip(self.ema_and_iaq[f"{iaq_param}_{summary_stat}"],self.ema_and_iaq[f"rh_{summary_stat}"]):
+                if iaq_param in ["co2","tvoc"]:
+                    aqis.append(f(measurement))
+                elif iaq_param == "pm2p5_mass":
+                    aqis.append(f(measurement,indoor=True))
+                elif iaq_param == "temperature_c":
+                    aqis.append(f(measurement,rh_measurement/100,data_dir=self.data_dir))
+
+            self.ema_and_iaq[f"{iaq_param}_aqi"] = aqis
+
+        self.ema_and_iaq["agg_aqi"] = self.ema_and_iaq[[col for col in self.ema_and_iaq.columns if col.endswith("aqi")]].sum(axis=1)
+
