@@ -662,26 +662,87 @@ class Analyze():
 
         return pd.DataFrame(associations)
 
-    def get_aggregate_aqi(self,iaq_params=["co2","pm2p5_mass","tvoc","temperature_c"],summary_stat="mean",binary=False):
+    def get_aggregate_aqi(self,iaq_params=["co2","pm2p5_mass","tvoc","temperature_c"],summary_stat="mean",use_binary=False):
         """
         Gets aggregate AQI metric
 
         Parameters
         ----------
+        iaq_params : list of str, default ["co2","pm2p5_mass","tvoc","temperature_c"]
+            IAQ parameters to use for aggregate aqi
+        summary_stat : str, default "mean"
+            summary stat to calculate AQI for each IAQ parameters
+        use_binary : boolean, default False
+            use binary IAQ rather than summarized concentrations
+
+        Updates
+        -------
+        ema_and_iaq : DataFrame
+            Adds in AQI for each IAQ parameter and creates and aggregate AQI
         """
-        function_map = {"co2":aqi.co2,"pm2p5_mass":aqi.pm2p5_mass,"tvoc":aqi.tvoc,"temperature_c":aqi.trh}
-        for iaq_param in iaq_params:
-            f = function_map[iaq_param]
-            aqis = []
-            for measurement, rh_measurement in zip(self.ema_and_iaq[f"{iaq_param}_{summary_stat}"],self.ema_and_iaq[f"rh_{summary_stat}"]):
-                if iaq_param in ["co2","tvoc"]:
-                    aqis.append(f(measurement))
-                elif iaq_param == "pm2p5_mass":
-                    aqis.append(f(measurement,indoor=True))
-                elif iaq_param == "temperature_c":
-                    aqis.append(f(measurement,rh_measurement/100,data_dir=self.data_dir))
+        if use_binary:
+             self.ema_and_iaq["agg_aqi"] = self.ema_and_iaq[[col for col in self.ema_and_iaq.columns if col.split("_binary")[0] in iaq_params]].sum(axis=1)
+        else:
+            function_map = {"co2":aqi.co2,"pm2p5_mass":aqi.pm2p5_mass,"tvoc":aqi.tvoc,"temperature_c":aqi.trh}
+            for iaq_param in iaq_params:
+                f = function_map[iaq_param]
+                aqis = []
+                for measurement, rh_measurement in zip(self.ema_and_iaq[f"{iaq_param}_{summary_stat}"],self.ema_and_iaq[f"rh_{summary_stat}"]):
+                    if iaq_param in ["co2","tvoc"]:
+                        aqis.append(f(measurement))
+                    elif iaq_param == "pm2p5_mass":
+                        aqis.append(f(measurement,indoor=True))
+                    elif iaq_param == "temperature_c":
+                        aqis.append(f(measurement,rh_measurement/100,data_dir=self.data_dir))
 
-            self.ema_and_iaq[f"{iaq_param}_aqi"] = aqis
+                self.ema_and_iaq[f"{iaq_param}_aqi"] = aqis
 
-        self.ema_and_iaq["agg_aqi"] = self.ema_and_iaq[[col for col in self.ema_and_iaq.columns if col.endswith("aqi")]].sum(axis=1)
+            self.ema_and_iaq["agg_aqi"] = self.ema_and_iaq[[col for col in self.ema_and_iaq.columns if col.split("_aqi")[0] in iaq_params]].sum(axis=1)
 
+    def get_na(self,moods=["discontent","stress","lonely","sad"]):
+        """
+        Gets a Negative Affect score from the provided moods
+
+        Parameters
+        ----------
+        moods : list of str, default ["discontent","stress","lonely","sad"]
+            moods to use for score
+
+        Updates
+        -------
+        ema_and_iaq : DataFrame
+            adds in na column
+        """
+        self.ema_and_iaq["na"] = self.ema_and_iaq[[col for col in self.ema_and_iaq.columns if col in moods]].sum(axis=1)
+
+    def plot_aqi_vs_mood(self,mood="discontent"):
+        """
+        Box plots of AQI versus the discrete and binary mood scores
+        """
+        fig, axes = plt.subplots(1,2,figsize=(12,4),sharey=True,gridspec_kw={"wspace":0.1,'width_ratios': [4, 1]})
+        sns.violinplot(x=mood,y="agg_aqi",data=self.ema_and_iaq,
+            cut=0,inner=None,ax=axes[0])
+        # x-axis
+        axes[0].set_xlabel("Discrete",fontsize=14)
+        # y-axis
+        axes[0].set_ylabel("AQI",fontsize=14)
+        # remainders
+        axes[0].tick_params(labelsize=12)
+        # remainder
+        for loc in ["top","right"]:
+            axes[0].spines[loc].set_visible(False)
+        axes[0].set_title(mood.title(),fontsize=18)
+
+        sns.violinplot(x=f"{mood}_binary",y="agg_aqi",data=self.ema_and_iaq,
+            cut=0,inner=None,split=True,ax=axes[1])
+         # x-axis
+        axes[1].set_xlabel("Binary",fontsize=14)
+        # y-axis
+        axes[1].set_ylabel("",fontsize=14)
+        # remainder
+        axes[1].tick_params(labelsize=12)
+        for loc in ["top","right"]:
+            axes[1].spines[loc].set_visible(False)
+
+        plt.show()
+        plt.close()
