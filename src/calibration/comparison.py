@@ -10,6 +10,7 @@ from sklearn.metrics import r2_score, mean_absolute_error
 
 # plotting
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 class Compare:
     
@@ -144,9 +145,14 @@ class Output(Compare):
         self.errors = pd.DataFrame(res).set_index("beacon")
         self.corrected = corrected
 
-    def plot_errors(self):
+    def plot_errors(self,save=False):
         """
         Plots the errors between model outputs
+
+        Parameters
+        ----------
+        save : boolean, default False
+            whether to save the figure or not
         """
         try:
             res = self.errors.copy()
@@ -177,6 +183,72 @@ class Output(Compare):
 
         plt.show()
         plt.close()
+
+    def plot_combined_errors(self,one_minus_two=True,save=False):
+        """
+        Plots the differences in measurments from two environments both on a device and aggregate level
+
+        Parameters
+        ----------
+        one_minus_two : boolean, default True
+            whether to subtract outputs from environment 1 by environment 2
+        save : boolean, default False
+            whether to save the figure or not
+
+        Returns
+        -------
+        combined_with_mean : DataFrame
+            time series of differences between model outputs
+        """
+        # Get the errors
+        # --------------
+        # device-level
+        self.get_errors(use_average=False,one_minus_two=one_minus_two)
+        corrected = self.corrected.copy()
+        # aggregate-level
+        self.get_errors(use_average=True,one_minus_two=one_minus_two)
+        corrected_average = self.corrected.copy()
+
+        # calculate errors per location
+        # -----------------------------
+        if one_minus_two:
+            corrected["error"] = corrected[self.env1] - corrected[self.env2]
+            corrected_average["error"] = corrected_average[self.env1] - corrected_average[self.env2]
+        else:
+            corrected["error"] = corrected[self.env2] - corrected[self.env1]
+            corrected_average["error"] = corrected_average[self.env2] - corrected_average[self.env1]
+        combined = corrected[["error","beacon"]].reset_index().merge(right=corrected_average[["error","beacon"]].reset_index(),on=["beacon","timestamp"],suffixes=["_device","_average"])
+        combined_with_mean = pd.DataFrame()
+        for bb in combined["beacon"].unique():
+            data_bb = combined[combined["beacon"] == bb]
+            data_bb["mean"] = np.nanmean(data_bb["error_device"])
+            combined_with_mean = combined_with_mean.append(data_bb)
+
+        combined_with_mean.sort_values(["mean"],inplace=True)
+        combined_with_mean["beacon"] = combined_with_mean["beacon"].astype(str)
+
+        temp = combined_with_mean.melt(id_vars="beacon",value_vars=["error_device","error_average"])
+
+        _, ax = plt.subplots(figsize=(16,5))
+        sns.violinplot(x="beacon",y="value",hue="variable",data=temp,
+            split=True,cut=0,palette=["black","cornflowerblue"],inner=None,ax=ax)
+        # x-axis
+        ax.set_xlabel("Device Number",fontsize=16)
+        # y-axis
+        ax.set_ylabel(f"Difference in {visualize.get_label(self.param)} ({visualize.get_units(self.param)})",fontsize=16)
+        # other
+        ax.tick_params(labelsize=14)
+        ax.get_legend().remove()
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+
+        if save:
+            plt.savefig(f"../reports/figures/calibration-output_difference-{self.param}-{self.suffix}.pdf",bbox_inches="tight")
+
+        plt.show()
+        plt.close()
+
+        return combined_with_mean
     
     def get_reference_limits(self,data=None):
         """
