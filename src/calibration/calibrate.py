@@ -1228,258 +1228,37 @@ class Calibration():
         except KeyError:
             print("Linear model has not been generated for species", species)
 
-class IntramodelComparison():
-    
-    def __init__(self,ieq_param="co2",env="chamber",model_type="linear",study_suffix="wcwh_s21"):
+    def save_reference(self, species, env):
         """
-        Initializing function
+        Saves the reference data
 
         Parameters
         ----------
-        env : str, default "chamber"
-            specifies the environment - one of ["chamner","testhouse"]
+        species : str
+            parameter reference data to save
+        env : str
+            calibration environment_label
         """
-        
-        self.ieq_param = ieq_param
-        self.env = env
-        self.model_type = model_type
-        self.study_suffix = study_suffix
-        
-        self.models = {}
-        for i in range(3):
-            try:
-                temp = pd.read_csv(f"../data/interim/{self.ieq_param}-{self.model_type}_model_{self.env}{i+1}-wcwh_s21.csv")
-                self.models[i+1] = temp
-            except FileNotFoundError as e:
-                print(e)
-                
-    def intra_coeff_comparison(self,save=False,):
-        """Compares the coefficients from the two models"""
-        params = self.get_coeff_table() # combined parameter table
-        if self.model_type == "linear":
-            params_to_consider = ["constant","coefficient"]
-            params = params[abs(params.sum(axis=1)) != 3] # removing values where the coefficients sum to 3 (default)
-        else:
-            params_to_consider = ["constant"]
-            params = params[abs(params.sum(axis=1)) != 0] # removing values where the constants sum to 0 (default)
-        for coeff in params_to_consider:
-            h = 0.4  # the height of the bars
-            
-            
-            _, ax = plt.subplots(figsize=(5,8))
-            for i, (model_name, color) in enumerate(zip(self.models.keys(),["firebrick","cornflowerblue","seagreen"])):
-                y = np.arange(len(params))  # the label locations
-                ax.barh(y=y - i * h/(len(self.models)-1), width=params[f"{coeff}{i+1}"], height=h,
-                             edgecolor="black", color=color, label=model_name)
-
-            # x-axis
-            ax.set_xlabel(f"{coeff.title()} Value",fontsize=16)
-            ax.tick_params(axis="x",labelsize=14)
-
-            # y-axis
-            ax.set_ylabel('BEVO Beacon Number',fontsize=16)
-            ax.set_yticks(y)
-            ax.set_yticklabels(params.index,fontsize=14)
-            # remaining
-            for loc in ["top","right"]:
-                ax.spines[loc].set_visible(False)
-            ax.legend(title="Experiment Number",title_fontsize=14,loc="upper center", bbox_to_anchor=(0.5,-0.1),frameon=False,ncol=3,fontsize=14)
-
-            if save:
-                plt.savefig(f"../reports/figures/beacon_summary/calibration_comparison-{coeff}_{self.env}-{self.ieq_param}-{self.study_suffix}.pdf",)
-
-            plt.show()
-            plt.close()
-            
-    def get_coeff_table(self,save=False,latex=False):
-        """gets a single dataframe with the model parameters from each experiment"""
-        if self.model_type == "linear":
-            tab = self.models[1][["beacon","constant","coefficient"]].merge(right=self.models[2][["beacon","constant","coefficient"]],on="beacon",suffixes=("","2")).merge(right=self.models[3][["beacon","constant","coefficient"]],on="beacon",suffixes=("1","3"))
-            tab.set_index("beacon",inplace=True)
-            tab = tab[["constant1","constant2","constant3","coefficient1","coefficient2","coefficient3"]]
-        else:
-            tab = pd.DataFrame(data={"beacon":self.models[1]["beacon"],
-                         "constant1":self.models[1]["constant"],
-                         "constant2":self.models[2]["constant"],
-                         "constant3":self.models[3]["constant"]})
-            tab.set_index("beacon",inplace=True)
-
-        if save:
-            tab.to_csv(f"../data/interim/{self.env}-calibration_model_params-{self.ieq_param}-{self.study_suffix}.csv")
-
-        if latex:
-            tab = tab[tab.sum(axis=1) != 3]
-            tab.replace([0,1],"--",inplace=True)
-            tab = tab.round(decimals=1)
-            tab.reset_index(inplace=True)
-            print(tab.to_latex(index=False))
-
-        return tab
-
-    def set_averaged_model_params(self):
-        """"""
-        tab = self.get_coeff_table(save=False)
-        tab = tab.replace([0,1], np.nan)
-        
-        df_to_save = pd.DataFrame()
-        for x, val_to_replace in zip(["constant","coefficient"],[0,1]):
-            df_to_save[x] = tab[[col for col in tab.columns if col.startswith(x)]].mean(axis=1)
-            df_to_save[x].replace(np.nan,val_to_replace,inplace=True)
-        
-        self.model_params = df_to_save
-
-    def get_beacon_x0(self,bb):
-        """gets x0 for specified beacon"""
         try:
-            return round(self.model_params.loc[bb,"constant"],2)
-        except AttributeError as e:
-            print(f"{e} - use set_averaged_model_params to set the model parameters")
-            return 0
+            self.ref[species].to_csv(f"{self.data_dir}interim/{species.lower()}-reference-{env}-{self.suffix}.csv")
+        except KeyError:
+            print("No reference data for", species)
 
-    def get_beacon_x1(self,bb):
-        """gets x1 for specified beacon"""
+    def save_test_data(self,species, env):
+        """
+        Saves the test data for the given parameter
+
+        Parameters
+        ----------
+        species : str
+            parameter reference data to save
+        env : str
+            calibration environment_label
+        """
         try:
-            return round(self.model_params.loc[bb,"coefficient"],2)
-        except AttributeError as e:
-            print(f"{e} - use set_averaged_model_params to set the model parameters")
-            return 1
-
-    def set_correction(self,test):
-        """Uses model parameters to correct the raw beacon data from a calibration experiment"""
-        self.corrected = pd.DataFrame()
-        for beacon in test["beacon"].unique():
-            test_bb = test[test["beacon"] == beacon]
-            test_bb[self.ieq_param] = test[self.ieq_param] * self.get_beacon_x1(beacon) + self.get_beacon_x0(beacon)
-            self.corrected = self.corrected.append(test_bb[["timestamp",self.ieq_param,"beacon"]].set_index("timestamp"))
-
-    def set_ref(self,ref):
-        """
-        Sets the reference
-        """
-        self.ref=ref
-
-    def show_comprehensive_timeseries(self,ref,r=4,c=5,save=False,show_std=False,scoring_metric="r2",**kwargs):
-        """shows a subplot of all the correlation beacons"""
-        ref = ref.resample("1T").interpolate()
-        fig, axes = plt.subplots(r,c,figsize=(c*4,r*4),sharex=True,sharey=True,gridspec_kw={"wspace":0.1})
-        std = np.std(self.corrected[self.ieq_param])
-        for bb, ax in zip(self.corrected["beacon"].unique(),axes.flat):
-            beacon = self.corrected[self.corrected["beacon"] == bb]
-            beacon = beacon.resample("1T").interpolate()
-            merged = beacon.merge(right=ref,left_index=True,right_index=True)
-            if "resample_rate" in kwargs.keys():
-                merged = merged.resample(f"{kwargs['resample_rate']}T").mean()
-
-            t = (merged.index - merged.index[0]).total_seconds()/60
-            ax.plot(t,merged[self.ieq_param],color="firebrick",lw=2,zorder=20,label="Corrected")
-            ax.plot(t,merged["concentration"],color="black",lw=2,zorder=10, label="Reference")
-            if show_std:
-                ax.fill_between(t,merged[self.ieq_param]-0.95*std,merged[self.ieq_param]+0.95*std,color="grey",alpha=0.3,zorder=3)
-            if "min_val" in kwargs.keys():
-                min_val = kwargs["min_val"]
-            else:
-                min_val = 0
-
-            if "max_val" in kwargs.keys():
-                max_val = kwargs["max_val"]
-            else:
-                max_val = np.nanmax(ref["concentration"])*1.1
-            if "zero_line" in kwargs.keys():
-                ax.axhline(0,color="gray",lw=2,ls="dashed",alpha=0.5)
-                
-            ax.set_ylim([min_val,max_val])
-
-            # annotating
-            if self.model_type == "linear":
-                try:
-                    if scoring_metric == "mae":
-                        score = mean_absolute_error(merged["concentration"],merged[self.ieq_param])
-                        score_label = "MAE"
-                    else: # default to r2
-                        score = r2_score(merged["concentration"],merged[self.ieq_param])
-                        score_label="r$^2$"
-                except ValueError:
-                    score = 0
-                ax.set_title(f"  Device {int(bb)}\n  {score_label} = {round(score,3)}\n  y = {self.get_beacon_x1(bb)}x + {self.get_beacon_x0(bb)}",
-                        y=0.85,pad=0,fontsize=13,loc="left",ha="left")
-            else:
-                ax.set_title(f"  Device {int(bb)}\n  y = x + {self.get_beacon_x0(bb)}",
-                        y=0.85,pad=0,fontsize=13,loc="left",ha="left")
-                
-            ax.set_xticks(np.arange(0,125,30))
-            ax.axis('off')
-
-        axes[r-1,0].axis('on')
-        for loc in ["top","right"]:
-            axes[r-1,0].spines[loc].set_visible(False)
-        plt.setp(axes[r-1,0].get_xticklabels(), ha="center", rotation=0, fontsize=16)
-        plt.setp(axes[r-1,0].get_yticklabels(), ha="right", rotation=0, fontsize=16)
-        axes[r-1,0].legend(loc="upper center",bbox_to_anchor=(0.5,-0.1),ncol=2,frameon=False,fontsize=14)
-        fig.add_subplot(111, frame_on=False)
-        plt.tick_params(labelcolor="none", bottom=False, left=False)
-        plt.xlabel("Experiment Time (min)",fontsize=18)
-        plt.ylabel(f"{visualize.get_pollutant_label(self.ieq_param)} ({visualize.get_pollutant_units(self.ieq_param)})",fontsize=18)
-        
-        # removing any empty axes
-        if len(self.corrected["beacon"].unique()) < r*c:
-            for i in range(r*c-len(self.corrected["beacon"].unique())):
-                axes.flat[-1*(i+1)].axis("off")
-
-        if save:
-            plt.savefig(f"../reports/figures/beacon_summary/calibration-{self.ieq_param}-{self.env}-timeseries_comparison-{self.study_suffix}.pdf",bbox_inches="tight")
-
-        plt.show()
-        plt.close()
-
-    def get_scores(self):
-        """
-        Gets the r2 and mae
-        """
-        res = {"beacon":[],"r2":[],"mae":[]}
-        for bb in self.corrected["beacon"].unique():
-            beacon = self.corrected[self.corrected["beacon"] == bb]
-            beacon = beacon.resample("1T").interpolate()
-            merged = beacon.merge(right=self.ref,left_index=True,right_index=True)
-            try:
-                r2 = r2_score(merged["concentration"],merged[self.ieq_param])
-            except ValueError:
-                r2 = 0
-
-            try:
-                mae = mean_absolute_error(y_true=merged["concentration"],y_pred=merged[self.ieq_param])
-            except ValueError:
-                mae = np.nan
-
-            for key, val in zip(res.keys(),[bb,r2,mae]):
-                res[key].append(val)
-
-        return pd.DataFrame(res).set_index("beacon")
-
-    def save_params(self,**kwargs):
-        """Saves the averaged model params
-        
-        Keyword Arguments:
-            - data_path: String specifying the path to (but not including) the "data" dir in the utx000 project
-            - study_suffix: String specifying the study suffix to use, defaults to object study
-            - env: String to specify the environment, otherwise is left off
-        """
-
-        # setting parameters for the save filename
-        if "data_path" in kwargs.keys():
-            save_dir = kwargs["data_path"]
-        else:
-            save_dir = "../"
-        if "study_suffix" in kwargs.keys():
-            study_suffix = kwargs["study_suffix"]
-        else:
-            study_suffix = self.study_suffix
-        if "env" in kwargs.keys():
-            env = "_" + kwargs["env"]
-        else:
-            env = ""
-    
-        self.model_params.to_csv(f"{save_dir}/data/interim/{self.ieq_param}-{self.model_type}_model{env}-{study_suffix}.csv")
-        print("Saved file to:",f"{save_dir}/data/interim/{self.ieq_param}-{self.model_type}_model{env}-{study_suffix}.csv")
+            self.beacon_data[["timestamp","beacon",species]].to_csv(f"{self.data_dir}interim/{species.lower()}-test_data-{env}-{self.suffix}.csv")
+        except KeyError:
+            print("No reference data for", species)
 
 class Model_Comparison():
 
