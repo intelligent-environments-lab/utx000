@@ -337,22 +337,34 @@ class PreProcess:
             plt.show()
             plt.close()
 
+    def run(self):
+        """
+        Runs the necessary methods to generate the usable data
+        """
+        self.add_bedroom_label()
+        self.set_data()
+
 class Classify:
 
-    def __init__(self, data, features=["co2"], zero_label="unoccupied", one_label="occupied",) -> None:
+    def __init__(self, labeled_data, all_data, features=["co2","tvoc"], zero_label="unoccupied", one_label="occupied",) -> None:
         """
         Parameters
         ----------
-        data : DataFrame
+        labeled_data : DataFrame
             pre-processed data from the PreProcess class
+        all_data : DataFrame
+            all available beacon data also from the PreProcess class
+        features : list of str, default ["co2","tvoc"]
+            features to include for occupancy detection model
         zero_label : str, default "unoccupied"
             string corresponding to a label of 0
         one_label : str, default "occupied"
             string corresponding to a label of 1
         """
         self.features = features
-        self.data = data.dropna(subset=features)
+        self.data = labeled_data.dropna(subset=features)
         self.data.replace({zero_label:0, one_label:1},inplace=True)
+        self.all_data = all_data
 
     def create_pipeline(self, model, model_params=None):
         """
@@ -678,6 +690,17 @@ class Classify:
         self.data = data_all # resetting the class data object 
         self.results = pd.DataFrame(classification_results)
 
+    def get_unlabeled_data(self):
+        """
+        Gets the unlabeled data
+        """
+        temp = self.all_data.reset_index().merge(self.data.reset_index()[["beiwe","timestamp"]],on=["beiwe","timestamp",],how="left",indicator=True)
+        unlabeled_data = temp[temp["_merge"] == "left_only"]
+        unlabeled_data.drop("_merge",axis=1,inplace=True)
+        unlabeled_data.set_index("timestamp",inplace=True)
+
+        return unlabeled_data
+
     def classify(self, model, model_params, observations, target="bedroom", verbose=0):
         """
         Classifies occupancy on unlabeled data
@@ -697,10 +720,11 @@ class Classify:
         verbose : int, default 0
 
 
-        Returns
+        Creates
         -------
-
-        """
+        classifications : DataFrame
+            original, unlabeled data with the probability of being unoccupied (0) or occupied (1)
+        """ 
 
         data_all = self.data.copy() # saving all the data since the methods use the class object
         probs = pd.DataFrame()
@@ -846,10 +870,64 @@ class Classify:
                     res[f"> {p*100}%"].append(f"{n} ({percent_recovered}%)")
 
         return pd.DataFrame(res)
+
+    def get_occupied_iaq_data(self,confidence_threshold=0.7,min_window_threshold=6,confidence_limit=None):
+        """
+        Gets the IAQ data from occupied periods
+
+        Parameters
+        ----------
+        confidence_threshold : float, default 0.7
+            the confidence of the model to estimate occupancy
+        min_window_threshold : int, default 6
+            Minimum number of consecutive points with occupancy over the given threshold
+
+        Returns
+        -------
+        beacon_occupied : DataFrame
+
+        """
+        classifications_above = self.classifications[self.classifications[1] >= confidence_threshold]
+        if confidence_limit:
+            classifications_above = classifications_above[classifications_above[1] < confidence_limit]
+        # creating dummy columns for summary
+        classifications_above.reset_index(inplace=True)
+        classifications_above["start"] = classifications_above["timestamp"]
+        classifications_above["end"] = classifications_above["timestamp"]
+        summarized = (
+            classifications_above.groupby(
+                # Find where index does not follow pattern of 10 minute intervals
+                classifications_above['timestamp'].diff().gt(pd.Timedelta(minutes=10)).cumsum()
+            ).agg({
+                # Get the last index value and the average of the column values
+                'beiwe': 'first','start': 'first', 'end': 'last', 'co2': 'count'
+            })
+        )
+        summarized_period = summarized[summarized["co2"] >= min_window_threshold]
+        beacon_occupied = pd.DataFrame()
+        for pt in summarized_period["beiwe"].unique():
+            summarized_pt = summarized_period[summarized_period["beiwe"] == pt]
+            beacon_pt = self.classifications[self.classifications["beiwe"] == pt]
+            for s, e in zip(summarized_pt["start"],summarized_pt["end"]):
+                mask = (beacon_pt.index > s) & (beacon_pt.index <= e)
+                beacon_restricted = beacon_pt.loc[mask]
+                beacon_restricted["start_time"] = pd.to_datetime(s)
+                beacon_restricted["end_time"] = pd.to_datetime(e)
+                beacon_occupied = beacon_occupied.append(beacon_restricted)
+
+        beacon_occupied = beacon_occupied.reset_index().merge(self.all_data[["beiwe","temperature_c","rh"]].reset_index(),on=["beiwe","timestamp"]).set_index("timestamp")
+        return beacon_occupied, summarized_period
                 
     def save_classifications(self,model_name,annot):
         """
-        
+        Saves the classifications results
+
+        Parameters
+        ----------
+        model_name : str
+            what model was used
+        annot : str
+            additional annotations to include
         """
         self.classifications.to_csv(f"../data/results/{model_name}-occupancy_classification-{annot}-ux_s20.csv")
 

@@ -86,7 +86,7 @@ class calculate():
         pt_ids = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='beacon')
         pt_ids = pt_ids[['redcap','beiwe','beacon','lat','long','volume','roommates']] # keep their address locations
         self.info = pt_ids.merge(right=pt_names,on='beiwe')
-
+    
     def summarize(self, df, by_id="beiwe"):
         """
         Summarizes available data per participant
