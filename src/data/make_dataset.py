@@ -1241,7 +1241,7 @@ def main():
     logger = logging.getLogger(__name__)
 
     print("Import data from which study?")
-    print("\t1. UT1000\n\t2. UT2000\n\t3. UT3000\n\t4. BPEACE\n\t5. UTX000\n\t6. WCWH Pilot")
+    print("\t1. UT1000\n\t2. UT2000\n\t3. UT3000\n\t4. BPEACE\n\t5. UTX000\n\t6. WCWH Pilot\n\t7. Test")
     ans = int(input("Study Number: "))
     if ans == 1:
         processor = ut1000()
@@ -1255,6 +1255,8 @@ def main():
         processor = utx000()
     elif ans == 6:
         processor = wcwh(study="wcwh_pilot",suffix="wcwh_s21")
+    elif ans == 7:
+        processor = wcwh(study="test",suffix="test")
     else:
         print("Invalid Choice")
         exit(1)

@@ -85,7 +85,7 @@ class wcwh():
         os.replace(path_to_file, path_to_destination)
 
     def process_beacon(self,extreme=None,retain_negative=True,retain_na=True,resample_rate=1,
-        columns_to_drop=["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4","Temperature [C]","Relative Humidity"],
+        columns_to_drop=["Visible","visible-unitless","Infrared","infrared-unitless","eCO2","equivalent_carbon_dioxide-ppm"],
         columns_to_leave_raw=[]):
         '''
         Processes data from the beacons
@@ -102,7 +102,7 @@ class wcwh():
             whether to retain negative measurements for IAQ parameters
         retain_na : boolean, default True
             whether to retain NaN values
-        columns_to_drop : list of str, default ["Visible","Infrared","eCO2","PM_N_0p5","PM_N_4","PM_C_4","Temperature [C]","Relative Humidity"]
+        columns_to_drop : list of str, default ["Visible","visible-unitless","Infrared","infrared-unitless","eCO2","equivalent_carbon_dioxide-ppm"]
             data that are not needed
         columns_to_leave_raw : list of str, default []
             variables we do not want to correct
@@ -129,26 +129,56 @@ class wcwh():
             beacon_df = pd.DataFrame() # dataframe specific to the beacon
 
             df_list = []
-            for file in os.listdir(beacon_folder):
-                if file[-1] == "v":
-                    y = int(file.split("_")[1].split("-")[0])
-                    m = int(file.split("_")[1].split("-")[1])
-                    d = int(file.split("_")[1].split("-")[2].split(".")[0])
-                    date = datetime(y,m,d)
-                    if date.date() >= self.start_time.date() and date.date() <= self.end_time.date():
-                        try:
-                            # reading in raw data (csv for one day at a time) and appending it to the overall dataframe
-                            if self.verbose > 2:
-                                print("\t\t\t",file)
-                            day_df = pd.read_csv(f'{beacon_folder}/{file}',
-                                                index_col='Timestamp',parse_dates=True,
-                                                infer_datetime_format=True)
-                            df_list.append(day_df)
-                            
-                        except Exception:
-                            # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
-                            print(f'Issue encountered while importing {beacon_folder}/{file}, skipping...')
-                            self.move_to_purgatory(f'{beacon_folder}/{file}',f'{self.data_dir}/purgatory/B{number}-{self.suffix}-{file}')
+            if os.path.isdir(beacon_folder):
+                for file in os.listdir(beacon_folder):
+                    if file[-1] == "v":
+                        y = int(file.split("_")[1].split("-")[0])
+                        m = int(file.split("_")[1].split("-")[1])
+                        d = int(file.split("_")[1].split("-")[2].split(".")[0])
+                        date = datetime(y,m,d)
+                        if date.date() >= self.start_time.date() and date.date() <= self.end_time.date():
+                            try:
+                                # reading in raw data (csv for one day at a time) and appending it to the overall dataframe
+                                if self.verbose > 2:
+                                    print("\t\t\t",file)
+                                try:
+                                    day_df = pd.read_csv(f'{beacon_folder}/{file}',
+                                                    index_col='Timestamp',parse_dates=True, # old header format
+                                                    infer_datetime_format=True)
+                                except ValueError:
+                                    day_df = pd.read_csv(f'{beacon_folder}/{file}',
+                                                    index_col='timestamp',parse_dates=True, # new header format
+                                                    infer_datetime_format=True)
+
+                                # dropping unecessary columns
+                                for col in columns_to_drop:
+                                    try:
+                                        day_df.drop([col],axis=1,inplace=True)
+                                    except KeyError:
+                                        if self.verbose > 1:
+                                            print(f"\t\t\tNo column {col} in dataframe")
+
+                                # renaming columns
+                                ## old headings
+                                day_df.rename(columns={"TVOC":"tvoc","Lux":"lux","NO2":"no2","CO":"co","CO2":"co2",
+                                                        "Temperature [C]":"internal_temp","Relative Humidity":"internal_rh","T_NO2":"t_no2","RH_NO2":"rh_no2","T_CO":"t_co","RH_CO":"rh_co",
+                                                        "PM_N_0p5":"pm0p5_number","PM_N_1":"pm1_number","PM_N_2p5":"pm2p5_number","PM_N_4":"pm4_number","PM_N_10":"pm10_number",
+                                                        "PM_C_1":"pm1_mass","PM_C_2p5":"pm2p5_mass","PM_C_4":"pm4_mass","PM_C_10":"pm10_mass"},inplace=True)
+                                ## new headings
+                                day_df.rename(columns={"total_volatile_organic_compounds-ppb":"tvoc","light-lux":"lux","nitrogen_dioxide-ppb":"no2","carbon_monoxide-ppb":"co","carbon_dioxide-ppm":"co2",
+                                                        "t_from_co2-c":"internal_temp","rh_from_co2-percent":"internal_rh","t_from_no2-c":"t_no2","rh_from_no2-percent":"rh_no2","t_from_co-c":"t_co","rh_from_co-percent":"rh_co",
+                                                        "pm0p5_count-number_per_cm3":"pm0p5_number","pm1_count-number_per_cm3":"pm1_number","pm2p5_count-number_per_cm3":"pm2p5_number","pm4_count-number_per_cm3":"pm4_number","pm10_count-number_per_cm3":"pm10_number",
+                                                        "pm1_mass-microgram_per_m3":"pm1_mass","pm2p5_mass-microgram_per_m3":"pm2p5_mass","pm4_mass-microgram_per_m3":"pm4_mass","pm10_mass-microgram_per_m3":"pm10_mass"},inplace=True)
+                                day_df.index.rename("timestamp",inplace=True)
+                                
+                                df_list.append(day_df)
+                                
+                            except Exception as e:
+                                # for whatever reason, some files have header issues - these are moved to purgatory to undergo triage
+                                print(e)
+                                print(f'Issue encountered while importing {beacon_folder}/{file}, skipping...')
+                                self.move_to_purgatory(f'{beacon_folder}/{file}',f'{self.data_dir}/purgatory/B{number}-{self.suffix}-{file}')
+   
             if len(df_list) > 0:
                 try:
                     beacon_df = pd.concat(df_list).resample(f'{resample_rate}T').mean()
@@ -164,7 +194,7 @@ class wcwh():
 
             # Cleaning
             # --------
-            ## Changing NO2 readings on beacons without NO2 sensors to CO
+            # Changing NO2 readings on beacons without NO2 sensors to CO
             ##  The RPi defaults the USB directory to USB0 if only one USB port is used regardless of position
             ##  Since the CO sensor is plugged into the USB1 port and the NO2 sensor into USB0, if we don't include
             ##  the NO2 sensor then the CO sensor defaults to USB0 and the headers in the dataframe are wrong since
@@ -173,15 +203,15 @@ class wcwh():
                 if self.verbose > 1:
                     print('\t\t\tNo NO2 sensor - switch NO2 headers to CO')
 
-                beacon_df[['CO','T_CO','RH_CO']] = beacon_df[['NO2','T_NO2','RH_NO2']]
-                beacon_df[['NO2','T_NO2','RH_NO2']] = np.nan
+                beacon_df[['co','t_co','rh_co']] = beacon_df[['no2','t_no2','rh_no2']]
+                beacon_df[['no2','t_no2','rh_no2']] = np.nan
 
             # converting ppb measurements to ppm
             try:
-                beacon_df['CO'] /= 1000
+                beacon_df['co'] /= 1000
             except KeyError:
                 if self.verbose > 0:
-                    print("\t\t\tNo ['CO') in columns") 
+                    print("\t\t\tNo 'CO' in columns") 
             
             # getting relevant data only
             #start_date = self.beacon_id[self.beacon_id['beiwe'] == beiwe]['start_date'].values[0]
@@ -190,25 +220,11 @@ class wcwh():
 
             # combining T/RH readings and dropping old columns
             try:
-                beacon_df['temperature_c'] = beacon_df[['T_CO','T_NO2']].mean(axis=1)
-                beacon_df['rh'] = beacon_df[['RH_CO','RH_NO2']].mean(axis=1)
-                beacon_df.drop(["T_NO2","T_CO","RH_NO2","RH_CO"],axis=1,inplace=True)
+                beacon_df['temperature_c'] = beacon_df[['t_co','t_no2']].mean(axis=1)
+                beacon_df['rh'] = beacon_df[['rh_co','rh_no2']].mean(axis=1)
+                beacon_df.drop(["t_no2","t_co","rh_no2","rh_co"],axis=1,inplace=True)
             except KeyError:
-                print('\t\t\tOne of ["T_NO2","T_CO","RH_NO2","RH_CO" no found in the dataframe')
-
-            # dropping unecessary columns
-            for col in columns_to_drop:
-                try:
-                    beacon_df.drop([col],axis=1,inplace=True)
-                except KeyError:
-                    if self.verbose > 1:
-                        print(f"\t\t\tNo column {col} in dataframe")
-
-            # renaming columns
-            beacon_df.rename(columns={"TVOC":"tvoc","Lux":"lux","NO2":"no2","CO":"co","CO2":"co2",
-                                    "PM_N_1":"pm1_number","PM_N_2p5":"pm2p5_number","PM_N_10":"pm10_number",
-                                    "PM_C_1":"pm1_mass","PM_C_2p5":"pm2p5_mass","PM_C_10":"pm10_mass"},inplace=True)
-            beacon_df.index.rename("timestamp",inplace=True)
+                print('\t\t\tOne of ["T_NO2","T_CO","RH_NO2","RH_CO"] no found in the dataframe')
 
             # correcting values with linear model
             for param in self.correction.keys():
