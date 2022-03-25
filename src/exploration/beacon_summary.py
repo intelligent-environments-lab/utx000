@@ -12,6 +12,7 @@ from src.visualization import visualize
 # plotting
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import matplotlib.cm as cm
 import seaborn as sns
 from joypy import joyplot
 
@@ -62,7 +63,7 @@ class Summarize():
 
         return data_bb
 
-    def plot_beacon_ts(self,beacon,param="co2",start_time=None,end_time=None,scatter=False):
+    def plot_beacon_ts(self,beacon,param="co2",start_time=None,end_time=None,scatter=False,data=None,resample_rate=None):
         """
         Plots timeseries of the specified parameter within the time range
 
@@ -83,7 +84,15 @@ class Summarize():
         -------
         <void>
         """
-        beacon_df = self.get_beacon(beacon, start_time, end_time)
+        if isinstance(data,pd.DataFrame):
+            beacon_df = data
+        else:
+            beacon_df = self.get_beacon(beacon, start_time, end_time)
+
+        # resampling
+        if isinstance(resample_rate,int):
+            print("here")
+            beacon_df = beacon_df.resample(f"{resample_rate}T").mean()
 
         _, ax = plt.subplots(figsize=(16,4))
         if scatter:
@@ -92,6 +101,7 @@ class Summarize():
             ax.plot(beacon_df.index,beacon_df[param],color="black",lw=2)
         # y-axis
         ax.set_ylabel(f"{visualize.get_label(param)} ({visualize.get_units(param)})",fontsize=18)
+        ax.axhline(0,lw=2,color="firebrick")
         # remainder
         ax.tick_params(labelsize=14)
         for loc in ["top","right"]:
@@ -164,6 +174,15 @@ class Summarize():
     
     def plot_sensor_operation(self,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]):
         """
+        Plots the sensors operation based on data availability
+
+        Parameters
+        ----------
+        params : list of str, default ["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]
+            variables in data to consider
+
+        Returns
+        -------
         
         """
         for bb in self.data["beacon"].unique():
@@ -188,7 +207,7 @@ class Summarize():
                 ax.set_yticklabels(["OFF","ON"])
                 ax.set_ylim([-1,1])
                 # remainder
-                ax.tick_params(labelsize=14)
+                ax.tick_params(labelsize=14,rotation=-9090)
                 ax.set_title(visualize.get_label(param),loc="left",fontsize=16)
 
                 fig.add_subplot(111, frame_on=False)
@@ -302,7 +321,7 @@ class Summarize():
 
         self.correlation_matrix = corr
 
-    def plot_distributions(self,data=None,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"]):
+    def plot_distributions(self,data=None,params=["co2","pm2p5_mass","co","tvoc","temperature_c","rh"],individual_traces=False):
         """
         Plots distributions from all the beacons for each given variable
 
@@ -326,6 +345,14 @@ class Summarize():
             _, ax = plt.subplots(figsize=(12,4))
             sns.kdeplot(param,data=df, ax=ax,
                 cut=0, linewidth=2, color="cornflowerblue")
+            if individual_traces:
+                bbs = df["beacon"].unique()
+                n = len(bbs)
+                cmap = cm.get_cmap("Spectral")
+                for i, bb in enumerate(bbs):
+                    df_bb = df[df["beacon"] == bb]
+                    sns.kdeplot(param,data=df_bb, ax=ax,
+                        cut=0, linewidth=2, color=cmap((i+1)/4))
             # x-axis
             ax.set_xlabel(f"{visualize.get_label(param)} ({visualize.get_units(param)})",fontsize=16)
             # y-axis
