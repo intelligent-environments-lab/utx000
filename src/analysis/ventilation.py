@@ -348,9 +348,9 @@ class calculate():
         
         return concentration * 10**6 / mm * mv / 1000
 
-    def run_sensitivity_analysis(self,method="ss",params=["v","e","c0"],steps=[0,0.25,0.5,0.75,1],v_limits_apt=[490,1670],v_limits_home=[650,1726],
+    def run_sensitivity_analysis(self,method="ss",params=["v","e","c0"],steps=[0,0.25,0.5,0.75,1],v_limits_apt=[712,1449],v_limits_home=[790,1586],
                             e_limits_f=[0.0023744089795121946, 0.0035768565853658532],e_limits_m=[0.0031642829343902427, 0.004156063475609755],
-                            c0_limits_constant=[400,500],c0_limits_pt=[0,2],constant_c0=True,verbose=False):
+                            c0_limits_constant=[400,500],c0_limits_pt=[0,5],constant_c0=True,verbose=False):
         """
         Runs sensitivity analysis on ventilation estimates. See discussion in Notebook 4.1.4 regarding default values
 
@@ -461,7 +461,8 @@ class calculate():
 
         return sa_res
 
-    def compare_sa_to_base(self,sa_results,base_estimates,params=["v","e","c0"],steps=[0,0.25,0.75,1],plot=False,save_plot=False):
+    def compare_sa_to_base(self,sa_results,base_estimates,params=["v","e","c0"],steps=[0,0.25,0.75,1],
+        plot=False,save=False,annot="",save_dir="../reports/figures/"):
         """
         Aggregates the sensitivity analysis results and compares them to the baseline estimates
         
@@ -504,25 +505,144 @@ class calculate():
         results = pd.DataFrame(aggregate_res).set_index("parameter")
         if plot:
             _, ax = plt.subplots(figsize=(10,6))
-            ax.barh(results.index,results.iloc[:,0],left=results.iloc[:,1],color="steelblue",edgecolor="k",label="-1 Step")
-            ax.barh(results.index,results.iloc[:,1],color="deepskyblue",edgecolor="k",label="$\\frac{-1}{2}$ Step")
-            ax.barh(results.index,results.iloc[:,2],color="goldenrod",edgecolor="k",label="$\\frac{+1}{2}$ Step")
-            ax.barh(results.index,results.iloc[:,3],color="darkorange",left=results.iloc[:,2],edgecolor="k",label="+1 Step")
+            ax.barh(results.index,results.iloc[:,0],left=results.iloc[:,1],color="firebrick",edgecolor="k",label="-1 Step")
+            ax.barh(results.index,results.iloc[:,1],color="goldenrod",edgecolor="k",label="$\\frac{-1}{2}$ Step")
+            ax.barh(results.index,results.iloc[:,2],color="cornflowerblue",edgecolor="k",label="$\\frac{+1}{2}$ Step")
+            ax.barh(results.index,results.iloc[:,3],color="seagreen",left=results.iloc[:,2],edgecolor="k",label="+1 Step")
             # x-axis
-            ax.set_xlabel("Percent Change",fontsize=14)
+            ax.set_xlabel("Percent Change",fontsize=22)
             # y-axis
-            ax.set_yticklabels([p.title() for p in params])
-            ax.set_ylabel("Parameter",fontsize=14)
+            ax.set_yticklabels([self.get_param_name(p) for p in params])
             
             # remainder
-            ax.tick_params(labelsize=12)
-            ax.legend(frameon=False,fontsize=12)
+            ax.tick_params(labelsize=18)
+            ax.legend(frameon=False,fontsize=18)
             for loc in ["top","right"]:
                 ax.spines[loc].set_visible(False)
-            plt.show(),
+
+            if save:
+                plt.savefig("")
+            plt.show()
             plt.close()
         
         return results
+
+    def get_param_name(self,param):
+        """
+        Gets a more complete parameter name
+        """
+        if param == "v":
+            return "Volume"
+        elif param == "e":
+            return "Emission Rate"
+        elif param == "c0":
+            return "Background CO$_2$"
+        else:
+            return ""
+
+    def compare_sa_to_base_pt(self,sa_results,base_estimates,params=["v","e","c0"],):
+        """
+        Aggregates sensitivty analysis outcomes on a participant basis
+
+        Parameters
+        ----------
+
+        """
+        device_no = []
+        for bb in sa_results["beacon"]:
+            if int(bb) < 10:
+                device_no.append("0"+str(int(bb)))
+            else:
+                device_no.append(str(int(bb)))
+
+        sa_results["device"] = device_no
+        _, axes = plt.subplots(len(params),1,figsize=(16,5*len(params)),sharex=True)
+        for param, ax in zip(params, axes.flat):
+            sa_results_param = sa_results[sa_results["parameter"] == param]
+            colors = ["firebrick","goldenrod","cornflowerblue","seagreen"]
+            for step, color in zip(sa_results_param["step"].unique(),colors):
+                sa_results_step = sa_results_param[sa_results_param["step"] == step]
+                sa_results_step_summary = sa_results_step.groupby("device").mean()
+                ax.scatter(sa_results_step_summary.index,sa_results_step_summary["ach"],color=color,edgecolor="black",label=step)
+
+            # xlabel
+            ax.set_xlabel("",fontsize=22)
+            plt.xticks(fontsize=18)
+            # ylabel
+            ax.set_ylabel("Ventilation Rate (h$^{-1}$)",fontsize=22)
+            ax.set_ylim(bottom=0)
+            ax.tick_params(labelsize=18,)
+            # other
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            ax.legend(frameon=False,fontsize=16,title_fontsize=18,facecolor="white",loc="upper center",bbox_to_anchor=(0.2,1))
+            ax.set_title(self.get_param_name(param),fontsize=20)
+        
+         # xlabel
+        ax.set_xlabel("ID of Participants with Sufficient Data",fontsize=22)
+
+        plt.show()
+        plt.close()
+
+    def compare_sa_to_base_pt_v2(self,sa_results,base_estimates,params=["v","e","c0"],beacons_to_exclude=[],
+        save=False,annot="",save_dir="../reports/figures/"):
+        """
+        Aggregates sensitivty analysis outcomes on a participant basis
+
+        Parameters
+        ----------
+
+        """
+        sa_results = sa_results[~sa_results["beacon"].isin(beacons_to_exclude)]
+        base_estimates = base_estimates[~base_estimates["beacon"].isin(beacons_to_exclude)]
+        
+        _, ax = plt.subplots(figsize=(len(sa_results["beacon"].unique()),5),sharex=True)
+        for param, offset, shape in zip(params,[-0.2,0.2,0],[".","+","x"]):
+            sa_results_param = sa_results[sa_results["parameter"] == param]
+            colors = ["firebrick","goldenrod","cornflowerblue","seagreen"]
+            for step, color in zip(sa_results_param["step"].unique(),colors):
+                sa_results_step = sa_results_param[sa_results_param["step"] == step]
+                sa_results_step_summary = sa_results_step.groupby("beacon").mean()
+                device_no = []
+                for i in range(len(sa_results_step_summary.index)):
+                    device_no.append(i + offset)
+
+                sa_results_step_summary["device"] = device_no
+                ax.scatter(sa_results_step_summary["device"],sa_results_step_summary["ach"],marker=shape,color=color,edgecolor=color,zorder=10,label=step)
+
+            device_no = []
+            for i in base_estimates["beacon"]:
+                    device_no.append(i)
+
+            base_estimates["device"] = device_no
+            sns.boxplot(base_estimates["device"],base_estimates["ach"],color="white",whis=100,width=0.9,showcaps=False,zorder=1,ax=ax)
+
+            # xlabel
+            ax.set_xlabel("ID of Participants with Sufficient Data",fontsize=22)
+            ax.set_xticks(sa_results_step_summary["device"])
+            label = []
+            for bb in sa_results_step_summary.index:
+                #label.append("")
+                if int(bb) < 10:
+                    label.append("0"+str(int(bb)))
+                else:
+                    label.append(str(int(bb)))
+                #label.append("")
+            ax.set_xticklabels(label)
+            # ylabel
+            ax.set_ylabel("Ventilation Rate (h$^{-1}$)",fontsize=22)
+            ax.set_ylim(bottom=0)
+            ax.tick_params(labelsize=18,)
+            # other
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            #ax.legend(frameon=False,fontsize=16,title_fontsize=18,facecolor="white",loc="upper center",bbox_to_anchor=(0.2,1))
+            #ax.get_legend().remove()
+
+        if save:
+            plt.savefig(f"{save_dir}beacon_summary/ach-sensitivity_by_pt{annot}.pdf")
+        plt.show()
+        plt.close()
 
     # deprecated
     def get_ventilation_sleep_date(self,estimates,decay=False,verbose=False):
