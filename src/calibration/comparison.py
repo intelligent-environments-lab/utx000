@@ -45,6 +45,48 @@ class Compare:
         
         return df1.merge(df2,left_index=True,right_index=True,suffixes=[f"_{env1}",f"_{env2}"])
 
+    def get_reference_limits(self,data=None,column_name="concentration",use_percent=False):
+        """
+        Gets the minimum and maximum reference given the CGS accuracy
+
+        Parameters
+        ----------
+        data : DataFrame, default None
+
+        column_name : str, default "concentration"
+            column in data holding the reference data
+
+        Returns
+        -------
+        low_values : Series
+
+        high_values : Series
+
+        """
+        if isinstance(data,pd.DataFrame):
+            pass
+        else:
+            data = self.ref
+
+        print(use_percent)
+
+        if use_percent:
+            print(use_percent)
+            low_values = data[column_name] - (data[column_name]*(use_percent/100))
+            high_values = data[column_name] + (data[column_name]*(use_percent/100))
+        else:
+            if self.param == "co2":
+                low_values = data[column_name] - (30 + data[column_name]*0.03)
+                high_values = data[column_name] + (30 + data[column_name]*0.03)
+            elif self.param == "pm2p5_mass":
+                low_values = data[column_name] - 10
+                high_values = data[column_name] + 10
+            else:
+                print(f"Parameter {self.param} not included in method")
+                return data, data
+
+        return low_values, high_values
+
 class Parameter(Compare):
 
     def __init__(self, param, env1, env2, suffix):
@@ -97,7 +139,7 @@ class Output(Compare):
         self.ref = pd.read_csv(f"../data/interim/{param}-reference-{ref_env}-{self.suffix}.csv")
         self.test_data = pd.read_csv(f"../data/interim/{param}-test_data-{ref_env}-{self.suffix}.csv")
 
-    def get_errors(self, use_average=False,one_minus_two=True):
+    def get_errors(self,use_average=False,one_minus_two=True):
         """
         Gets the errors/differences between environments
 
@@ -249,27 +291,6 @@ class Output(Compare):
         plt.close()
 
         return combined_with_mean
-    
-    def get_reference_limits(self,data=None):
-        """
-        Gets the minimum and maximum reference given the CGS accuracy
-        """
-        if isinstance(data,pd.DataFrame):
-            pass
-        else:
-            data = self.ref
-
-        if self.param == "co2":
-            low_values = data["concentration"] - (30 + data["concentration"]*0.03)
-            high_values = data["concentration"] + (30 + data["concentration"]*0.03)
-        elif self.param == "pm2p5_mass":
-            low_values = data["concentration"] - 10
-            high_values = data["concentration"] + 10
-        else:
-            print(f"Parameter {self.param} not included in method")
-            return data, data
-
-        return low_values, high_values
 
     def plot_corrected_measurements(self):
         """
@@ -309,6 +330,301 @@ class Output(Compare):
             ax.spines[loc].set_visible(False)
         plt.show()
         plt.close()
+
+class Reference(Compare):
+
+    def __init__(self, param, env1, env2, individual_beacons, suffix="wcwh_s21"):
+        super().__init__(param, env1, env2, suffix)
+
+        self.models = self.data # renaming becuase I am dumb
+        self.individual_beacons = individual_beacons
+
+        self.data = {}
+        for env in [self.env1,self.env2]:
+            self.data[env] = self.combine_test_and_ref(env,individual_beacons=individual_beacons[env])
+
+    def combine_test_and_ref(self,env,individual_beacons):
+        """
+        Combines the test and reference data
+
+        Parameters
+        ----------
+        env : str
+            calibration environment
+        individual_beacons : list of int
+            beacons to import data individually from
+
+        Returns
+        -------
+        combined : DataFrame
+            measured and reference data for each beacon, individualized if specified
+        """
+        # getting test and reference data
+        test = pd.read_csv(f"../data/interim/{self.param}-test_data-{env}-{self.suffix}.csv",parse_dates=["timestamp"],infer_datetime_format=True)
+        ref = pd.read_csv(f"../data/interim/{self.param}-reference-{env}-{self.suffix}.csv",parse_dates=["timestamp"],infer_datetime_format=True)
+
+        # looping through each beacon and merging
+        combined = pd.DataFrame()
+        for bb in test["beacon"].unique():
+            test_bb = test[test["beacon"] == bb]
+            temp_combined = test_bb[["timestamp","beacon",self.param]].merge(ref,on=["timestamp"])
+            temp_combined.rename(columns={self.param:"measured","concentration":"reference"},inplace=True)
+
+            combined = combined.append(temp_combined)
+
+        # checking for individualized beacons
+        if len(individual_beacons) > 0:
+            for bb in individual_beacons:
+                test_ind_raw  = pd.read_csv(f"../data/interim/{self.param}-test_data-{env}-{bb}-{self.suffix}.csv",parse_dates=["timestamp"],infer_datetime_format=True)
+                test_ind = test_ind_raw[test_ind_raw["beacon"] == bb]
+                ref_ind = pd.read_csv(f"../data/interim/{self.param}-reference-{env}-{bb}-{self.suffix}.csv",parse_dates=["timestamp"],infer_datetime_format=True)
+                temp_combined_ind = test_ind[["timestamp","beacon",self.param]].merge(ref_ind,on=["timestamp"])
+                temp_combined_ind.rename(columns={self.param:"measured","concentration":"reference"},inplace=True)
+
+                combined = combined.append(temp_combined_ind)
+
+        combined["Environment"] = env.title()
+        combined.sort_values(["beacon","timestamp"],inplace=True)
+        return combined
+
+    def get_beacon(self, bb, env):
+        """
+        
+        """
+        try:
+            data_bb = self.data[env][self.data[env]["beacon"] == bb]
+        except KeyError:
+            data_bb = pd.DataFrame()
+
+        return data_bb 
+
+    def get_corrected(self,bb,env,use_average=False):
+        """
+        Parameters
+        ----------
+        bb : str or int
+
+        env : str
+
+        use_average : boolean, default False
+        
+        """
+        if use_average:
+            b = np.nanmean(self.models[f"constant_{env}"])
+            m = np.nanmean(self.models[f"coefficient_{env}"])
+        else:
+            b = self.models.loc[bb,f"constant_{env}"]
+            m = self.models.loc[bb,f"coefficient_{env}"]
+
+        data_bb = self.get_beacon(bb,env)
+        corrected_bb = b + m * data_bb["measured"]
+
+        return corrected_bb
+
+    def add_corrected(self, env, use_average=False):
+        """
+        Parameters
+        ----------
+        env : str
+            calibration environment to add the corrected data to
+        use_average : boolean
+            whether to use the averaged model values
+
+        Updates
+        -------
+        data : DataFrame
+            includes a "corrected" column with the corrected values
+        """
+        corrected = pd.Series()
+        for bb in self.data[env]["beacon"].unique():
+            corrected = corrected.append(self.get_corrected(bb,env,use_average))
+
+        self.data[env]["corrected"] = corrected
+
+    def get_error(self,bb,env):
+        """
+        Parameters
+        ----------
+        bb : str or int
+
+        env : str
+        
+        """
+        try:
+            data_bb = self.get_beacon(bb,env)
+            error_bb = data_bb["corrected"] - data_bb["reference"]
+        except KeyError:
+            error_bb = [0]*len(data_bb)
+
+        return error_bb
+
+    def add_error(self,env):
+        """
+        Parameters
+        ----------
+        env : str
+        
+        """
+        error = pd.Series()
+        for bb in self.data[env]["beacon"].unique():
+            error = error.append(self.get_error(bb,env))
+
+        self.data[env]["error"] = error
+
+    def visualize_errors(self,correct_with_average=False,save=False):
+        """
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        for env in self.data.keys():
+            self.add_corrected(env,use_average=correct_with_average)
+            self.add_error(env)
+
+        # combining datasets
+        data_both_env = pd.concat([self.data[self.env1],self.data[self.env2]],axis=0)
+
+        _, ax = plt.subplots(figsize=(16,5))
+        sns.violinplot(x="beacon",y="error",hue="Environment",data=data_both_env,
+            split=True,cut=0,palette=["black","cornflowerblue"],inner=None,ax=ax)
+
+        # x-axis
+        ax.set_xlabel("Device Number",fontsize=16)
+        ax.set_xticklabels(str(int(bb)) for bb in self.data[self.env2]["beacon"].unique())
+        # y-axis
+        ax.set_ylabel(f"Corrected - Reference ({visualize.get_units(self.param)})",fontsize=16)
+        # other
+        ax.tick_params(labelsize=14)
+        #ax.get_legend().remove()
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+
+        if save:
+            plt.savefig(f"../reports/figures/calibration-output_difference-{self.param}-{self.suffix}.pdf",bbox_inches="tight")
+
+        plt.show()
+        plt.close()
+
+    def compare_model_types(self,env,plot=None,save=False,**kwargs):
+        """
+        Compares the device-specific models to the environment-averaged models
+    
+        Parameters
+        ----------
+        env : str
+            which environment to consider
+
+        plot : str, default None
+
+        save : boolean, default False
+
+        Returns
+        -------
+
+        """
+        # device-specific
+        self.add_corrected(env,use_average=False)
+        self.add_error(env)
+        data_device_specific = self.data[env].copy()
+        data_device_specific["Model"] = "Device-Specific"
+        # environment-averaged
+        self.add_corrected(env,use_average=True)
+        self.add_error(env)
+        data_env_avg = self.data[env].copy()
+        data_env_avg["Model"] = "Environment-Averaged"
+        # combining
+        data_to_plot = pd.concat([data_device_specific,data_env_avg],axis=0)
+        if plot in ["violin","v"]:
+            # plotting
+            _, ax = plt.subplots(figsize=(16,5))
+            
+            # error distributions
+            violins = sns.violinplot(x="beacon",y="error",hue="Model",data=data_to_plot,
+                split=True,cut=0,palette=["orange","cornflowerblue"],inner=None,ax=ax,zorder=10)
+            plt.setp(violins.lines, zorder=100)
+            plt.setp(violins.collections, zorder=100, label="")
+            # reference lines
+            ax.axhline(0,linewidth=2,color="black",alpha=0.5,zorder=1)
+            if "percent" in kwargs.keys():
+                percent = kwargs["percent"]
+            else:
+                percent=False
+            low_values,high_values = self.get_reference_limits(pd.DataFrame(data=[0,0],columns=["concentration"]),use_percent=percent)
+            ax.axhline(low_values[0],linewidth=2,linestyle="dashed",color="black",alpha=0.5,zorder=2)
+            ax.axhline(high_values[0],linewidth=2,linestyle="dashed",color="black",alpha=0.5,zorder=3)        
+
+            # x-axis
+            ax.set_xlabel("Device Number",fontsize=16)
+            ax.set_xticklabels(str(int(bb)) for bb in self.data[self.env2]["beacon"].unique())
+            # y-axis
+            ax.set_ylabel(f"Corrected - Reference ({visualize.get_units(self.param)})",fontsize=16)
+            if "ylim" in kwargs.keys():
+                ax.set_ylim(kwargs["ylim"])
+            # other
+            ax.tick_params(labelsize=14)
+            #ax.get_legend().remove()
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+
+            if save:
+                plt.savefig(f"../reports/figures/beacon_summary/calibration-output_difference-{env}-{self.param}-violin-{self.suffix}.pdf",bbox_inches="tight")
+
+            plt.show()
+            plt.close()
+        elif plot in ["ts","line","timeseries"]:
+            # plotting
+            _, ax = plt.subplots(figsize=(16,5))
+            for bb in data_to_plot["beacon"].unique():
+                if bb not in self.individual_beacons[env]: # excluding those that are compared to different reference data
+                    data_bb_device = data_device_specific[data_device_specific["beacon"] == bb]
+                    elapsed_time_device = (data_bb_device["timestamp"] - data_bb_device["timestamp"].iloc[0]).dt.total_seconds()/60
+                    data_bb_avg = data_env_avg[data_env_avg["beacon"] == bb]
+                    elapsed_time_avg = (data_bb_avg["timestamp"] - data_bb_avg["timestamp"].iloc[0]).dt.total_seconds()/60
+                    if bb == 1:
+                        ax.plot(elapsed_time_device,data_bb_device["corrected"],lw=2,color="orange",alpha=0.75,label=f"Device-Specific",zorder=10)
+                        ax.plot(elapsed_time_avg,data_bb_avg["corrected"],lw=2,color="cornflowerblue",alpha=0.75,label=f"Environment-Averaged",zorder=11)
+                    else:
+                        ax.plot(elapsed_time_device,data_bb_device["corrected"],lw=2,color="orange",alpha=0.75,zorder=10)
+                        ax.plot(elapsed_time_avg,data_bb_avg["corrected"],lw=2,color="cornflowerblue",alpha=0.75,zorder=11)
+
+            # plotting reference band
+            if "percent" in kwargs.keys():
+                percent = kwargs["percent"]
+            else:
+                percent=False
+            low_values, high_values = self.get_reference_limits(data=data_bb_device,column_name="reference",use_percent=percent)
+            #ax.fill_between(elapsed_time_device,low_values,high_values,color="black",alpha=0.5,zorder=1,label="Reference")
+            ax.plot(elapsed_time_device,data_bb_device["reference"],lw=2,color="black",zorder=12,label="Reference")
+            ax.plot(elapsed_time_device,low_values,lw=2,ls="dashed",color="black",alpha=0.75,zorder=13,label="$\pm$ Sensor Resolution")
+            ax.plot(elapsed_time_device,high_values,lw=2,ls="dashed",color="black",alpha=0.75,zorder=14)
+
+            # x-axis
+            ax.set_xlabel("Experiment Time (mins)",fontsize=16)
+            ax.set_xlim([0,120])
+            # y-axis
+            ax.set_ylabel(f"{visualize.get_label(self.param)} ({visualize.get_units(self.param)})",fontsize=16)
+            if "ylim" in kwargs.keys():
+                ax.set_ylim(kwargs["ylim"])
+            ax.set_ylim(bottom=0)
+            # other
+            ax.legend(fontsize=14,frameon=False)
+            ax.tick_params(labelsize=14)
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+
+            if save:
+                plt.savefig(f"../reports/figures/beacon_summary/calibration-output_difference-{env}-{self.param}-ts-{self.suffix}.pdf",bbox_inches="tight")
+
+            plt.show()
+            plt.close()
+        else:
+            print("No plot specified")
+
+        return data_to_plot
+
+
 
 class IntramodelComparison():
     
