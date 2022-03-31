@@ -415,6 +415,8 @@ class Calibration():
                     if file[-1] == "v":
                         if verbose:
                             print("\t" + file)
+                        #d = datetime.strptime(file.split('_')[-1].split('.')[0],"%Y-%m-%d")
+                        #if d >= self.start_time and d <= self.end_time:
                         try:
                             temp = pd.read_csv(f"{self.data_dir}raw/{self.study}/beacon/B{number}/DATA/{file}")
                             if len(temp) > 0:
@@ -1228,7 +1230,7 @@ class Calibration():
         except KeyError:
             print("Linear model has not been generated for species", species)
 
-    def save_reference(self, species, env):
+    def save_reference(self, species, env, annot=""):
         """
         Saves the reference data
 
@@ -1240,11 +1242,11 @@ class Calibration():
             calibration environment_label
         """
         try:
-            self.ref[species].to_csv(f"{self.data_dir}interim/{species.lower()}-reference-{env}-{self.suffix}.csv")
+            self.ref[species].to_csv(f"{self.data_dir}interim/{species.lower()}-reference-{env}{annot}-{self.suffix}.csv")
         except KeyError:
             print("No reference data for", species)
 
-    def save_test_data(self,species, env):
+    def save_test_data(self, species, env, annot=""):
         """
         Saves the test data for the given parameter
 
@@ -1256,7 +1258,7 @@ class Calibration():
             calibration environment_label
         """
         try:
-            self.beacon_data[["timestamp","beacon",species]].to_csv(f"{self.data_dir}interim/{species.lower()}-test_data-{env}-{self.suffix}.csv")
+            self.beacon_data[["timestamp","beacon",species]].to_csv(f"{self.data_dir}interim/{species.lower()}-test_data-{env}{annot}-{self.suffix}.csv")
         except KeyError:
             print("No reference data for", species)
 
