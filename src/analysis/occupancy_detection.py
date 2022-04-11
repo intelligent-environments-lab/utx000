@@ -366,7 +366,7 @@ class Classify:
         self.data.replace({zero_label:0, one_label:1},inplace=True)
         self.all_data = all_data
 
-    def create_pipeline(self, model, model_params=None):
+    def create_pipeline(self, model=RandomForestClassifier, model_params=None):
         """
         Creates model pipeline
 
