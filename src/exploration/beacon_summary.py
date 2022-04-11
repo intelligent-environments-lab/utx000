@@ -336,8 +336,7 @@ class Summarize():
         -------
         <void>
         """
-        if isinstance(data,pd.DataFrame):
-            df = data
+        if isinstance(data,pd.DataFrame):            df = data
         else:
             df = self.data.copy()
 

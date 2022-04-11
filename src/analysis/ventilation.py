@@ -21,6 +21,10 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import seaborn as sns
 
+# SA
+from SALib.sample import saltelli
+from SALib.analyze import sobol
+
 from datetime import datetime, timedelta
 import math
 
@@ -348,185 +352,6 @@ class calculate():
         
         return concentration * 10**6 / mm * mv / 1000
 
-    def run_sensitivity_analysis(self,method="ss",params=["v","e","c0"],steps=[0,0.25,0.5,0.75,1],v_limits_apt=[712,1449],v_limits_home=[790,1586],
-                            e_limits_f=[0.0023744089795121946, 0.0035768565853658532],e_limits_m=[0.0031642829343902427, 0.004156063475609755],
-                            c0_limits_constant=[400,500],c0_limits_pt=[0,5],constant_c0=True,verbose=False):
-        """
-        Runs sensitivity analysis on ventilation estimates. See discussion in Notebook 4.1.4 regarding default values
-
-        Parameters
-        ----------
-        ss : str, default "ss"
-            which method to use:
-                "decay": decay
-                "buildup": buildup
-                "ss" or catch-all: steady-state
-        params : list of str, default ["v","e","c0"]
-            variables to use in the sensitivity analysis - limited to ["v","e","c0"]
-        steps : list of float, default [0,0.25,0.5,0.75,1]
-            steps within the limits to consider
-        v_limits_apt : list of int or float, default [490,1670]
-            min and max apartment volumes 
-        v_limits_home : list of int or float, default [650,1726]
-            min and max home volumes 
-        e_limits_f : list of int or float, default [0.0023744089795121946, 0.0035768565853658532]
-            min and max co2 emission rates from exhaled breath for females
-        e_limits_m : list of int or float, default [0.0031642829343902427 - 0.004156063475609755]
-            min and max co2 emission rates from exhaled breath for males
-        c0_limits_constant : list of int or float, default [400,500]
-            min and max constant background co2 concentrations
-        c0_limits_pt : list of int or float, default [0,2]
-            min and max percentiles to consider for participant-based background co2
-        constant_c0 : boolean, default True
-            whether to use constant or pt-based background CO2 limits
-
-        Returns
-        -------
-        sa_res : DataFrame
-            ventilation rates calculated through the sensitivity analysis
-        """
-        sa_res = pd.DataFrame()
-        for pt in self.beacon_nightly["beiwe"].unique():
-            # pt specific values
-            beacon_pt = self.beacon_nightly[self.beacon_nightly["beiwe"] == pt]
-            beacon_pt_all = self.beacon_all[self.beacon_all["beiwe"] == pt]
-            info_pt = self.info[self.info.index == pt]
-            if verbose:
-                print("Participant",pt)
-            # determine the limits for each variable
-            # volume
-            if info_pt["volume"].values[0] == 1188:
-                # home
-                v_limits = v_limits_home
-                if verbose:
-                    print("\tHome")
-            else:
-                # apartment
-                v_limits = v_limits_apt
-                if verbose:
-                    print("\tApt")
-            # emission rate
-            if info_pt["sex"].values[0].lower().startswith("f"):
-                # female
-                e_limits = e_limits_f
-                if verbose:
-                    print("\tFemale")
-            else:
-                # male
-                e_limits = e_limits_m
-                if verbose:
-                    print("\tMale")
-            # determining method
-            if method == "decay":
-                sa = dynamic(data_dir="../data")
-                f = sa.ventilation_decay
-            elif method == "buildup":
-                sa = dynamic(data_dir="../data")
-                f = sa.ventilation_buildup
-            else: # ss as default
-                sa = steady_state(data_dir="../data")
-                f = sa.ventilation_ss
-                
-            # getting ach for each parameter change
-            for param in params:
-                if verbose:
-                    print("\tParam:",param)
-                for step in steps:
-                    if param == "v":
-                        value = v_limits[0] + (v_limits[1] - v_limits[0])*step
-                        temp = f(beacon_pt,self.info,v=value,constant_c0=constant_c0)
-                    elif param == "e":
-                        value = e_limits[0] + (e_limits[1] - e_limits[0])*step
-                        temp = f(beacon_pt,self.info,e=value,constant_c0=constant_c0)
-                    elif param == "c0":
-                        if constant_c0:
-                            value = c0_limits_constant[0] + (c0_limits_constant[1] - c0_limits_constant[0])*step
-                            temp = f(beacon_pt,self.info,c0=value,constant_c0=constant_c0)
-                        else:
-                            p = c0_limits_pt[0] + (c0_limits_pt[1] - c0_limits_pt[0])*step
-                            value = np.nanpercentile(beacon_pt_all["co2"],p)
-                            temp = f(beacon_pt,self.info,c0=value,constant_c0=constant_c0)
-                    else:
-                        temp = f(beacon_pt,self.info)
-                        param = "none"
-                        
-                    temp["parameter"] = param
-                    temp["step"] = step
-                    if verbose:
-                        #print(temp.head())
-                        avg_ach = np.nanmean(temp["ach"])
-                        print(f"\t\tStep: {step} - {round(avg_ach,3)}")
-                    # saving to aggregate df
-                    sa_res = sa_res.append(temp)
-
-        return sa_res
-
-    def compare_sa_to_base(self,sa_results,base_estimates,params=["v","e","c0"],steps=[0,0.25,0.75,1],
-        plot=False,save=False,annot="",save_dir="../reports/figures/"):
-        """
-        Aggregates the sensitivity analysis results and compares them to the baseline estimates
-        
-        Parameters
-        ----------
-        sa_results : DataFrame
-            ventilation estimates for each night from each participant with the parameters adjusted
-        base_estimates : DataFrame
-            baseline ventilation estimates for each night from each participant
-        params : list of str, default ["v","e","c0"]
-            parameters to include in the analysis
-        steps : list of float, default [0,0.25,0.75,1]
-            steps within the limits to consider
-        plot : boolean, default False
-            whether to plot the summary
-        save_plot : boolean, default False
-            whether to save the summary plot
-        
-        Returns
-        -------
-        <results> : DataFrame
-            aggregate percent increase results for each step from each parameter
-        """
-        # setting up results dict
-        aggregate_res = {step: [] for step in steps}
-        aggregate_res["parameter"] = []
-        # getting aggregate results
-        for param in params:
-            sa_param = sa_results[sa_results["parameter"] == param]
-            aggregate_res["parameter"].append(param)
-            for step in steps:
-                perc_inc = []
-                for pt in sa_results["beiwe"].unique():
-                    sa_pt = sa_param[sa_param["beiwe"] == pt]
-                    estimate_pt = base_estimates[base_estimates["beiwe"] == pt]
-                    perc_inc.append((np.nanmean(sa_pt[sa_pt["step"] == step]["ach"]) - np.nanmean(estimate_pt["ach"])) / np.nanmean(estimate_pt["ach"]))
-                    
-                aggregate_res[step].append(round(np.nanmean(perc_inc),4)*100)
-
-        results = pd.DataFrame(aggregate_res).set_index("parameter")
-        if plot:
-            _, ax = plt.subplots(figsize=(10,6))
-            ax.barh(results.index,results.iloc[:,0],left=results.iloc[:,1],color="firebrick",edgecolor="k",label="-1 Step")
-            ax.barh(results.index,results.iloc[:,1],color="goldenrod",edgecolor="k",label="$\\frac{-1}{2}$ Step")
-            ax.barh(results.index,results.iloc[:,2],color="cornflowerblue",edgecolor="k",label="$\\frac{+1}{2}$ Step")
-            ax.barh(results.index,results.iloc[:,3],color="seagreen",left=results.iloc[:,2],edgecolor="k",label="+1 Step")
-            # x-axis
-            ax.set_xlabel("Percent Change",fontsize=22)
-            # y-axis
-            ax.set_yticklabels([self.get_param_name(p) for p in params])
-            
-            # remainder
-            ax.tick_params(labelsize=18)
-            ax.legend(frameon=False,fontsize=18)
-            for loc in ["top","right"]:
-                ax.spines[loc].set_visible(False)
-
-            if save:
-                plt.savefig("")
-            plt.show()
-            plt.close()
-        
-        return results
-
     def get_param_name(self,param):
         """
         Gets a more complete parameter name
@@ -540,109 +365,6 @@ class calculate():
         else:
             return ""
 
-    def compare_sa_to_base_pt(self,sa_results,base_estimates,params=["v","e","c0"],):
-        """
-        Aggregates sensitivty analysis outcomes on a participant basis
-
-        Parameters
-        ----------
-
-        """
-        device_no = []
-        for bb in sa_results["beacon"]:
-            if int(bb) < 10:
-                device_no.append("0"+str(int(bb)))
-            else:
-                device_no.append(str(int(bb)))
-
-        sa_results["device"] = device_no
-        _, axes = plt.subplots(len(params),1,figsize=(16,5*len(params)),sharex=True)
-        for param, ax in zip(params, axes.flat):
-            sa_results_param = sa_results[sa_results["parameter"] == param]
-            colors = ["firebrick","goldenrod","cornflowerblue","seagreen"]
-            for step, color in zip(sa_results_param["step"].unique(),colors):
-                sa_results_step = sa_results_param[sa_results_param["step"] == step]
-                sa_results_step_summary = sa_results_step.groupby("device").mean()
-                ax.scatter(sa_results_step_summary.index,sa_results_step_summary["ach"],color=color,edgecolor="black",label=step)
-
-            # xlabel
-            ax.set_xlabel("",fontsize=22)
-            plt.xticks(fontsize=18)
-            # ylabel
-            ax.set_ylabel("Ventilation Rate (h$^{-1}$)",fontsize=22)
-            ax.set_ylim(bottom=0)
-            ax.tick_params(labelsize=18,)
-            # other
-            for loc in ["top","right"]:
-                ax.spines[loc].set_visible(False)
-            ax.legend(frameon=False,fontsize=16,title_fontsize=18,facecolor="white",loc="upper center",bbox_to_anchor=(0.2,1))
-            ax.set_title(self.get_param_name(param),fontsize=20)
-        
-         # xlabel
-        ax.set_xlabel("ID of Participants with Sufficient Data",fontsize=22)
-
-        plt.show()
-        plt.close()
-
-    def compare_sa_to_base_pt_v2(self,sa_results,base_estimates,params=["v","e","c0"],beacons_to_exclude=[],
-        save=False,annot="",save_dir="../reports/figures/"):
-        """
-        Aggregates sensitivty analysis outcomes on a participant basis
-
-        Parameters
-        ----------
-
-        """
-        sa_results = sa_results[~sa_results["beacon"].isin(beacons_to_exclude)]
-        base_estimates = base_estimates[~base_estimates["beacon"].isin(beacons_to_exclude)]
-        
-        _, ax = plt.subplots(figsize=(len(sa_results["beacon"].unique()),5),sharex=True)
-        for param, offset, shape in zip(params,[-0.2,0.2,0],[".","+","x"]):
-            sa_results_param = sa_results[sa_results["parameter"] == param]
-            colors = ["firebrick","goldenrod","cornflowerblue","seagreen"]
-            for step, color in zip(sa_results_param["step"].unique(),colors):
-                sa_results_step = sa_results_param[sa_results_param["step"] == step]
-                sa_results_step_summary = sa_results_step.groupby("beacon").mean()
-                device_no = []
-                for i in range(len(sa_results_step_summary.index)):
-                    device_no.append(i + offset)
-
-                sa_results_step_summary["device"] = device_no
-                ax.scatter(sa_results_step_summary["device"],sa_results_step_summary["ach"],marker=shape,color=color,edgecolor=color,zorder=10,label=step)
-
-            device_no = []
-            for i in base_estimates["beacon"]:
-                    device_no.append(i)
-
-            base_estimates["device"] = device_no
-            sns.boxplot(base_estimates["device"],base_estimates["ach"],color="white",whis=100,width=0.9,showcaps=False,zorder=1,ax=ax)
-
-            # xlabel
-            ax.set_xlabel("ID of Participants with Sufficient Data",fontsize=22)
-            ax.set_xticks(sa_results_step_summary["device"])
-            label = []
-            for bb in sa_results_step_summary.index:
-                #label.append("")
-                if int(bb) < 10:
-                    label.append("0"+str(int(bb)))
-                else:
-                    label.append(str(int(bb)))
-                #label.append("")
-            ax.set_xticklabels(label)
-            # ylabel
-            ax.set_ylabel("Ventilation Rate (h$^{-1}$)",fontsize=22)
-            ax.set_ylim(bottom=0)
-            ax.tick_params(labelsize=18,)
-            # other
-            for loc in ["top","right"]:
-                ax.spines[loc].set_visible(False)
-            #ax.legend(frameon=False,fontsize=16,title_fontsize=18,facecolor="white",loc="upper center",bbox_to_anchor=(0.2,1))
-            #ax.get_legend().remove()
-
-        if save:
-            plt.savefig(f"{save_dir}beacon_summary/ach-sensitivity_by_pt{annot}.pdf")
-        plt.show()
-        plt.close()
 
     # deprecated
     def get_ventilation_sleep_date(self,estimates,decay=False,verbose=False):
@@ -919,10 +641,6 @@ class steady_state(calculate):
                                     E = kwargs["e"]
                                 else:
                                     E = self.get_emission_rate(self.info.loc[pt,'bmr'],T+273)
-                                if "c0" in kwargs.keys():
-                                    C0 = kwargs["c0"]
-                                else:
-                                    pass # value has already been established outside of this loop
                                 # calculating ventilation rate
                                 ACH = self.get_ach_from_constant_co2(E,V,C,C0)
                                 # appending data to pt-specific dictionary
@@ -979,7 +697,7 @@ class steady_state(calculate):
 
         # annotating
         period = df['period'][0]
-        ax.set_title(f"ID: {pt} - Period: {period} - ACH: {round(ach,2)}")
+        ax.set_title(f"ID: {pt} - Period: {period} - ACH: {round(ach,2)} - Date: {datetime.strftime(df.index[-1],'%Y-%m-%d')}")
         
         if save:
             plt.savefig(f"../reports/figures/beacon_summary/ventilation_estimates/method_0-{pt}-{period}.pdf",bbox_inches="tight")
@@ -1066,7 +784,7 @@ class steady_state(calculate):
 
 class dynamic(calculate):
 
-    def get_morning_beacon_data(self, night_df,all_df,num_hours=3):
+    def get_morning_beacon_data(self, night_df, all_df, num_hours=3):
         '''
         Grabs beacon data for hours after the participant has woken up.
         
@@ -1276,7 +994,7 @@ class dynamic(calculate):
 
     def ventilation_decay(self, beacon_data, info, 
         constant_c0=False, c0_percentile=0, min_window_threshold=30, min_co2_threshold=600, delta_co2_threshold=None,
-        plot=False, save_plot=False,**kwargs):
+        plot=False, save_plot=False,verbose=False,**kwargs):
         """
         Ventilation estimate based on no indoor sources
 
@@ -1312,20 +1030,20 @@ class dynamic(calculate):
             # getting pt-specific data
             beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
             info_pt = info[info.index == pt]
-            if "c0" in kwargs.keys():
-                C0 = kwargs["c0"]
-            else:
-                if constant_c0:
-                    C0 = 450
-                else: # pt-based
-                    C0 = np.nanpercentile(self.beacon_all[self.beacon_all["beiwe"] == pt]["co2"],c0_percentile)
+            if constant_c0:
+                C0 = 450
+            else: # pt-based
+                C0 = np.nanpercentile(self.beacon_all[self.beacon_all["beiwe"] == pt]["co2"],c0_percentile)
             if "v" in kwargs.keys():
                 V = kwargs["v"]
             else:
                 V = info_pt['volume'].values[0]
             # getting periods with decreasing co2 and T
             decreasing_co2_ac_pt = self.get_co2_periods(beacon_co2_pt,window=min_window_threshold,change='decrease')
-            for period in decreasing_co2_ac_pt['period'].unique():
+            n_periods = len(decreasing_co2_ac_pt['period'].unique())
+            if verbose:
+                print("Number of decreasing periods:",n_periods)
+            for i, period in enumerate(decreasing_co2_ac_pt['period'].unique()):
                 decreasing_period_ac_pt = decreasing_co2_ac_pt[decreasing_co2_ac_pt['period'] == period]
                 # sorting out the difference threshold
                 if delta_co2_threshold:
@@ -1338,7 +1056,11 @@ class dynamic(calculate):
                 # calculating ventilation rate if conditions are met
                 if min_co2_period >= min_co2_threshold and (max_co2_period - min_co2_period) >= delta_co2_value:
                     # calculating
+                    if verbose:
+                        print(f"Calculating for period {i}/{n_periods}...",end=" ")
                     ach, ss, C_est = self.get_ach_from_dynamic_co2(decreasing_period_ac_pt,E=0,V=V,C0=C0,plot=plot,pt=pt,period=period,method="decay",save=save_plot)
+                    if verbose:
+                        print("\tACH:",ach)
                     # adding information to dict
                     for key, value_to_add in zip(decay_dict.keys(),[pt,info_pt['beacon'].values[0],
                                                             decreasing_period_ac_pt.index[0],decreasing_period_ac_pt.index[-1],
@@ -1349,71 +1071,6 @@ class dynamic(calculate):
             decay_df = decay_df.append(pd.DataFrame(decay_dict))
 
         return decay_df
-
-    def ventilation_buildup_old(self, beacon_data, info, 
-        constant_c0=False, c0_percentile=0, min_window_threshold=30, min_co2_threshold=600, delta_co2_threshold=100,
-        plot=False, save_plot=False):
-        """
-        Ventilation estimate based on no indoor sources
-
-        Parameters
-        ----------
-        beacon_data : DataFrame
-            IAQ measurements made by the beacons including the participant id, beacon no, co2, and temperature data
-        info : DataFrame
-            participant demographic info
-        constant_c0 : boolean, default False
-            whether to use constant background concentration or participant-based if set to False
-        c0_percentile : int or float, default 0
-            percentile of participant-measured co2 to use as background baseline if not using constant background
-        min_window_threshold : int, default 30
-            minimum length of constinuous measurements
-        min_co2_threshold : int or float, default 600
-            minimum nightly average co2 concentration that must be measured
-        delta_co2_threshold : int or float, default None
-            minimum change in co2 during periods to consider
-        plot : boolean, default False
-            plot diagnostic plots of each identified period
-        save_plot : boolean, default False
-            save diagnostic plots 
-
-        Returns
-        -------
-        buildup_df : DataFrame
-            ventilation estimates for each increasing period for each participant from the dynamic model
-        """
-        buildup_df = pd.DataFrame()
-        for pt in beacon_data['beiwe'].unique():
-            res_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'ending_co2_meas':[],'ending_co2_calculated':[],'rmse':[],'ach':[]}
-            # getting pt-specific data
-            beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
-            if constant_c0:
-                    C0 = 450
-            else: # pt-based
-                C0 = np.nanpercentile(self.beacon_all[self.beacon_all["beiwe"] == pt]["co2"],c0_percentile) 
-
-            info_pt = info[info.index == pt]
-            # getting 
-            increasing_co2_ac_pt = self.get_co2_periods(beacon_co2_pt,window=min_window_threshold,change='increase')
-            for period in increasing_co2_ac_pt['period'].unique():
-                increasing_period_ac_pt = increasing_co2_ac_pt[increasing_co2_ac_pt['period'] == period]
-                min_co2_period = np.nanmin(increasing_period_ac_pt['co2'])
-                max_co2_period = np.nanmax(increasing_period_ac_pt['co2'])
-                if min_co2_period >= min_co2_threshold and (max_co2_period - min_co2_period) >= delta_co2_threshold:
-                    T = np.nanmean(increasing_period_ac_pt['temperature_c'])
-                    E = self.get_emission_rate(info_pt.loc[pt,'bmr'],T+273)
-                    V = info_pt['volume'].values[0]
-                    ach, ss, C_est = self.get_ach_from_dynamic_co2(increasing_period_ac_pt,E,V,C0=C0,pt=pt,period=period,plot=plot,method="build-up",save=save_plot)
-                    # adding information to dict
-                    for key, value_to_add in zip(res_dict.keys(),[pt,info_pt['beacon'].values[0],
-                                                            increasing_period_ac_pt.index[0],increasing_period_ac_pt.index[-1],
-                                                            increasing_period_ac_pt['c'][-1],C_est[-1],
-                                                            ss,ach]):
-                        res_dict[key].append(value_to_add)
-                    
-            buildup_df = buildup_df.append(pd.DataFrame(res_dict))
-            
-        return buildup_df
 
     def get_decreasing_increase_subperiod(self,period_df,resample_rate=2):
         """
@@ -1455,7 +1112,7 @@ class dynamic(calculate):
     # version 1 used in favor over this method
     def ventilation_buildup(self, beacon_data, info, 
         constant_c0=False, c0_percentile=0, min_window_threshold=30, min_co2_threshold=600, delta_co2_threshold=120, truncate_threshold=0,
-        decreasing_increase=False,decreasing_increase_rate=2,plot=False, save_plot=False):
+        decreasing_increase=False,decreasing_increase_rate=2,plot=False, save_plot=False,**kwargs):
         """
         Ventilation estimate based on initial occupancy. This version truncates the first series of measurements until the difference
         between subsequent CO2 measurements is greater than the truncate_threshold
@@ -1499,7 +1156,7 @@ class dynamic(calculate):
             # getting pt-specific data
             beacon_co2_pt = beacon_data[beacon_data['beiwe'] == pt]
             if constant_c0:
-                    C0 = 450
+                C0 = 450
             else: # pt-based
                 C0 = np.nanpercentile(self.beacon_all[self.beacon_all["beiwe"] == pt]["co2"],c0_percentile) 
 
@@ -1526,9 +1183,16 @@ class dynamic(calculate):
                     increasing_period_ac_pt = self.get_decreasing_increase_subperiod(increasing_period_ac_pt,decreasing_increase_rate)
 
                 if min_co2_period >= min_co2_threshold and delta_co2_period >= delta_co2_threshold:
-                    T = np.nanmean(increasing_period_ac_pt['temperature_c'])
-                    E = self.get_emission_rate(info_pt.loc[pt,'bmr'],T+273)
-                    V = info_pt['volume'].values[0]
+                    if "v" in kwargs.keys():
+                        V = kwargs["v"]
+                    else:
+                        V = info_pt['volume'].values[0]
+                    if "e" in kwargs.keys():
+                        E = kwargs["e"]
+                    else:
+                        T = np.nanmean(increasing_period_ac_pt['temperature_c'])
+                        E = self.get_emission_rate(info_pt.loc[pt,'bmr'],T+273)
+
                     ach, ss, C_est = self.get_ach_from_dynamic_co2(increasing_period_ac_pt,E,V,C0=C0,pt=pt,period=period,plot=plot,method="build-up",save=save_plot)
                     # adding information to dict
                     for key, value_to_add in zip(res_dict.keys(),[pt,info_pt['beacon'].values[0],
@@ -1590,10 +1254,574 @@ class dynamic(calculate):
         plt.show()
         plt.close()
 
+class sensitivity_analysis(calculate):
+    """
+    Sensitivity analysis class for ventilation calculations
+    """
+    def __init__(self, study="utx000", study_suffix="ux_s20", measurement_resolution=120, morning_hours=3, beacons_to_remove=[17, 40], data_dir="../../data"):
+        super().__init__(study, study_suffix, measurement_resolution, morning_hours, beacons_to_remove, data_dir)
+        # importing estimates
+        self.estimates_ss = pd.read_csv(f"{self.data_dir}/processed/beacon-ventilation_estimates-ss-{self.suffix}.csv",
+                        parse_dates=["start","end"],infer_datetime_format=True)
+        self.estimates_decay = pd.read_csv(f"{self.data_dir}/processed/beacon-ventilation_estimates-decay-{self.suffix}.csv",
+                        parse_dates=["start","end"],infer_datetime_format=True)
+        self.estimates_buildup = pd.read_csv(f"{self.data_dir}/processed/beacon-ventilation_estimates-buildup-{self.suffix}.csv",
+                        parse_dates=["start","end"],infer_datetime_format=True)
+
+    def get_data_and_fxn(self,method="ss"):
+        """
+        Gets relevant data/functions depending on the estimation method provided
+
+        Parameters
+        ----------
+        method : str, default "ss"
+            which estimation method to consider
+
+        Returns
+        -------
+        estimates : DataFrame
+
+        calc_obj : instance of ventilation.calculate
+
+        f : calc_obj function
+
+        
+        """
+        if method == "decay":
+            estimates = self.estimates_decay.copy()
+            calc_obj = dynamic(data_dir="../data")
+            temp_df = calc_obj.get_morning_beacon_data(self.beacon_nightly,self.beacon_all,num_hours=3)
+            self.beacon_morning = temp_df
+            f = calc_obj.ventilation_decay
+        elif method == "buildup":
+            estimates = self.estimates_buildup.copy()
+            calc_obj = dynamic(data_dir="../data")
+            f = calc_obj.ventilation_buildup
+        else: # ss as default
+            estimates = self.estimates_ss.copy()
+            calc_obj = steady_state(data_dir="../data")
+            f = calc_obj.ventilation_ss
+
+        return estimates, calc_obj, f
+
+    def run_one_way(self,method="ss",params=["v","e","c0"],steps=[0,0.25,0.5,0.75,1],v_limits_apt=[712,1449],v_limits_home=[790,1586],
+                        e_limits_f=[0.0023744089795121946, 0.003051852397205989],e_limits_m=[0.0031642829343902427, 0.004059001845141127],
+                        c0_limits=[0,4],verbose=False):
+        """
+        Runs sensitivity analysis on ventilation estimates. See discussion in Notebook 4.1.4 regarding default values
+
+        Parameters
+        ----------
+        ss : str, default "ss"
+            which method to use:
+                "decay": decay
+                "buildup": buildup
+                "ss" or catch-all: steady-state
+        params : list of str, default ["v","e","c0"]
+            variables to use in the sensitivity analysis - limited to ["v","e","c0"]
+        steps : list of float, default [0,0.25,0.5,0.75,1]
+            steps within the limits to consider
+        v_limits_apt : list of int or float, default [490,1670]
+            min and max apartment volumes 
+        v_limits_home : list of int or float, default [650,1726]
+            min and max home volumes 
+        e_limits_f : list of int or float, default [0.0023744089795121946, 0.0035768565853658532]
+            min and max co2 emission rates from exhaled breath for females
+        e_limits_m : list of int or float, default [0.0031642829343902427 - 0.004156063475609755]
+            min and max co2 emission rates from exhaled breath for males
+        c0_limits_constant : list of int or float, default [400,500]
+            min and max constant background co2 concentrations
+        c0_limits_pt : list of int or float, default [0,2]
+            min and max percentiles to consider for participant-based background co2
+        constant_c0 : boolean, default True
+            whether to use constant or pt-based background CO2 limits
+
+        Returns
+        -------
+        sa_res : DataFrame
+            ventilation rates calculated through the sensitivity analysis
+        """
+        sa_res = pd.DataFrame()
+        # determining method
+        _, _, f = self.get_data_and_fxn(method=method)
+        for pt in self.beacon_nightly["beiwe"].unique():
+            # pt specific values
+            beacon_pt = self.beacon_nightly[self.beacon_nightly["beiwe"] == pt]
+            beacon_pt_morning = self.beacon_morning[self.beacon_morning["beiwe"] == pt]
+            info_pt = self.info[self.info.index == pt]
+            if verbose:
+                print("Participant",pt)
+            # determine the limits for each variable
+            # volume
+            if info_pt["volume"].values[0] == 1188:
+                # home
+                v_limits = v_limits_home
+                if verbose:
+                    print("\tHome")
+            else:
+                # apartment
+                v_limits = v_limits_apt
+                if verbose:
+                    print("\tApt")
+            # emission rate
+            if info_pt["sex"].values[0].lower().startswith("f"):
+                # female
+                e_limits = e_limits_f
+                if verbose:
+                    print("\tFemale")
+            else:
+                # male
+                e_limits = e_limits_m
+                if verbose:
+                    print("\tMale")
+                
+            # getting ach for each parameter change
+            if method == "decay":
+                data_to_use = beacon_pt_morning
+            else:
+                data_to_use = beacon_pt
+            for param in params:
+                if verbose:
+                    print("\tParam:",param)
+                for step in steps:
+                    if param == "v":
+                        value = v_limits[0] + (v_limits[1] - v_limits[0])*step
+                        temp = f(data_to_use,self.info,v=value,constant_c0=False)
+                    elif param == "e":
+                        value = e_limits[0] + (e_limits[1] - e_limits[0])*step
+                        temp = f(data_to_use,self.info,e=value,constant_c0=False)
+                    elif param == "c0":
+                        p = c0_limits[0] + (c0_limits[1] - c0_limits[0])*step
+                        temp = f(data_to_use,self.info,c0_percentile=p,constant_c0=False)
+                    else:
+                        temp = f(data_to_use,self.info)
+                        param = "none"
+                        
+                    temp["parameter"] = param
+                    temp["step"] = step
+                    if verbose:
+                        #print(temp.head())
+                        avg_ach = np.nanmean(temp["ach"])
+                        print(f"\t\tStep: {step} - {round(avg_ach,3)}")
+                    # saving to aggregate df
+                    sa_res = sa_res.append(temp)
+
+        return sa_res
+
+    def compare_sa_to_base(self,sa_results,method="ss",params=["v","e","c0"],steps=[0,0.25,0.75,1],
+        plot=False,save=False,annot="",save_dir="../reports/figures/"):
+        """
+        Aggregates the sensitivity analysis results and compares them to the baseline estimates
+        
+        Parameters
+        ----------
+        sa_results : DataFrame
+            ventilation estimates for each night from each participant with the parameters adjusted
+        base_estimates : DataFrame
+            baseline ventilation estimates for each night from each participant
+        params : list of str, default ["v","e","c0"]
+            parameters to include in the analysis
+        steps : list of float, default [0,0.25,0.75,1]
+            steps within the limits to consider
+        plot : boolean, default False
+            whether to plot the summary
+        save_plot : boolean, default False
+            whether to save the summary plot
+        
+        Returns
+        -------
+        <results> : DataFrame
+            aggregate percent increase results for each step from each parameter
+        """
+        if method == "ss":
+            base_estimates = self.estimates_ss
+        elif method == "decay":
+            base_estimates = self.estimates_decay
+        elif method == "buildup":
+            base_estimates = self.estimates_buildup
+        else:
+            return
+        # setting up results dict
+        aggregate_res = {step: [] for step in steps}
+        aggregate_res["parameter"] = []
+        # getting aggregate results
+        for param in params:
+            sa_param = sa_results[sa_results["parameter"] == param]
+            aggregate_res["parameter"].append(param)
+            for step in steps:
+                perc_inc = []
+                for pt in sa_results["beiwe"].unique():
+                    sa_pt = sa_param[sa_param["beiwe"] == pt]
+                    estimate_pt = base_estimates[base_estimates["beiwe"] == pt]
+                    perc_inc.append((np.nanmean(sa_pt[sa_pt["step"] == step]["ach"]) - np.nanmean(estimate_pt["ach"])) / np.nanmean(estimate_pt["ach"]))
+                    
+                aggregate_res[step].append(round(np.nanmean(perc_inc),4)*100)
+
+        results = pd.DataFrame(aggregate_res).set_index("parameter")
+        if plot:
+            _, ax = plt.subplots(figsize=(10,6))
+            ax.barh(results.index,results.iloc[:,0],left=results.iloc[:,1],color="firebrick",edgecolor="k",label="-1 Step")
+            ax.barh(results.index,results.iloc[:,1],color="goldenrod",edgecolor="k",label="$\\frac{-1}{2}$ Step")
+            ax.barh(results.index,results.iloc[:,2],color="cornflowerblue",edgecolor="k",label="$\\frac{+1}{2}$ Step")
+            ax.barh(results.index,results.iloc[:,3],color="seagreen",left=results.iloc[:,2],edgecolor="k",label="+1 Step")
+            # x-axis
+            ax.set_xlabel("Percent Change",fontsize=22)
+            # y-axis
+            ax.set_yticklabels([self.get_param_name(p) for p in params])
+            
+            # remainder
+            ax.tick_params(labelsize=18)
+            ax.legend(frameon=False,fontsize=18)
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+
+            if save:
+                plt.savefig("")
+            plt.show()
+            plt.close()
+        
+        return results
+
+    def compare_sa_to_base_pt(self,sa_results,base_estimates,params=["v","e","c0"],beacons_to_exclude=[],
+        save=False,annot="",save_dir="../reports/figures/"):
+        """
+        Aggregates sensitivty analysis outcomes on a participant basis
+
+        Parameters
+        ----------
+
+        """
+        sa_results = sa_results[~sa_results["beacon"].isin(beacons_to_exclude)]
+        base_estimates = base_estimates[~base_estimates["beacon"].isin(beacons_to_exclude)]
+        
+        _, ax = plt.subplots(figsize=(len(sa_results["beacon"].unique()),5),sharex=True)
+        for param, offset, shape in zip(params,[-0.2,0.2,0],[".","+","x"]):
+            sa_results_param = sa_results[sa_results["parameter"] == param]
+            colors = ["firebrick","goldenrod","cornflowerblue","seagreen"]
+            for step, color in zip(sa_results_param["step"].unique(),colors):
+                sa_results_step = sa_results_param[sa_results_param["step"] == step]
+                sa_results_step_summary = sa_results_step.groupby("beacon").mean()
+                device_no = []
+                for i in range(len(sa_results_step_summary.index)):
+                    device_no.append(i + offset)
+
+                sa_results_step_summary["device"] = device_no
+                ax.scatter(sa_results_step_summary["device"],sa_results_step_summary["ach"],marker=shape,color=color,edgecolor=color,zorder=10,label=step)
+
+            device_no = []
+            for i in base_estimates["beacon"]:
+                    device_no.append(i)
+
+            base_estimates["device"] = device_no
+            sns.boxplot(base_estimates["device"],base_estimates["ach"],color="white",whis=100,width=0.9,showcaps=False,zorder=1,ax=ax)
+
+            # xlabel
+            ax.set_xlabel("ID of Participants with Sufficient Data",fontsize=22)
+            ax.set_xticks(sa_results_step_summary["device"])
+            label = []
+            for bb in sa_results_step_summary.index:
+                #label.append("")
+                if int(bb) < 10:
+                    label.append("0"+str(int(bb)))
+                else:
+                    label.append(str(int(bb)))
+                #label.append("")
+            ax.set_xticklabels(label)
+            # ylabel
+            ax.set_ylabel("Ventilation Rate (h$^{-1}$)",fontsize=22)
+            ax.set_ylim(bottom=0)
+            ax.tick_params(labelsize=18,)
+            # other
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            #ax.legend(frameon=False,fontsize=16,title_fontsize=18,facecolor="white",loc="upper center",bbox_to_anchor=(0.2,1))
+            #ax.get_legend().remove()
+
+        if save:
+            plt.savefig(f"{save_dir}beacon_summary/ach-sensitivity_by_pt{annot}.pdf")
+        plt.show()
+        plt.close()
+
+    def traverse_param_range(self,method="ss",steps=[0,0.25,0.5,0.75,1],v_limits_apt=[712,1448],v_limits_home=[790,1586],
+        e_limits_f=[0.0023744089795121946, 0.003051852397205989],e_limits_m=[0.0031642829343902427, 0.004059001845141127],
+        c0_limits=[0,4],verbose=False):
+        """
+        Computes ventilation rates for all combinations of parameter steps
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+
+        """
+        sa_res = pd.DataFrame()
+        # determining method
+        _, _, f = self.get_data_and_fxn(method=method)
+        for bb in self.beacon_nightly["beacon"].unique():
+            # pt specific values
+            beacon_pt = self.beacon_nightly[self.beacon_nightly["beacon"] == bb]
+            beacon_pt_morning = self.beacon_morning[self.beacon_morning["beacon"] == bb]
+            info_pt = self.info[self.info["beacon"] == bb]
+            if verbose:
+                print("Beacon",bb)
+            # determine the limits for each variable
+            # volume
+            if info_pt["volume"].values[0] == 1188:
+                # home
+                v_limits = v_limits_home
+                if verbose:
+                    print("\tHome")
+            else:
+                # apartment
+                v_limits = v_limits_apt
+                if verbose:
+                    print("\tApt")
+            # emission rate
+            if info_pt["sex"].values[0].lower().startswith("f"):
+                # female
+                e_limits = e_limits_f
+                if verbose:
+                    print("\tFemale")
+            else:
+                # male
+                e_limits = e_limits_m
+                if verbose:
+                    print("\tMale")
+                
+            # getting ach for each parameter change
+            if method == "decay":
+                data_to_use = beacon_pt_morning
+            else:
+                data_to_use = beacon_pt
+            for step1 in steps:
+                p = c0_limits[0] + (c0_limits[1] - c0_limits[0])*step1
+                for step2 in steps:
+                    v_value = v_limits[0] + (v_limits[1] - v_limits[0])*step2
+                    for step3 in steps:
+                        e_value = e_limits[0] + (e_limits[1] - e_limits[0])*step3
+                        if verbose:
+                            print(f"\t\tC0: {step1} - {p}\n\t\tV: {step2} - {v_value}\n\t\tE: {step3} - {e_value}")
+                        if method in ["buildup","decay"]:
+                            temp = f(data_to_use,self.info,
+                                constant_c0=False,c0_percentile=p,min_window_threshold=30, min_co2_threshold=600, delta_co2_threshold=120,
+                                v=v_value)
+                        else: #ss
+                            temp = f(data_to_use,self.info,c0_percentile=p,v=v_value,e=e_value,constant_c0=False)
+                    
+                        for param, step in zip(["c0_step","v_step","e_step"],[step1,step2,step3]): #hard-coded :(
+                            temp[param] = step
+                        
+                        if verbose:
+                            #print(temp.head())
+                            avg_ach = np.nanmean(temp["ach"])
+                            print(f"\t\tStep: {step} - {round(avg_ach,3)}")
+                        # saving to aggregate df
+                        sa_res = sa_res.append(temp)
+
+        return sa_res
+
+    def traverse_param_percents(self,method="ss",percents=[-0.2,-0.1,0,0.1,0.2],v_limits_apt=[712,1448],v_limits_home=[790,1586],
+        e_limits_f=[0.0023744089795121946, 0.003051852397205989],e_limits_m=[0.0031642829343902427, 0.004059001845141127],
+        c0_percentiles=[0,2,4],verbose=False):
+        """
+        Computes ventilation rates for all combinations of parameter steps
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+
+        """
+        sa_res = pd.DataFrame()
+        # determining method
+        _, _, f = self.get_data_and_fxn(method=method)
+        for bb in self.beacon_nightly["beacon"].unique()[:3]:
+            # pt specific values
+            beacon_pt = self.beacon_nightly[self.beacon_nightly["beacon"] == bb]
+            beacon_pt_morning = self.beacon_morning[self.beacon_morning["beacon"] == bb]
+            info_pt = self.info[self.info["beacon"] == bb]
+            if verbose:
+                print("Beacon",bb)
+            # determine the limits for each variable
+            # volume
+            if info_pt["volume"].values[0] == 1188:
+                # home
+                v_limits = v_limits_home
+                if verbose:
+                    print("\tHome")
+            else:
+                # apartment
+                v_limits = v_limits_apt
+                if verbose:
+                    print("\tApt")
+            # emission rate
+            if info_pt["sex"].values[0].lower().startswith("f"):
+                # female
+                e_limits = e_limits_f
+                if verbose:
+                    print("\tFemale")
+            else:
+                # male
+                e_limits = e_limits_m
+                if verbose:
+                    print("\tMale")
+                
+            # getting ach for each parameter change
+            if method == "decay":
+                data_to_use = beacon_pt_morning
+            else:
+                data_to_use = beacon_pt
+            for c0_percentile in c0_percentiles:
+                for p1 in percents:
+                    v_value = np.mean(v_limits) * (1+p1)
+                    for p2 in percents:
+                        e_value = np.mean(e_limits) * (1+p2)
+                        if verbose:
+                            print(f"\t\tC0: {c0_percentile}\n\t\tV: {p1*100}%\n\t\tE: {p2*100}%")
+                        if method in ["buildup","decay"]:
+                            temp = f(data_to_use, self.info,
+                                constant_c0=False, c0_percentile=c0_percentile, min_window_threshold=30, min_co2_threshold=600, delta_co2_threshold=120,
+                                e=e_value, v=v_value)
+                        else: #ss
+                            temp = f(data_to_use,self.info,c0_percentile=c0_percentile,v=v_value,e=e_value,constant_c0=False)
+                    
+                        for param, step in zip(["c0_step","v_step","e_step"],[c0_percentile,p1,p2]): #hard-coded :(
+                            temp[param] = step
+                        
+                        if verbose:
+                            avg_ach = np.nanmean(temp["ach"])
+                            print(f"\tACH: {round(avg_ach,3)}")
+                        # saving to aggregate df
+                        sa_res = sa_res.append(temp)
+
+        return sa_res
+
+
+    def param_range_heatmap(self,data,method="ss",params=("c0","v","e"),plot=False,save=False,save_dir="../reports/figures",**kwargs):
+        """
+        Creates a heatmap of the percent increases for parameter changes
+
+        Parameters
+        ----------
+        data : DataFrame
+            comprehensive dataframe containing all participant ventilation rates for each parameter change
+        param_order : tuple of str, default ["c0","v","e"]
+            order of parameters to consider when creating heatmaps
+        plot : boolean, default False
+            whether to plot the heatamps or not
+        save : boolean, default False
+            whether to save the heatmaps or not
+
+        Returns
+        -------
+        percent_increases : dict of DataFrame
+            dataframes corresponding to each heatmap with keys corresponding to the first parameter steps
+        """
+        if method.lower() == "ss":
+            estimates = self.estimates_ss.copy()
+        elif method.lower() == "buildup":
+            estimates = self.estimates_buildup.copy()
+        elif method.lower() == "decay":
+            estimates = self.estimates_decay.copy()
+        else:
+            print("invalid method - exiting")
+            return
+
+        percent_increases = {}
+        # combining sa results with base rates to get percent increase
+        data_comb = data.merge(estimates[["beacon","start","end","ach"]],
+                            on=["beacon","start","end"],how="left",suffixes=["_sa","_base"])
+        data_comb["percent_increase"] = (data_comb["ach_sa"] - data_comb["ach_base"]) / data_comb["ach_base"]
+        for i, step in enumerate(data_comb[f"{params[0]}_step"].unique()):
+            data_comb_step = data_comb[data_comb[f"{params[0]}_step"] == step] # subselecting
+            data_summary = data_comb_step.groupby([f"{params[1]}_step",f"{params[2]}_step"]).mean() # getting aggregate percent increases
+            df_to_plot = data_summary.reset_index().pivot(index=f"{params[1]}_step",columns=f"{params[2]}_step",values="percent_increase") # formatting for heatmap
+            df_to_plot.sort_index(ascending=False,inplace=True)
+            percent_increases[f"{params[0]}_step_{i}"] = df_to_plot # saving
+
+            if plot:
+                _, ax = plt.subplots(figsize=(6,6))
+                if "vmin" in kwargs.keys():
+                    vmin = kwargs["vmin"]
+                else:
+                    vmin = -1
+                if "vmax" in kwargs.keys():
+                    vmax = kwargs["vmax"]
+                else:
+                    vmax = 1
+                hm = sns.heatmap(df_to_plot,
+                        vmin=vmin, vmax=vmax, center=0, 
+                        cmap=sns.diverging_palette(20, 220, n=200),cbar_kws={'ticks':np.arange(vmin,vmax+0.5,0.5),"shrink":0.9},fmt=".0%",
+                        square=True,linewidths=1,annot=True,annot_kws={"size":12},ax=ax)
+                # x-axis
+                ax.set_xlabel(self.get_param_name(params[2]),fontsize=16)
+                ax.set_xticklabels([f"{int(float(t.get_text())*100)}%" for t in ax.get_xticklabels()])
+                # y-axis
+                ax.set_ylabel(self.get_param_name(params[1]),fontsize=16)
+                ax.set_yticklabels([f"{int(float(t.get_text())*100)}%" for t in ax.get_yticklabels()])
+                # remainder
+                cbar = hm.collections[0].colorbar
+                cbar.ax.tick_params(labelsize=12)
+                ax.tick_params(labelsize=13)
+                ax.set_title(f"{self.get_param_name(params[0])}: {step}th Percentile",fontsize=16)
+
+                if save:
+                    plt.savefig(f"{save_dir}/ventilation-param_combination-ss-heatmap-{params[0]}_step_{i}.pdf")
+                plt.show()
+                plt.close()
+
+        return percent_increases
+
+    def run_sobol(self,method="ss",params=["v","e","c0"],v_limits=[712,1586],e_limits=[0.0023744089795121946, 0.004059001845141127],c0_limits=[0,5]):
+        """
+        Gets Sobol Indices
+
+        Parameters
+        ----------
+        method : str, default "ss"
+
+        Returns
+        -------
+        """
+        # determining method
+        if method in ["buildup","decay",]:
+            calc_obj = dynamic(data_dir="../data")
+            f = calc_obj.get
+        else: # ss as default
+            calc_obj = steady_state(data_dir="../data")
+            f = calc_obj.get_ach_from_constant_co2
+        
+        #res = pd.DataFrame()
+
+        problem = {
+            'num_vars': len(params),
+            'names': params,
+            'bounds': [v_limits,
+                    e_limits,
+                    c0_limits]
+        }
+
+        param_values = saltelli.sample(problem, 10000)
+        
+        Y = np.zeros([param_values.shape[0]])
+        for i, X in enumerate(param_values):
+            E = X[1]
+            V = X[0]
+            C0 = X[2]
+            C = 1000 # some dummy value
+            Y[i] = f(E,V,C,C0)
+
+        Si = sobol.analyze(problem, Y, calc_second_order=False)
+
+        total_Si, first_Si = Si.to_df()
+        return total_Si, first_Si
+
 def plot_strip(summarized_rates, sort_order=[True, False], conduct_ttest=False, 
     save=False, annot="", save_dir="../reports/figures/"):
     """
-    Plots strip plots of ventilation rates
+    Strip plots of ventilation rates
 
     Parameters
     ----------

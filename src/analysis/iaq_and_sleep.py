@@ -62,7 +62,7 @@ class calculate():
         ieq_raw["end_date"] = pd.to_datetime(ieq_raw["end_time"].dt.date)
         self.ieq = ieq_raw.copy()
         ## ventilation estimates
-        self.aer = pd.read_csv("../data/processed/beacon-ventilation.csv",parse_dates=["date"],infer_datetime_format=True)
+        self.aer = pd.read_csv("../data/processed/beacon-ventilation.csv",parse_dates=["start","end"],infer_datetime_format=True)
 
         # fitbit data
         fb_sleep = pd.read_csv(f"{self.data_dir}/processed/fitbit-sleep_summary-{self.suffix}.csv",parse_dates=["start_time","end_time","start_date","end_date"],infer_datetime_format=True)#,index_col=["beiwe","start_time"])
@@ -780,11 +780,11 @@ class calculate():
             ax.spines[loc].set_visible(False)
         ax.get_xaxis().set_visible(False)
         ax.get_legend().remove()
-        if visualize.get_units(yvar) == "":
+        if visualize.get_units(yvar.split("_")[0]) == "":
             unit = ""
         else:
-            unit = " (" + visualize.get_units(yvar) + ")"
-        ax.set_ylabel(visualize.get_label(yvar) + unit,fontsize=label_fs)
+            unit = " (" + visualize.get_units(yvar.split("_")[0]) + ")"
+        ax.set_ylabel(visualize.get_label(yvar.split("_")[0]) + unit,fontsize=label_fs)
         plt.yticks(fontsize=tick_fs)
         ax.legend(loc="upper center", bbox_to_anchor=(0.5,-0.1), title=visualize.get_label(binary_var),ncol=1,frameon=False,title_fontsize=label_fs,fontsize=legend_fs)
 
@@ -835,6 +835,29 @@ class calculate():
         plt.show()
         plt.close()
 
+    def get_aer_and_fb_data(self):
+        """
+        Combines ventilation and fb sleep data
+        """
+        aer_and_fb = pd.DataFrame()
+        for pt in self.aer["beiwe"].unique():
+            aer_pt = self.aer[self.aer["beiwe"] == pt]
+            aer_pt["end_date"] = pd.to_datetime(aer_pt["end"].dt.date)
+            fb_pt = self.fb_sleep[self.fb_sleep["beiwe"] == pt]
+            for i, (s_aer, e_aer) in enumerate(zip(aer_pt["start"],aer_pt["end"])):
+                if aer_pt.iloc[i,:]["method"] in ["build-up","ss"]:
+                    for j, (s_fb, e_fb) in enumerate(zip(fb_pt["start_time"],fb_pt["end_time"])):
+                        if s_aer >= s_fb and e_aer <= e_fb:
+                            aer_data = aer_pt[["start","end","ach","method"]].iloc[i,:]
+                            fb_data = fb_pt.iloc[j,:]
+                            aer_and_fb = aer_and_fb.append(pd.concat([aer_data,fb_data],axis=0),ignore_index=True)
+
+        aer_decay = self.aer[self.aer["method"] == "decay"]
+        aer_decay["end_date"] = pd.to_datetime(aer_decay["end"].dt.date)
+        aer_and_fb = aer_and_fb.append(aer_decay[["beiwe","end_date","start","end","ach","method"]].merge(self.fb_sleep,on=["beiwe","end_date"]))
+
+        return aer_and_fb
+
 class device_sleep(calculate):
 
     def __init__(self, study="utx000", study_suffix="ux_s20", data_dir="../../data"):
@@ -843,10 +866,7 @@ class device_sleep(calculate):
         data = self.ieq.merge(right=self.fb_sleep,on=["start_time","end_time","beiwe","redcap","beacon"],how='inner', indicator=False)
         self.sleep_and_iaq_data = data[[column for column in data.columns if not column.endswith("delta")]]  
         # Ventilation and Sleep
-        aer_and_fb = self.aer.merge(right=self.fb_sleep,left_on=["beiwe","beacon","date"],right_on=["beiwe","beacon","end_date"])
-        aer_and_fb = aer_and_fb[aer_and_fb["method"].isin(["ss","decay_2"])]
-        aer_and_fb.replace({"decay_2":"decay"},inplace=True)
-        self.sleep_and_aer_data = aer_and_fb
+        self.sleep_and_aer_data = self.get_aer_and_fb_data()
 
 class report_sleep(calculate):
     
@@ -855,10 +875,8 @@ class report_sleep(calculate):
         # IAQ and Sleep
         self.sleep_and_iaq_data = self.ieq.merge(right=self.bw_sleep, on=["end_date","beiwe","redcap","beacon"])
         # Ventilation and Sleep
-        aer_and_bw = self.aer.merge(right=self.bw_sleep, left_on=["beiwe","beacon","date"], right_on=["beiwe","beacon","end_date"])
-        aer_and_bw = aer_and_bw[aer_and_bw["method"].isin(["ss","decay_2"])]
-        aer_and_bw.replace({"decay_2":"decay"},inplace=True)
-        self.sleep_and_aer_data = aer_and_bw
+        aer_and_fb = self.get_aer_and_fb_data()
+        self.sleep_and_aer_data = aer_and_fb.merge(right=self.bw_sleep, on=["beiwe","beacon","end_date"])
 
     def plot_iaq_violin(self, df_in, sleep_metric="restful", targets=["tvoc","co","co2","pm2p5_mass","temperature_c"], hues=["Negative","Positive"],
                         save=False, save_dir="../reports/figures/beacon_ema",**kwargs):
