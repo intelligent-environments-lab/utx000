@@ -25,7 +25,6 @@ import seaborn as sns
 # stats
 import math
 from scipy.stats import ttest_ind, ks_2samp, chi2_contingency
-from sklearn.metrics import matthews_corrcoef
 
 class calculate():
 
@@ -42,9 +41,22 @@ class calculate():
         data_dir : str, default "../../data"
             path to the "data" directory within the project
 
-        Returns
+        Creates
         -------
-        <void>
+        study : str
+            study name
+        suffix : str
+            study suffix
+        data_dir : 
+            path to the /data/ directory
+        ieq : DataFrame
+            BEVO Beacon data
+        aer : DataFrame
+            estimated ventilation rates
+        fb_sleep : DataFrame
+            sleep data from Fitbit
+        bw_sleep : DataFrame
+            sleep data from Beiwe
         """
         self.study = study
         self.suffix = study_suffix
@@ -79,13 +91,6 @@ class calculate():
         for likert in ["content","stress","energy","lonely","sad","restful"]:
             beiwe_sleep[likert] = pd.to_numeric(beiwe_sleep[likert])
         self.bw_sleep = beiwe_sleep
-        
-        # participant information
-        pt_names = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='all')
-        pt_names = pt_names[["beiwe","first","last","sex"]]
-        pt_ids = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='beacon')
-        pt_ids = pt_ids[['redcap','beiwe','beacon','lat','long','volume','roommates']] # keep their address locations
-        self.info = pt_ids.merge(right=pt_names,on='beiwe')
     
     def summarize(self, df, by_id="beiwe"):
         """
@@ -234,6 +239,22 @@ class calculate():
     def fa_adequacy_test(self,scaled_df,test="bartlett",verbose=False):
         """
         Performs an adequacy test on the scaled input data
+
+        Parameters
+        ----------
+        scaled_df : DataFrame
+            normalized data - use scalei_iaq method
+        test : str, default "bartlett"
+            which test in ["bartlett","kmo"] to perform
+        verbose : boolean, default False
+            display output or not
+
+        Returns
+        -------
+        <stat> : float
+            test statistic
+        <p> : float
+            significance level
         """
         if test == "bartlett":
             chi_sq, p = calculate_bartlett_sphericity(scaled_df)
@@ -264,16 +285,25 @@ class calculate():
             string used in var_list if data were aggregated
         by_id : str, default "beacon"
             specifies which ID to use from ["beiwe","redcap","beacon","fitbit"]
-        tests : list of str, default
-
+        tests : list of str, default ["bartlett","kmo"]
+            tests to perform
         n_factors : int, default 3
-
+            number of factors to consider
         verbose : boolean, default False
             extra output for debugging
 
         Returns
         -------
-
+        evs : list of float
+            eigenvalues
+        variances : list of float
+            variances
+        loadings : list of float
+            factor loadings for each variable
+        comms : list of float
+            commanilities between variables
+        spec_variances : list of float
+            specific variances for each variable
         """
         # pre-processing
         df_filled = self.fill_na_with_mean(df,params=params,agg_str=agg_str,by_id=by_id)
@@ -380,7 +410,18 @@ class calculate():
         return qualities
 
     def calculate_cramers_v(self,ct):
-        """returns Cramers V from the given contingency table"""
+        """
+        Cramers V from the given contingency table
+        
+        Parameters
+        ----------
+        ct : list
+            contigency table
+        Returns
+        -------
+        V : float
+            Cramer's V test statistic
+        """
         #create 2x2 table
         data = ct.values
 
@@ -449,7 +490,7 @@ class calculate():
 
         Returns
         -------
-        <df> : DataFrame
+        df : DataFrame
             original DataFrame with the outlier rows removed
         """
         if extreme == "z":
@@ -473,7 +514,7 @@ class calculate():
                            sleep_metrics=["tst_fb","efficiency","rem2nrem"], iaq_metric="median",
                            save=False, annot="all", sleep_modality="fitbit", save_dir="../reports/figures/"):
         """
-        Plots the main resulting figure looking at the distribution of the given sleep metrics for the iaq parameters
+        Plots the main figure looking at the distribution of the given sleep metrics for the iaq parameters
 
         Parameters
         ----------
@@ -491,6 +532,8 @@ class calculate():
             whether to save the file
         annot : str, default "all"
             annotation to add to the save filename
+        sleep_modality : str, default "fitbit"
+            subfolder to save to
         save_dir : str, default "../reports/figures/"
             path to save the figure
             
@@ -591,8 +634,8 @@ class calculate():
         
         return ttest_results
 
-    def plot_ventilation_violin(self, df_in, yvar="tst_fb", binary_var="ventilation_quality", threshold=0.35, zero_label="Inadequate", one_label="Adequate", participant_based=False,
-                           save=False, modality="fitbit", save_dir="../reports/figures"):
+    def plot_ventilation_violin(self, df_in, yvar="tst_fb", binary_var="ventilation_quality", threshold=0.35, zero_label="Inadequate", one_label="Adequate",
+                            participant_based=False,save=False, modality="fitbit", save_dir="../reports/figures"):
         """
         Plots violin plots of sleep metric distributions for binary outcomes
         
@@ -604,10 +647,14 @@ class calculate():
             variable that will be split into two distributions
         binary_var : str, default "ventilation_quality"
             variable used to define distributions
+        threshold : float, default 0.35
+            value to determine poor or adequate - default is ACH
         zero_label : str, default "Inadequate"
             specifies which qualitative specification maps to a 0
         one_label : str, default "Adequate"
             specifies which qualitative specification maps to a 1
+        participant_based : boolean, default False
+            whether to base the thresholds from participant measurements for both x and y variables
         save : boolean, default False
             whether to save the file
         modality : str, default "fitbit"
@@ -618,7 +665,7 @@ class calculate():
         Returns
         -------
         res : DataFrame
-
+            results
         """
         df = df_in.copy()
         df[binary_var] = self.get_quality(df,threshold=threshold,above_label=one_label,below_label=zero_label,participant_based=participant_based)
@@ -738,7 +785,7 @@ class calculate():
         Returns
         -------
         res : DataFrame
-
+            results
         """
         df = df_in.copy()
         if one_sided:
@@ -808,9 +855,18 @@ class calculate():
 
         return res.set_index("parameter")
 
-    def plot_method_dstribution(self, df_in, method_column="method"):
+    def plot_method_dstribution(self, df_in, method_label="method", y_label="ach"):
         """
         Plots the distributions of ventilation estimates from the two methods
+
+        Parameters
+        ----------
+        df_in : DataFrame
+            data with ventilation rates
+        method_label : str, default "method"
+            name of column with methods
+        y_label : str, default "ach"
+            name of column for dependent variable
         """
         # plot fontsizes
         tick_fs = 24
@@ -818,7 +874,7 @@ class calculate():
 
         df_to_plot = df_in.copy()
         _, ax = plt.subplots(figsize=(6,6))
-        sns.stripplot(x=method_column,y="ach", data=df_to_plot,ax=ax,
+        sns.stripplot(x=method_label,y=y_label, data=df_to_plot,ax=ax,
             palette=["seagreen","cornflowerblue"],s=10,edgecolor="black",linewidth=1)
 
         # x-axis
