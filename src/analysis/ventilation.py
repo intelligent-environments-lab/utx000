@@ -9,6 +9,7 @@
 #   - 
 
 from calendar import c
+from crypt import METHOD_CRYPT, METHOD_SHA256
 import logging
 
 import pandas as pd
@@ -524,6 +525,92 @@ class calculate():
 
         return data_all, data_nightly, data_morning
 
+    def inspect_c0(self,percentile=0,by_id="beacon"):
+        """
+        Inspects the c0 values
+
+        Parameters
+        ----------
+        percentile : float, default 0 (min)
+            value between [0,1] to compute the percentile
+        by_id : str, default "beacon"
+            participant ID type
+
+        Returns
+        -------
+        <c0> : DataFrame
+            C0 values for each participant for all and nightly measurements
+        """
+        temp_all = self.beacon_all[[by_id,"co2"]].groupby(by_id).quantile(percentile)
+        temp_nightly = self.beacon_nightly[[by_id,"co2"]].groupby(by_id).quantile(percentile)
+        return temp_all.merge(temp_nightly,left_index=True,right_index=True,suffixes=["_all","_nightly"])
+
+    def inspect_pt_c0(self, pt, by_id="beacon", calc=None):
+        """
+        Inspects participant C0 measurements
+
+        Parameters
+        ----------
+        pt : int or str
+            participant ID
+        by_id : str, default "beacon"
+            participant ID type
+        calc : str, default None
+            ventilation calculation method to run if desired
+
+        Returns
+        -------
+        res : DataFrame
+            results from the calculation
+            if no calc is specified, returns None
+        """
+        bb_pt_all = self.beacon_all[self.beacon_all[by_id] == pt]
+        bb_pt_nightly = self.beacon_nightly[self.beacon_nightly[by_id] == pt]
+        _, ax = plt.subplots(figsize=(20,5))
+        ax.plot(bb_pt_all.index,bb_pt_all["co2"],color="black",label="All")
+        ax.scatter(bb_pt_nightly.index,bb_pt_nightly["co2"],s=5,color="firebrick",label="Nightly")
+        # x-axis
+        ax.set_xlim([bb_pt_all.index[0],bb_pt_all.index[-1]])
+        # y-axis
+        ax.set_ylabel("Concentration (ppm)",fontsize=14)
+        # remainder
+        ax.tick_params(labelsize=12)
+        for loc in ["top","right"]:
+            ax.spines[loc].set_visible(False)
+
+        ax.legend(frameon=False,fontsize=14)
+
+        plt.show()
+        plt.close()
+
+        _, axes = plt.subplots(1,2,figsize=(20,5),sharey=True)
+        for data, color, ax in zip([bb_pt_all,bb_pt_nightly],["black","firebrick"],axes):
+            sns.kdeplot("co2",data=data,lw=3,color=color,ax=ax)
+            # x-axis
+            ax.set_xlabel("Concentration (ppm)",fontsize=14)
+            ax.set_xlim([np.nanmin(bb_pt_all["co2"]),np.nanmax(bb_pt_all["co2"])])
+            # y-axis
+            ax.set_ylabel("Density",fontsize=14)
+            # remainder
+            ax.tick_params(labelsize=12)
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+
+        plt.show()
+        plt.close()
+
+        if calc == "ss":
+            ss = steady_state(data_dir="../data")
+            res_constant = ss.ventilation_ss(bb_pt_nightly, self.info, constant_c0=True)
+            res_constant["method"] = "Constant C0"
+            res_percentile = ss.ventilation_ss(bb_pt_nightly, self.info, constant_c0=False)
+            res_percentile["method"] = "Percentile C0"
+            res_pt = pd.concat([res_constant,res_percentile])
+        else:
+            res_pt = None
+
+        return res_pt
+
 class steady_state(calculate):
 
     def get_ach_from_constant_co2(self, E, V, C, C0=450.0, p=1.0):
@@ -596,6 +683,7 @@ class steady_state(calculate):
             ventilation rates estimated for each steady-state period
         """
         ventilation_df = pd.DataFrame()
+        self.n_ss_periods = 0
         for pt in beacon_data['beiwe'].unique(): # cycling through each of the participants
             # setting up the dictionary to add pt values to
             pt_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'co2_mean':[],'co2_delta':[],'t_mean':[],'t_delta':[],'e':[],'c0':[],"v":[],'ach':[]}
@@ -625,6 +713,7 @@ class steady_state(calculate):
                     constant_periods = self.get_co2_periods(beacon_pt_night[['co2','temperature_c','rh']],window=min_window_threshold,time_threshold=min_time_threshold,change='constant')
                     if len(constant_periods) > 0:
                         # summarizing the constant period(s)
+                        self.n_ss_periods += len(constant_periods['period'].unique())
                         for period in constant_periods['period'].unique():
                             constant_by_period = constant_periods[constant_periods['period'] == period]
                             C = np.nanmean(constant_by_period['co2'])
@@ -1561,7 +1650,11 @@ class sensitivity_analysis(calculate):
         for bb in self.beacon_nightly["beacon"].unique():
             # pt specific values
             beacon_pt = self.beacon_nightly[self.beacon_nightly["beacon"] == bb]
-            beacon_pt_morning = self.beacon_morning[self.beacon_morning["beacon"] == bb]
+            try:
+                beacon_pt_morning = self.beacon_morning[self.beacon_morning["beacon"] == bb]
+            except AttributeError:
+                if verbose:
+                    print("No morning Beacon data available")
             info_pt = self.info[self.info["beacon"] == bb]
             if verbose:
                 print("Beacon",bb)
@@ -1622,7 +1715,7 @@ class sensitivity_analysis(calculate):
         return sa_res
 
     def traverse_param_percents(self,method="ss",percents=[-0.2,-0.1,0,0.1,0.2],v_limits_apt=[712,1448],v_limits_home=[790,1586],
-        e_limits_f=[0.0023744089795121946, 0.003051852397205989],e_limits_m=[0.0031642829343902427, 0.004059001845141127],
+        e_limits_f=[0.0023744089795121946, 0.0035768565853658532],e_limits_m=[0.0031642829343902427, 0.004156063475609755],
         c0_percentiles=[0,2,4],verbose=False):
         """
         Computes ventilation rates for all combinations of parameter steps
@@ -1640,7 +1733,11 @@ class sensitivity_analysis(calculate):
         for bb in self.beacon_nightly["beacon"].unique()[:3]:
             # pt specific values
             beacon_pt = self.beacon_nightly[self.beacon_nightly["beacon"] == bb]
-            beacon_pt_morning = self.beacon_morning[self.beacon_morning["beacon"] == bb]
+            try:
+                beacon_pt_morning = self.beacon_morning[self.beacon_morning["beacon"] == bb]
+            except AttributeError:
+                if verbose:
+                    print("No morning Beacon data available")
             info_pt = self.info[self.info["beacon"] == bb]
             if verbose:
                 print("Beacon",bb)
@@ -1698,7 +1795,6 @@ class sensitivity_analysis(calculate):
 
         return sa_res
 
-
     def param_range_heatmap(self,data,method="ss",params=("c0","v","e"),plot=False,save=False,save_dir="../reports/figures",**kwargs):
         """
         Creates a heatmap of the percent increases for parameter changes
@@ -1751,6 +1847,10 @@ class sensitivity_analysis(calculate):
                     vmax = kwargs["vmax"]
                 else:
                     vmax = 1
+                    
+                for c in df_to_plot.columns:
+                    df_to_plot[c] = np.where(abs(df_to_plot[c]) < 0.005, 0, df_to_plot[c])
+
                 hm = sns.heatmap(df_to_plot,
                         vmin=vmin, vmax=vmax, center=0, 
                         cmap=sns.diverging_palette(20, 220, n=200),cbar_kws={'ticks':np.arange(vmin,vmax+0.5,0.5),"shrink":0.9},fmt=".0%",
@@ -1768,7 +1868,7 @@ class sensitivity_analysis(calculate):
                 ax.set_title(f"{self.get_param_name(params[0])}: {step}th Percentile",fontsize=16)
 
                 if save:
-                    plt.savefig(f"{save_dir}/ventilation-param_combination-ss-heatmap-{params[0]}_step_{i}.pdf")
+                    plt.savefig(f"{save_dir}/ventilation-param_combination-{method}-heatmap-{params[0]}_step_{i}.pdf")
                 plt.show()
                 plt.close()
 
@@ -1954,7 +2054,7 @@ def tabulate_estimates(summarized_rates):
     """
     Creates a table of summarized ventilation estimates
     """
-    res = {"method":[],"number":[],"number_of_participants":[],"min":[],"25%":[],"median":[],"75%":[],"90%":[],"mean":[]}
+    res = {"method":[],"number":[],"number_of_participants":[],"min":[],"25%":[],"median":[],"75%":[],"90%":[],"max":[],"mean":[]}
 
     # per method
     for method in summarized_rates["method"].unique():
@@ -1963,7 +2063,7 @@ def tabulate_estimates(summarized_rates):
         method_title = "Steady-State" if method.startswith("ss") else method.replace("_"," ").title()
         n = len(rates_method)
         n_pt = len(rates_method["beacon"].unique())
-        for k, v in zip(res.keys(),[method_title,n,n_pt,np.nanmin(rates_method["ach"]),np.nanpercentile(rates_method["ach"],25),np.nanmedian(rates_method["ach"]),np.nanpercentile(rates_method["ach"],75),np.nanpercentile(rates_method["ach"],90),
+        for k, v in zip(res.keys(),[method_title,n,n_pt,np.nanmin(rates_method["ach"]),np.nanpercentile(rates_method["ach"],25),np.nanmedian(rates_method["ach"]),np.nanpercentile(rates_method["ach"],75),np.nanpercentile(rates_method["ach"],90),np.nanmax(rates_method["ach"]),
                 np.nanmean(rates_method["ach"])]):
             try:
                 res[k].append(round(v,2))
@@ -1973,7 +2073,7 @@ def tabulate_estimates(summarized_rates):
 
     # aggregate
     for k, v in zip(res.keys(),["Aggregate",len(summarized_rates),len(summarized_rates["beacon"].unique()),
-            np.nanmin(summarized_rates["ach"]),np.nanpercentile(summarized_rates["ach"],25),np.nanmedian(summarized_rates["ach"]),np.nanpercentile(summarized_rates["ach"],75),np.nanpercentile(summarized_rates["ach"],90),
+            np.nanmin(summarized_rates["ach"]),np.nanpercentile(summarized_rates["ach"],25),np.nanmedian(summarized_rates["ach"]),np.nanpercentile(summarized_rates["ach"],75),np.nanpercentile(summarized_rates["ach"],90),np.nanmax(rates_method["ach"]),
             np.nanmean(summarized_rates["ach"])]):
         try:
             res[k].append(round(v,2))
