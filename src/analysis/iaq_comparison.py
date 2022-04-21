@@ -17,7 +17,9 @@ class Compare:
     def __init__(self,study1,study2,beacons1,beacons2,
         params=["tvoc","co","co2","pm2p5_mass"],resample_rate=1,remove_outliers=False,data_dir="../") -> None:
         """
-        
+        Parameters
+        ----------
+
         """
         self.data_dir = data_dir
         self.params = params
@@ -95,10 +97,16 @@ class Compare:
 
     # Visuals
     # -------
-    def plot_kde(self,df1, df2, param, study1="UTx000", study2="Ambassador Families"):
+    def plot_kde(self, df1=None, df2=None, param="co2", study1="UTx000", study2="Ambassador Families"):
         """
         Plots the KDE for each parameter
         """
+        if df1 is None:
+            df1 = self.data1.copy()
+        
+        if df2 is None:
+            df2 = self.data2.copy()
+            
         _, ax = plt.subplots(figsize=(16,4))
         s1_kde = sns.kdeplot(param,cut=0,data=df1,ax=ax,
                 linewidth=2,color="seagreen",label=study1)
