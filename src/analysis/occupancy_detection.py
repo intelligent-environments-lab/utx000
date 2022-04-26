@@ -613,7 +613,7 @@ class Classify:
         self.data = data_all
         return pd.DataFrame(classification_results), pd.DataFrame(model_results)
 
-    def run(self, model, model_params, participants=None, target="label", test_size=0.33):
+    def run(self, model, model_params, participants=None, by_id="beacon", target="label", test_size=0.33):
         """
         Runs classification on participant-level data
 
@@ -642,11 +642,11 @@ class Classify:
             evaluation results from the classification
         """
 
-        classification_results = {"beiwe":[],"n_occupied":[],"n_unoccupied":[],"runtime":[],"accuracy":[],"recall":[],"precision":[],"f1":[],"roc_auc":[]}
+        classification_results = {by_id:[],"n_occupied":[],"n_unoccupied":[],"runtime":[],"accuracy":[],"recall":[],"precision":[],"f1":[],"roc_auc":[]}
 
         # getting list of participants
         if participants == None:
-            pt_list = self.data["beiwe"].unique()
+            pt_list = self.data[by_id].unique()
         elif isinstance(participants,list):
             pt_list = participants
         else:
@@ -655,7 +655,7 @@ class Classify:
         data_all = self.data.copy() # saving all the data since the methods use the class object
         for pt in pt_list:
             # Classifying per Participant
-            self.data = data_all[data_all["beiwe"] == pt] # overwriting class data
+            self.data = data_all[data_all[by_id] == pt] # overwriting class data
             
             print("Starting...\n")
             s = datetime.now()
@@ -675,7 +675,7 @@ class Classify:
             
             # Classification Results
             ## adding meta data
-            res_pt["beiwe"] = pt
+            res_pt[by_id] = pt
             n_occupied = len(self.data[self.data[target] == 1])
             n_unoccupied = len(self.data[self.data[target] == 0])
             res_pt["n_occupied"] = n_occupied
@@ -972,7 +972,7 @@ class CompareModels():
         else:
             return ""
 
-    def scatter_metric(self,metric="accuracy",anonymize=False, save=False, annot=None):
+    def scatter_metric(self, metric="accuracy", by_id="beacon", anonymize=False, save=False, annot=None):
         """
         Scatters the evaluation metric for each participant from each method
 
@@ -980,6 +980,8 @@ class CompareModels():
         ----------
         metric : str, default "accuracy"
             evaluation metric to plot
+        by_id : str, default "beacon"
+            which ID to consider
         anonymize : boolean, default False
             use participant IDs or not
 
@@ -995,28 +997,29 @@ class CompareModels():
             df_list.append(self.res[m][metric])
 
         comb = pd.concat(df_list,axis=1)
-        comb.set_index(self.res[m]["beiwe"],inplace=True)
+        comb.set_index(self.res[m][by_id],inplace=True)
         comb["mean"] = comb.mean(axis=1)
         comb_sorted = comb.sort_values("mean")
+        comb_sorted.index = [str(int(ix)) for ix in comb_sorted.index]
         if anonymize:
             pids = comb_sorted.index
             comb_sorted.reset_index(drop=True,inplace=True)
             comb_sorted.index = [str(i) for i in range(1,len(comb_sorted)+1)]
         # plotting
-        _, ax = plt.subplots(figsize=(12,4))
+        _, ax = plt.subplots(figsize=(12,6))
         for col, model in zip(range(len(comb_sorted.columns)-1),self.res.keys()):
             ax.scatter(comb_sorted.index,comb_sorted.iloc[:,col],
-                marker=self.get_symbol(model), s=75,alpha=0.7,label=self.get_model_name(model))
+                marker=self.get_symbol(model), s=100,alpha=0.7,label=self.get_model_name(model))
 
         # x-axis
-        ax.set_xlabel("ID",fontsize=16)
-        ax.tick_params(axis="x",labelsize=14)
+        ax.set_xlabel("Participant ID",fontsize=21)
+        ax.tick_params(axis="x",labelsize=18)
         # y-axis
-        ax.set_ylabel(metric.title(),fontsize=16)
-        ax.tick_params(axis="y",labelsize=14)
+        ax.set_ylabel(metric.title(),fontsize=21)
+        ax.tick_params(axis="y",labelsize=18)
         ax.set_ylim(bottom=0.4,top=1)
         # remainder
-        ax.legend(loc="upper center", bbox_to_anchor=(0.75,0.3),frameon=True,fontsize=14,ncol=2)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5,-0.1),frameon=False,fontsize=20,ncol=2)
         for loc in ["top","right"]:
             ax.spines[loc].set_visible(False)
 
@@ -1031,7 +1034,7 @@ class CompareModels():
 
         # adding back ids 
         if anonymize:
-            comb_sorted["beiwe"] = pids
+            comb_sorted[by_id] = pids
 
         return comb_sorted
 
@@ -1054,6 +1057,16 @@ class CompareModels():
             print("\t",model.upper())
             f1s = self.res[model]['f1']
             print(f"\t\tMean:\t{np.mean(f1s)}\n\t\tSTD:\t{np.std(f1s)}")
+
+    def compare_accs(self):
+        """
+        Compares accuracy scores
+        """
+        print("Accuracy:")
+        for model in self.res.keys():
+            print("\t",model.upper())
+            accs = self.res[model]['accuracy']
+            print(f"\t\tMean:\t{np.mean(accs)}\n\t\tSTD:\t{np.std(accs)}")
 
     def save_results(self,annot=None):
         """

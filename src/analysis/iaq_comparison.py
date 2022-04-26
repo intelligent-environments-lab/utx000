@@ -7,7 +7,6 @@ import seaborn as sns
 
 import sys
 
-from sklearn.utils import resample
 sys.path.append('../')
 
 from src.visualization import visualize
@@ -126,7 +125,7 @@ class Compare:
         plt.show()
         plt.close()
     
-    def plot_boxplot_comparison(self,df1,df2,params=["tvoc","co","co2","pm2p5_mass"],study1="UTx000",study2="Ambassador\nFamilies",save=False,**kwargs):
+    def plot_boxplot_comparison(self,df1=None,df2=None,params=["tvoc","co","co2","pm2p5_mass"],study1="UTx000",study2="Ambassador\nFamilies",save=False,**kwargs):
         """
         Plots boxplots to compare distributions of values
         
@@ -137,6 +136,11 @@ class Compare:
         -------
         <void>
         """
+        if df1 is None:
+            df1 = self.data1.copy()
+        
+        if df2 is None:
+            df2 = self.data2.copy()
             
         # getting df in order
         df1["study"] = study1
@@ -167,10 +171,11 @@ class Compare:
             s1 = study1.replace('\n','_').lower()
             s2 = study2.replace('\n','_').lower()
             plt.savefig(f"../reports/figures/beacon_summary/boxplot_comparison-{s1}-{s2}.pdf",layout="tight")
+
         plt.show()
         plt.close()
 
-    def plot_violin_comparison(self,df1,df2,params=["tvoc","co","co2","pm2p5_mass"],study1="UTx000",study2="Ambassador\nFamilies",save=False,**kwargs):
+    def plot_violin_comparison(self,df1=None,df2=None,params=["tvoc","co","co2","pm2p5_mass"],study1="UTx000",study2="Ambassador\nFamilies",save=False,**kwargs):
         """
         Plots violins to compare distributions of values
         
@@ -181,6 +186,11 @@ class Compare:
         -------
         <void>
         """
+        if df1 is None:
+            df1 = self.data1.copy()
+        
+        if df2 is None:
+            df2 = self.data2.copy()
         
         # resampling
         if "resample" in kwargs.keys():
