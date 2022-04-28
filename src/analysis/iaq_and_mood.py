@@ -24,9 +24,9 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-class Analyze():
+class Process():
 
-    def __init__(self,data_dir="../data", study_suffix="ux_s20", scale=False) -> None:
+    def __init__(self, data_dir="../data", study_suffix="ux_s20") -> None:
         """
         Initializing method
 
@@ -41,6 +41,8 @@ class Analyze():
         -------
         ema : DataFrame
             numeric responses to the EMAs completed at home
+        ema_all : DataFrame
+            morning and evening EMAs filled out during the entire study
         iaq : DataFrame
             all available beacon IAQ data
         """
@@ -56,14 +58,11 @@ class Analyze():
             if column != "beiwe":
                 ema[column] = pd.to_numeric(ema[column]) # sometimes the data are not numeric
 
+        ## Including extra columns
+        ema["minutes_at_home"] = ema["time_at_home"] / 60
+        ema["DoW"] = ema.index.strftime("%a")
+
         self.ema = ema
-        ### pre-processing ema
-        self.add_discontent()
-        self.binarize_ema()
-        if scale:
-            self.standardize_ema()
-        self.ema["minutes_at_home"] = self.ema["time_at_home"] / 60
-        self.ema["DoW"] = self.ema.index.strftime("%a")
 
         ## All Responses
         self.ema_all = pd.read_csv(f"{self.data_dir}/processed/beiwe-daily_ema-{self.suffix}.csv",
@@ -72,12 +71,39 @@ class Analyze():
         # IAQ data
         iaq = pd.read_csv(f'{self.data_dir}/processed/beacon-{self.suffix}.csv',
             index_col="timestamp",parse_dates=["timestamp"],infer_datetime_format=True)
-        iaq.drop(["beacon","redcap","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm10_mass","no2","lux","co"],axis=1,inplace=True)
+        iaq.drop(["beacon","redcap","pm1_number","pm2p5_number","pm10_number","pm1_mass","pm10_mass","no2","lux"],axis=1,inplace=True)
         for column in iaq.columns:
             if column != "beiwe":
                 iaq[column] = pd.to_numeric(iaq[column]) # might as well
 
         self.iaq = iaq
+
+    def process(self,add_discontent=True,binarize_ema=True,scale=False):
+        """
+        Processes data for further analyses
+
+        Parameters
+        ----------
+        add_discontent : boolean, default True
+            whether to add discontent column
+        binarize_ema : boolean, default False
+            whether to binarize ema responses
+        scale : boolean, default False
+            whether to scale the data
+
+        Updates
+        -------
+        ema : DataFrame
+            numeric responses to the EMAs completed at home
+        """
+        if add_discontent:
+            self.add_discontent()
+
+        if binarize_ema:
+            self.binarize_ema()
+
+        if scale:
+            self.standardize_ema()
 
     def add_discontent(self):
         """
@@ -124,6 +150,22 @@ class Analyze():
         for mood in moods:
             self.ema[f"{mood}_scaled"] = scaler.fit_transform(self.ema[mood].values.reshape(-1, 1)) 
 
+    def get_na(self,moods=["discontent","stress","lonely","sad"]):
+        """
+        Gets a Negative Affect score from the provided moods
+
+        Parameters
+        ----------
+        moods : list of str, default ["discontent","stress","lonely","sad"]
+            moods to use for score
+
+        Updates
+        -------
+        ema_and_iaq : DataFrame
+            adds in na column
+        """
+        self.ema["na"] = self.ema[[col for col in self.ema.columns if col in moods]].sum(axis=1)
+
     def label_iaq(self,value,threshold):
         """
         Labels binary IAQ measurements. Really just needed to handle NaNs
@@ -136,6 +178,252 @@ class Analyze():
             return 1
         else:
             return np.nan
+
+class Explore(Process):
+    """
+    Exploration on single datasets and simplistic analyses
+    """
+
+    def __init__(self, data_dir="../data", study_suffix="ux_s20") -> None:
+        super().__init__(data_dir, study_suffix)
+
+    def get_mood_distribution(self, moods=["discontent","stress","lonely","sad"], binary=False, plot=False):
+        """
+        Parameters
+        ----------
+        moods : list-like, default ["content","stress","lonely","sad"]
+            Strings of the moods to consider - must be columns in df_in
+        binary : boolean, default False
+            whether to use binary values or not
+        plot : boolean, default False
+            whether or not to output the histograms of the scores
+            
+        Returns
+        -------
+        df : DataFrame
+            
+        """
+        if binary:
+            scores= [0,1]
+        else:
+            scores = [0,1,2,3]
+
+        response_summary = {score: [] for score in scores}
+        response_summary["mood"] = []
+        for mood in moods:
+            response_summary["mood"].append(mood)
+            for score in scores:
+                response_summary[score].append(len(self.ema[self.ema[mood] == score]))
+                
+        response_summary_df = pd.DataFrame(response_summary).set_index("mood")
+
+        if plot:
+            _, axes = plt.subplots(1,len(moods),figsize=(len(moods)*4,3),sharey="row",sharex="col")
+            for mood, ax in zip(moods,axes):
+                ax.bar(response_summary_df.columns,response_summary_df.loc[mood,:],edgecolor="black",color="lightgray")
+                #for score, height in zip(dist.index,dist.values/dist.sum()):
+                    #ax.text(score,height+0.05,round(height*100,1),ha="center")
+                #ax.set_ylim([0,1])
+                    
+                ax.set_xlabel(mood.title(),fontsize=12)
+
+                # appending results to output
+                #res[mood].append(dist.values)
+
+                for loc in ["top","right"]:
+                    ax.spines[loc].set_visible(False)
+                
+            plt.show()
+            plt.close()
+            
+        return response_summary_df
+
+    def plot_mood_on_time(self,moods=["discontent","stress","lonely","sad"],interval=15,max_t=600):
+        """
+        Plots aggregated mood scores submitted at different lengths after arriving home
+
+        Parameters
+        ----------
+        moods : list of str, default ["discontent","stress","lonely","sad"]
+            moods in ema to consider
+        interval : int, default 15
+            time interval, in minutes, between each submission group
+        max_t : int, default 600
+            max time, in minutes, a participant submitted an EMA after arriving home
+
+        Returns
+        -------
+
+        """
+        _, axes = plt.subplots(len(moods),1,figsize=(18,3*len(moods)),sharex=True)
+        for mood, ax in zip(moods,axes):
+            scores = []
+            ns = []
+            for cutoff1, cutoff2 in zip(np.arange(0,max_t,interval),np.arange(interval,max_t+interval,interval)):
+                ema_by_cutoff = self.ema[(self.ema["minutes_at_home"] >= cutoff1) & (self.ema["minutes_at_home"] <= cutoff2)]
+                scores.append(ema_by_cutoff.mean(axis=0)[mood])
+                ns.append(len(ema_by_cutoff))
+
+            sc = ax.scatter(np.arange(interval,max_t+interval,interval),scores,s=100,c=ns,cmap=plt.cm.get_cmap("coolwarm_r", 8),vmin=0,vmax=80,edgecolor="black")
+            ax.set_title(mood.title(),fontsize=22,pad=0)
+
+            ax.set_xticks(np.arange(0,max_t+interval,interval))
+
+            ax.set_ylim([-0.5,3.5])
+            ax.set_yticks(np.arange(0,4,1))
+            for loc in ["top","right"]:
+                ax.spines[loc].set_visible(False)
+            ax.tick_params(labelsize=18)
+                
+        ax.set_xlabel("Minutes since arriving home",fontsize=20)
+        cbar = plt.colorbar(sc,ax=axes.ravel().tolist(),shrink=0.75)
+        cbar.ax.set_title("EMAs",fontsize=18)
+        cbar.ax.tick_params(labelsize=18)
+        plt.show()
+        plt.close()
+
+    def plot_mood_on_dow(self,scale=False):
+        """
+        Plots the mean aggregated mood scores for each day of the week (DoW)
+
+        Parameters
+        ----------
+        scale : boolean, default False
+            whether to use scaled values or not
+        """
+        moods = ["discontent","stress","lonely","sad"] # hardcoded because of the 2x2 structure
+        if scale:
+            moods = [f"{mood}_scaled" for mood in moods]
+        ema_copy = self.ema.copy()
+        ema_copy["DoW"] = ema_copy.index.strftime("%a")
+        n_df = ema_copy.groupby("DoW").count()
+        ema_copy_dow = ema_copy.groupby("DoW").mean()
+        ema_copy_dow["n"] = n_df["beiwe"]
+        ema_copy_dow = ema_copy_dow.reindex(index=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"])
+        fig, axes = plt.subplots(2,2,figsize=(12,8),sharex=True,sharey=True,gridspec_kw={"hspace":0,"wspace":0})
+        for mood, color, ax in zip(moods, ["seagreen","goldenrod","firebrick","cornflowerblue"],axes.flat):
+            ax.scatter(ema_copy_dow.index,ema_copy_dow[mood],s=50,c=color)
+            # x-axis
+
+            # y-axis
+            if scale:
+                pass
+            else:
+                ax.set_ylim([0,1.25])
+                ax.set_yticks(np.arange(0,1.25,0.25))
+            # remainder
+            ax.tick_params(labelsize=14)
+            ax.set_title(mood.title(), fontsize=16)
+
+        fig.add_subplot(111, frame_on=False)
+        plt.tick_params(labelcolor="none", bottom=False, left=False)
+        plt.ylabel("Mean Aggregated Mood Score",fontsize=18,labelpad=15)
+
+        plt.show()
+        plt.close()
+
+        return ema_copy_dow
+
+    def categorize_time_at_home(self,bin_edges=[60,120,180,240,300,360]):
+        """
+        Creates categorical column for time at home
+        """
+        minutes_at_home_cat = []
+        for time_at_home in self.ema["minutes_at_home"]:
+            if time_at_home > bin_edges[-1]: 
+                minutes_at_home_cat.append(f">{bin_edges[-1]}")
+            else:
+                for edge in bin_edges:
+                    if time_at_home <= edge:
+                        minutes_at_home_cat.append(f"<{edge}")
+                        break
+
+        self.ema["minutes_at_home_cat"] = minutes_at_home_cat
+
+    def conduct_mood_anova(self, mood, group_label, run_tukey=True):
+        """
+        Conducts one-way analysis of variance for a given mood
+        
+        Parameters
+        ----------
+        mood : str
+            mood to consider
+        group_label : str
+            grouping column
+        run_tukey : boolean, True
+            whether to run Tukey HSD between groups
+
+        Returns
+        -------
+
+        """
+        # Splitting data into groups
+        ema_mood = self.ema[[mood,group_label]]
+        group_data = []
+        for group in ema_mood[group_label].unique():
+            group_data.append(ema_mood[ema_mood[group_label] == group][mood].values)
+        
+        # ANOVA
+        fvalue, pvalue = stats.f_oneway(*group_data)
+        print(f"{mood.upper()}\nANOVA p-value: {round(pvalue,3)}")
+
+        #Tukey HSD
+        if run_tukey:
+            res = pairwise_tukeyhsd(ema_mood[mood],ema_mood[group_label])
+            print(res)
+
+        return fvalue, pvalue, res
+    
+    def calculate_cramers_v(self,ct):
+        """returns Cramers V from the given contingency table"""
+        #create 2x2 table
+        data = ct.values
+
+        #Chi-squared test statistic, sample size, and minimum of rows and columns
+        X2 = stats.chi2_contingency(data, correction=False)[0]
+        n = np.sum(data)
+        minDim = min(data.shape)-1
+
+        #calculate Cramer's V 
+        V = np.sqrt((X2/n) / minDim)
+
+        #display Cramer's V
+        return V
+    
+    def determine_mood_associations(self, moods=["discontent","stress","lonely","sad"], binary=False):
+        """
+        Displays associations as determined by Cramer's V between all combinations of mood.
+
+        Parameters
+        ----------
+        moods : list of str, default ["discontent","stress","lonely","sad"]
+            moods to consider from the EMA
+        binary : boolean, default False
+            whether to use binary responses or not
+
+        Returns
+        -------
+        associations : DataFrame
+            tabularized results
+        """
+        associations = {"mood1":[],"mood2":[],"score":[]}
+        for mood1 in moods:
+            for mood2 in moods:
+                if mood1 != mood2:
+                    if binary:
+                        V = self.calculate_cramers_v(pd.crosstab(self.ema[f"{mood1}_binary"],self.ema[f"{mood2}_binary"]))
+                    else:
+                        V = self.calculate_cramers_v(pd.crosstab(self.ema[mood1],self.ema[mood2]))
+                        
+                    for key, value in zip(associations.keys(),[mood1,mood2,V]):
+                        associations[key].append(value)
+
+        return pd.DataFrame(associations)
+
+class Analyze(Process):
+
+    def __init__(self, data_dir="../data", study_suffix="ux_s20") -> None:
+        super().__init__(data_dir, study_suffix)
 
     def binarize_iaq(self,thresholds=None,comparator="mean"):
         """
@@ -164,7 +452,7 @@ class Analyze():
             ema_and_iaq_pt = self.ema_and_iaq[self.ema_and_iaq["beiwe"] == pt]
             # getting thresholds in order
             if thresholds == None:
-                threshold_pt = {"co2": 1100, "co": 4, "tvoc": 200, "pm2p5_mass": 12, "temperature_c": 27, "rh": 60}
+                threshold_pt = {"co2": 1100, "co": 4, "tvoc": 200, "pm2p5_mass": 12, "temperature_c": 25.2, "rh": 60}
             elif thresholds == "median":
                 threshold_pt = {param: np.nanmedian(iaq_pt[param]) for param in ["co2","co","tvoc","pm2p5_mass","temperature_c","rh"]}
                 comparator = "median"
@@ -356,223 +644,6 @@ class Analyze():
         
         return ttest_results
 
-    def get_mood_distribution(self, moods=["discontent","stress","lonely","sad"], binary=False, plot=False):
-        """
-        Parameters
-        ----------
-        moods : list-like, default ["content","stress","lonely","sad"]
-            Strings of the moods to consider - must be columns in df_in
-        binary : boolean, default False
-            whether to use binary values or not
-        plot : boolean, default False
-            whether or not to output the histograms of the scores
-            
-        Returns
-        -------
-        df : DataFrame
-            
-        """
-        if binary:
-            scores= [0,1]
-        else:
-            scores = [0,1,2,3]
-
-        response_summary = {score: [] for score in scores}
-        response_summary["mood"] = []
-        for mood in moods:
-            response_summary["mood"].append(mood)
-            for score in scores:
-                response_summary[score].append(len(self.ema[self.ema[mood] == score]))
-                
-        response_summary_df = pd.DataFrame(response_summary).set_index("mood")
-
-        if plot:
-            _, axes = plt.subplots(1,len(moods),figsize=(len(moods)*4,3),sharey="row",sharex="col")
-            for mood, ax in zip(moods,axes):
-                ax.bar(response_summary_df.columns,response_summary_df.loc[mood,:],edgecolor="black",color="lightgray")
-                #for score, height in zip(dist.index,dist.values/dist.sum()):
-                    #ax.text(score,height+0.05,round(height*100,1),ha="center")
-                #ax.set_ylim([0,1])
-                    
-                ax.set_xlabel(mood.title(),fontsize=12)
-
-                # appending results to output
-                #res[mood].append(dist.values)
-
-                for loc in ["top","right"]:
-                    ax.spines[loc].set_visible(False)
-                
-            plt.show()
-            plt.close()
-            
-        return response_summary_df
-
-    def plot_mood_on_time(self,moods=["discontent","stress","lonely","sad"],interval=15,max_t=600):
-        """
-        Plots aggregated mood scores submitted at different lengths after arriving home
-
-        Parameters
-        ----------
-        moods : list of str, default ["discontent","stress","lonely","sad"]
-            moods in ema to consider
-        interval : int, default 15
-            time interval, in minutes, between each submission group
-        max_t : int, default 600
-            max time, in minutes, a participant submitted an EMA after arriving home
-
-        Returns
-        -------
-
-        """
-        _, axes = plt.subplots(len(moods),1,figsize=(18,3*len(moods)),sharex=True)
-        for mood, ax in zip(moods,axes):
-            scores = []
-            ns = []
-            for cutoff1, cutoff2 in zip(np.arange(0,max_t,interval),np.arange(interval,max_t+interval,interval)):
-                ema_by_cutoff = self.ema[(self.ema["minutes_at_home"] >= cutoff1) & (self.ema["minutes_at_home"] <= cutoff2)]
-                scores.append(ema_by_cutoff.mean(axis=0)[mood])
-                ns.append(len(ema_by_cutoff))
-
-            sc = ax.scatter(np.arange(interval,max_t+interval,interval),scores,s=100,c=ns,cmap=plt.cm.get_cmap("coolwarm_r", 8),vmin=0,vmax=80,edgecolor="black")
-            ax.set_title(mood.title(),fontsize=22,pad=0)
-
-            ax.set_xticks(np.arange(0,max_t+interval,interval))
-
-            ax.set_ylim([-0.5,3.5])
-            ax.set_yticks(np.arange(0,4,1))
-            for loc in ["top","right"]:
-                ax.spines[loc].set_visible(False)
-            ax.tick_params(labelsize=18)
-                
-        ax.set_xlabel("Minutes since arriving home",fontsize=20)
-        cbar = plt.colorbar(sc,ax=axes.ravel().tolist(),shrink=0.75)
-        cbar.ax.set_title("EMAs",fontsize=18)
-        cbar.ax.tick_params(labelsize=18)
-        plt.show()
-        plt.close()
-
-    def plot_mood_on_dow(self,scale=False):
-        """
-        Plots the mean aggregated mood scores for each day of the week (DoW)
-
-        Parameters
-        ----------
-        scale : boolean, default False
-            whether to use scaled values or not
-        """
-        moods = ["discontent","stress","lonely","sad"] # hardcoded because of the 2x2 structure
-        if scale:
-            moods = [f"{mood}_scaled" for mood in moods]
-        ema_copy = self.ema.copy()
-        ema_copy["DoW"] = ema_copy.index.strftime("%a")
-        n_df = ema_copy.groupby("DoW").count()
-        ema_copy_dow = ema_copy.groupby("DoW").mean()
-        ema_copy_dow["n"] = n_df["beiwe"]
-        ema_copy_dow = ema_copy_dow.reindex(index=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"])
-        fig, axes = plt.subplots(2,2,figsize=(12,8),sharex=True,sharey=True,gridspec_kw={"hspace":0,"wspace":0})
-        for mood, color, ax in zip(moods, ["seagreen","goldenrod","firebrick","cornflowerblue"],axes.flat):
-            ax.scatter(ema_copy_dow.index,ema_copy_dow[mood],s=50,c=color)
-            # x-axis
-
-            # y-axis
-            if scale:
-                pass
-            else:
-                ax.set_ylim([0,1.25])
-                ax.set_yticks(np.arange(0,1.25,0.25))
-            # remainder
-            ax.tick_params(labelsize=14)
-            ax.set_title(mood.title(), fontsize=16)
-
-        fig.add_subplot(111, frame_on=False)
-        plt.tick_params(labelcolor="none", bottom=False, left=False)
-        plt.ylabel("Mean Aggregated Mood Score",fontsize=18,labelpad=15)
-
-        plt.show()
-        plt.close()
-
-        return ema_copy_dow
-
-    def conduct_mood_anova(self, mood, group_label, run_tukey=True):
-        """
-        Conducts one-way analysis of variance for a given mood
-        
-        Parameters
-        ----------
-        mood : str
-            mood to consider
-        group_label : str
-            grouping column
-        run_tukey : boolean, True
-            whether to run Tukey HSD between groups
-
-        Returns
-        -------
-
-        """
-        # Splitting data into groups
-        ema_mood = self.ema[[mood,group_label]]
-        group_data = []
-        for group in ema_mood[group_label].unique():
-            group_data.append(ema_mood[ema_mood[group_label] == group][mood].values)
-        
-        # ANOVA
-        fvalue, pvalue = stats.f_oneway(*group_data)
-        print(f"{mood.upper()}\nANOVA p-value: {round(pvalue,3)}")
-
-        #Tukey HSD
-        if run_tukey:
-            res = pairwise_tukeyhsd(ema_mood[mood],ema_mood[group_label])
-            print(res)
-
-        return fvalue, pvalue, res
-
-    def calculate_cramers_v(self,ct):
-        """returns Cramers V from the given contingency table"""
-        #create 2x2 table
-        data = ct.values
-
-        #Chi-squared test statistic, sample size, and minimum of rows and columns
-        X2 = stats.chi2_contingency(data, correction=False)[0]
-        n = np.sum(data)
-        minDim = min(data.shape)-1
-
-        #calculate Cramer's V 
-        V = np.sqrt((X2/n) / minDim)
-
-        #display Cramer's V
-        return V
-    
-    def determine_mood_associations(self, moods=["discontent","stress","lonely","sad"], binary=False):
-        """
-        Displays associations as determined by Cramer's V between all combinations of mood.
-
-        Parameters
-        ----------
-        moods : list of str, default ["discontent","stress","lonely","sad"]
-            moods to consider from the EMA
-        binary : boolean, default False
-            whether to use binary responses or not
-
-        Returns
-        -------
-        associations : DataFrame
-            tabularized results
-        """
-        associations = {"mood1":[],"mood2":[],"score":[]}
-        for mood1 in moods:
-            for mood2 in moods:
-                if mood1 != mood2:
-                    if binary:
-                        V = self.calculate_cramers_v(pd.crosstab(self.ema[f"{mood1}_binary"],self.ema[f"{mood2}_binary"]))
-                    else:
-                        V = self.calculate_cramers_v(pd.crosstab(self.ema[mood1],self.ema[mood2]))
-                        
-                    for key, value in zip(associations.keys(),[mood1,mood2,V]):
-                        associations[key].append(value)
-
-        return pd.DataFrame(associations)
-
     def plot_correlation_matrix(self, params=["co2","pm2p5_mass","tvoc","temperature_c",], metric="mean", save=False, annot="partially_filtered"):
         """
         Plots correlation matrix between variables
@@ -699,22 +770,6 @@ class Analyze():
 
             self.ema_and_iaq["agg_aqi"] = self.ema_and_iaq[[col for col in self.ema_and_iaq.columns if col.split("_aqi")[0] in iaq_params]].sum(axis=1)
 
-    def get_na(self,moods=["discontent","stress","lonely","sad"]):
-        """
-        Gets a Negative Affect score from the provided moods
-
-        Parameters
-        ----------
-        moods : list of str, default ["discontent","stress","lonely","sad"]
-            moods to use for score
-
-        Updates
-        -------
-        ema_and_iaq : DataFrame
-            adds in na column
-        """
-        self.ema_and_iaq["na"] = self.ema_and_iaq[[col for col in self.ema_and_iaq.columns if col in moods]].sum(axis=1)
-
     def plot_aqi_vs_mood(self,mood="discontent"):
         """
         Box plots of AQI versus the discrete and binary mood scores
@@ -746,3 +801,85 @@ class Analyze():
 
         plt.show()
         plt.close()
+
+    def mean_mood_difference(self,data,mood="stress"):
+        """
+        Calculates the mean mood difference between the given data and overall data
+        """
+        mean_response_pt = self.ema.copy()[["beiwe","discontent","stress","lonely","sad","energy"]].groupby("beiwe").mean()
+        combined = data.merge(mean_response_pt,on="beiwe",how="left",suffixes=["","_mean"])
+        combined[f"{mood}_diff"] = combined[mood] - combined[f"{mood}_mean"]
+        summarized = combined.groupby("beiwe").mean()
+        return combined, np.nanmean(summarized[f"{mood}_diff"])
+
+    def compare_mean_mood_scores(self,ieq_param="co2",moods=["discontent","stress","sad","lonely","energy"]):
+        """
+        Compares the mood scores between the extreme and non-extreme cases
+        """
+        try:
+            df = self.ema_and_iaq.copy()
+        except AttributeError as e:
+            print(e)
+            return pd.DataFrame()
+
+        res = {"mean_low":[],"mean_high":[],"p":[]}
+        
+        high_ieq = df[df[f"{ieq_param}_binary"] == 1]
+        low_ieq = df[df[f"{ieq_param}_binary"] == 0]
+        print(f"High: \t{len(high_ieq)}\nLow:\t{len(low_ieq)}")
+        
+        for mood in moods:
+            high_mean = np.nanmean(high_ieq[mood])
+            low_mean = np.nanmean(low_ieq[mood])
+            high_std = np.nanstd(high_ieq[mood])
+            low_std = np.nanstd(low_ieq[mood])
+            u, p = stats.mannwhitneyu(low_ieq[mood].values,high_ieq[mood].values)
+            if p < 0.05:
+                p = f"{round(p,3)}*"
+            elif p < 0.1:
+                p = f"{round(p,3)}**"
+            else:
+                p = f"{round(p,3)}"
+            for key, val in zip(res.keys(),[(round(low_mean,2),round(low_std,2)),(round(high_mean,2),round(high_std,2)),p]):
+                if len(val) == 2:
+                    res[key].append(f"{val[0]} ({val[1]})")
+                else:
+                    res[key].append(val)
+                    
+        Moods = [mood.title() for mood in moods]
+        return pd.DataFrame(data=res,index=Moods)
+    
+    def compare_difference_mood_scores(self,ieq_param="co2",moods=["discontent","stress","sad","lonely","energy"]):
+        """
+        Compares the mood scores between the extreme and non-extreme cases
+
+        Parameters
+        ----------
+        """
+        try:
+            df = self.ema_and_iaq.copy()
+        except AttributeError as e:
+            print(e)
+            return pd.DataFrame()
+
+        res = {"mean_low":[],"mean_high":[],"p":[]}
+        
+        high_ieq = df[df[f"{ieq_param}_binary"] == 1]
+        low_ieq = df[df[f"{ieq_param}_binary"] == 0]
+        print(f"High: \t{len(high_ieq)}\nLow:\t{len(low_ieq)}")
+        
+        for mood in moods:
+            high_data, high_mean = self.mean_mood_difference(high_ieq,mood=mood)
+            low_data, low_mean = self.mean_mood_difference(low_ieq,mood=mood)
+            _, p = stats.mannwhitneyu(low_data[f"{mood}_diff"].values,high_data[f"{mood}_diff"].values)
+            if p < 0.05:
+                p = f"{round(p,3)}*"
+            elif p < 0.1:
+                p = f"{round(p,3)}**"
+            else:
+                p = f"{round(p,3)}"
+            for key, val in zip(res.keys(),[round(low_mean,2),round(high_mean,2),p]):
+                res[key].append(val)
+                    
+        Moods = [mood.title() for mood in moods]
+        return pd.DataFrame(data=res,index=Moods)
