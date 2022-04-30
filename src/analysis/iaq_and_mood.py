@@ -842,7 +842,8 @@ class Analyze(Process):
                 p = f"{round(p,3)}"
             for key, val in zip(res.keys(),[(round(low_mean,2),round(low_std,2)),(round(high_mean,2),round(high_std,2)),p]):
                 if len(val) == 2:
-                    res[key].append(f"{val[0]} ({val[1]})")
+                    #res[key].append(f"{val[0]} ({val[1]})")
+                    res[key].append(val[0])
                 else:
                     res[key].append(val)
                     
