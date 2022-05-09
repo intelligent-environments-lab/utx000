@@ -1,15 +1,9 @@
 # Ventilation 
 # -----------
-# Author: Hagen
+# Author: Hagen Fritz
 # Date: 03/29/21
 # Description: 
-# Data Files Needed:
-#   - beacon
-#   - beacon-fb_and_gps_filtered
-#   - 
-
-from calendar import c
-from crypt import METHOD_CRYPT, METHOD_SHA256
+# -----------
 import logging
 
 import pandas as pd
@@ -69,22 +63,22 @@ class calculate():
 
         # fitbit data
         self.daily_act = pd.read_csv(f'{self.data_dir}/processed/fitbit-daily-{self.suffix}.csv',index_col=0,parse_dates=True,infer_datetime_format=True)
-        weight_dict = {'beiwe':[],'mass':[]}
-        for pt in self.daily_act['beiwe'].unique():
-            daily_pt = self.daily_act[self.daily_act['beiwe'] == pt]
-            weight_dict['beiwe'].append(pt)
-            weight_dict['mass'].append(np.nanmean(daily_pt['weight'])*0.453592) # convert to kg
+        #weight_dict = {'beiwe':[],'mass':[]}
+        #for pt in self.daily_act['beiwe'].unique():
+        #    daily_pt = self.daily_act[self.daily_act['beiwe'] == pt]
+        #    weight_dict['beiwe'].append(pt)
+        #    weight_dict['mass'].append(np.nanmean(daily_pt['weight'])*0.453592) # convert to kg
         self.sleep_summary = pd.read_csv(f"{self.data_dir}/processed/fitbit-sleep_summary-{self.suffix}.csv",parse_dates=["start_time","end_time","start_date","end_date"],infer_datetime_format=True)
             
         # participant information
         pt_names = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='all')
-        pt_names = pt_names[["beiwe","first","last","sex"]]
+        pt_names = pt_names[["beiwe","first","last","sex","mass"]]
         pt_ids = pd.read_excel(f'{self.data_dir}/raw/{self.study}/admin/id_crossover.xlsx',sheet_name='beacon')
         pt_ids = pt_ids[['redcap','beiwe','beacon','lat','long','volume','roommates']] # keep their address locations
         info = pt_ids.merge(right=pt_names,on='beiwe')
-        mass_info = info.merge(left_on='beiwe',right=pd.DataFrame(weight_dict),right_on='beiwe')
-        mass_info['bmr'] = mass_info.apply(lambda row: self.get_BMR(row['sex'],row['mass']),axis=1)
-        self.info = mass_info.set_index('beiwe')
+        #mass_info = info.merge(left_on='beiwe',right=pd.DataFrame(weight_dict),right_on='beiwe')
+        info['bmr'] = info.apply(lambda row: self.get_BMR(row['sex'],row['mass']),axis=1)
+        self.info = info.set_index('beiwe')
 
     def get_BMR(self, sex, mass):
         '''
@@ -671,7 +665,7 @@ class steady_state(calculate):
         co2_threshold_percentile : int or float, default 50
             percentile to use for participant-based co2 threshold
         min_time_threshold : int or float, default 120
-            the maximum time between measurements
+            the minimum time (in seconds) between measurements
         plot : boolean, default False
             plot diagnostic plots of each identified period
         save_plot : boolean, default False
@@ -870,6 +864,137 @@ class steady_state(calculate):
             plt.close()
 
         return estimates_ss_df
+
+class base_case(steady_state):
+
+    def get_base_data(self,data=None,start_time_hour=1,end_time_hour=4):
+        """
+        Gets the base case data (weekday between early morning times)
+
+        Parameters
+        ----------
+        data : DataFrame, default None
+            data to filter
+        start_time_hour : int, default 1
+            intial hour to consider on 24-hour clock
+        end_time_hour : int, default 4
+            final hour to consider on a 24-hour clock
+
+        Returns
+        -------
+        df : DataFrame
+            filetered dataframe
+        """
+        if data is None:
+            try:
+                df = self.beacon_all.copy()
+            except AttributeError:
+                print("No beacon_all attribute")
+                return pd.DataFrame()
+        else:
+            df = data.copy
+
+        # filtering for weekday
+        df["dow"] = df.index.weekday
+        df = df[~df["dow"].isin([5,6])]
+        # filtering for time range
+        df = df[df.index.hour.isin(range(start_time_hour,end_time_hour))]
+    
+        return df
+
+    def ventilation_ss(self, beacon_data, info, constant_c0=False, c0_percentile=0,
+        min_window_threshold=30, min_co2_threshold=None, co2_threshold_percentile=50, min_time_threshold=120, 
+        plot=False, save_plot=False,**kwargs):
+        """
+        Gets all possible ventilation rates from the steady-state assumption
+        
+        Parameters
+        ---------
+        beacon_data : DataFrame
+            IAQ measurements made by the beacons including the participant id, beacon no, co2, and temperature data
+        info : DataFrame
+            participant demographic info
+        constant_c0 : boolean, default True
+            whether to use constant background concentration or participant-based if set to False
+        c0_percentile : int or float, default 1
+            percentile of participant-measured co2 to use as background baseline if not using constant background
+        min_window_threshold : int, default 12
+            minimum length of continuous measurements
+        min_co2_threshold : int or float, default None
+            minimum average co2 concentration that must be measured during the period.
+            If None, a percentile value based on all the participants measurements is used. 
+        co2_threshold_percentile : int or float, default 50
+            percentile to use for participant-based co2 threshold
+        min_time_threshold : int or float, default 120
+            the minimum time (in seconds) between measurements
+        plot : boolean, default False
+            plot diagnostic plots of each identified period
+        save_plot : boolean, default False
+            whether or not save diagnostic plots
+        
+        Returns
+        -------
+        ventilation_df : DataFrame
+            ventilation rates estimated for each steady-state period
+        """
+        ventilation_df = pd.DataFrame()
+        self.n_ss_periods = 0
+        for pt in beacon_data['beiwe'].unique(): # cycling through each of the participants
+            # setting up the dictionary to add pt values to
+            pt_dict = {'beiwe':[],'beacon':[],'start':[],'end':[],'co2_mean':[],'co2_delta':[],'t_mean':[],'t_delta':[],'e':[],'c0':[],"v":[],'ach':[]}
+            
+            # pt-specific data
+            # ----------------
+            beacon_pt = beacon_data[beacon_data["beiwe"] == pt]
+            beacon_all = self.beacon_all[self.beacon_all["beiwe"] == pt]
+            info_pt = info[info.index == pt]
+            ## C0
+            if constant_c0:
+                C0 = 450
+            else: # pt-based from all available data
+                C0 = np.nanpercentile(beacon_all["co2"],c0_percentile)
+            
+            ## CO2 threshold
+            if min_co2_threshold:
+                min_co2_value = min_co2_threshold
+            else:
+                min_co2_value = np.nanpercentile(beacon_pt["co2"],co2_threshold_percentile)
+
+            constant_periods = self.get_co2_periods(beacon_pt[['co2','temperature_c','rh']],window=min_window_threshold,time_threshold=min_time_threshold,change='constant')
+            if len(constant_periods) > 0:
+                # summarizing the constant period(s)
+                self.n_ss_periods += len(constant_periods['period'].unique())
+                for period in constant_periods['period'].unique():
+                    constant_by_period = constant_periods[constant_periods['period'] == period]
+                    C = np.nanmean(constant_by_period['co2'])
+                    if C >= min_co2_value: # must have measured co2 over a certain threshold to be considered
+                        # calculating relevant parameters per period
+                        dC = np.nanmean(constant_by_period['change'])
+                        T = np.nanmean(constant_by_period['temperature_c'])
+                        dT = np.nanmean(constant_by_period['t_change'])
+                        if "v" in kwargs.keys():
+                            V = kwargs["v"]
+                        else:
+                            V = info_pt['volume'].values[0]
+                        if "e" in kwargs.keys():
+                            E = kwargs["e"]
+                        else:
+                            E = self.get_emission_rate(self.info.loc[pt,'bmr'],T+273)
+                        # calculating ventilation rate
+                        ACH = self.get_ach_from_constant_co2(E,V,C,C0)
+                        # appending data to pt-specific dictionary
+                        for k, v in zip(["beiwe","beacon","start","end","co2_mean","co2_delta","t_mean","t_delta","e","c0","v","ach"],
+                                        [pt,info_pt['beacon'].values[0],constant_by_period.index[0],constant_by_period.index[-1],C,dC,T,dT,E,C0,V,ACH]):
+                            pt_dict[k].append(v)
+
+                        # diagnostics
+                        if plot:
+                            self.plot_constant_co2_period(constant_by_period,ACH,pt,save=save_plot)
+
+            ventilation_df = ventilation_df.append(pd.DataFrame(pt_dict))
+            ventilation_df = ventilation_df.groupby(["start","end","beiwe"]).mean().reset_index()
+            
+        return ventilation_df
 
 class dynamic(calculate):
 
