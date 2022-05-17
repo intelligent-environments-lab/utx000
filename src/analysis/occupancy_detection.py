@@ -1001,6 +1001,8 @@ class CompareModels():
         comb["mean"] = comb.mean(axis=1)
         comb_sorted = comb.sort_values("mean")
         comb_sorted.index = [str(int(ix)) for ix in comb_sorted.index]
+        # adding aggregate
+        comb_sorted.loc["all",:] = comb_sorted.mean(axis=0)
         if anonymize:
             pids = comb_sorted.index
             comb_sorted.reset_index(drop=True,inplace=True)
@@ -1009,7 +1011,7 @@ class CompareModels():
         _, ax = plt.subplots(figsize=(12,6))
         for col, model in zip(range(len(comb_sorted.columns)-1),self.res.keys()):
             ax.scatter(comb_sorted.index,comb_sorted.iloc[:,col],
-                marker=self.get_symbol(model), s=100,alpha=0.7,label=self.get_model_name(model))
+                marker=self.get_symbol(model), s=150,alpha=0.7,label=self.get_model_name(model))
 
         # x-axis
         ax.set_xlabel("Participant ID",fontsize=21)
