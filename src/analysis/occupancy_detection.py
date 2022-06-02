@@ -1027,9 +1027,9 @@ class CompareModels():
 
         if save:
             if annot:
-                plt.savefig(f"../reports/figures/occupancy_detection-{annot}-{metric}.pdf")
+                plt.savefig(f"../reports/figures/occupancy_detection-{annot}-{metric}.pdf",bbox_inches="tight")
             else:
-                plt.savefig(f"../reports/figures/occupancy_detection-{metric}.pdf")
+                plt.savefig(f"../reports/figures/occupancy_detection-{metric}.pdf",bbox_inches="tight")
 
         plt.show()
         plt.close()
